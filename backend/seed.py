@@ -10,7 +10,7 @@ import logging
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from app.database import engine, SessionLocal
+from app.database import SessionLocal
 from app.models.user import User
 from app.models.product import Category
 from app.models.unit import Unit
@@ -18,8 +18,6 @@ from app.models.deposit import Deposit
 from app.models.recurrence_frequency import RecurrenceFrequency
 from app.models.role import Role, RoleModule
 from app.utils.security import get_password_hash
-
-from app.config import ADMIN_EMAIL, ADMIN_PASSWORD
 
 logger = logging.getLogger("gestao.seed")
 

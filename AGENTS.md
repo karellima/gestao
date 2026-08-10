@@ -11,7 +11,7 @@ Toda alteracao feita em codigo deve ser publicada na nuvem (commit + push). Semp
 
 ## Deploy / infra
 
-- **App**: Sistema de Gestao — este repositorio (`Fborgess/gestao`).
+- **App**: Sistema de Gestao — este repositorio (`karellima/gestao`).
 - **Producao**: Render web service `gestao` → `https://gestao-iscb.onrender.com`.
 - **Banco de dados de producao**: PostgreSQL gerenciado pelo Render (`gestao-db`), definido via `DATABASE_URL` injetada automaticamente.
 - O SQLite local (`backend/gestao.db`) e **so desenvolvimento** — os dados reais ficam no PostgreSQL do Render.

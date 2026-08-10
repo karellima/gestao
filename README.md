@@ -11,7 +11,7 @@ ERP-lite para gestao de estoque, vendas, financeiro e contatos.
 | Banco (dev) | PostgreSQL via Docker Compose (SQLite tambem e suportado) |
 | Banco (prod) | PostgreSQL (Render managed database `gestao-db`) |
 | Host | Render → `https://gestao-iscb.onrender.com` |
-| Repo | `Fborgess/gestao` |
+| Repo | `karellima/gestao` |
 
 ## Rodando localmente
 
@@ -20,7 +20,7 @@ ERP-lite para gestao de estoque, vendas, financeiro e contatos.
 ```bash
 cd backend
 cp .env.example .env         # edite se quiser PostgreSQL; padrao usa SQLite local
-pip install -r requirements.txt
+pip install -r requirements-dev.txt   # producao usa requirements.txt, sem pytest/httpx
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 

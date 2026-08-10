@@ -12,7 +12,7 @@ from app.schemas.requisicao import (
     RequisicaoCreate, RequisicaoUpdate, RequisicaoResponse,
     RequisicaoItemResponse, RequisicaoApprove, RequisicaoFulfill, RequisicaoReceive,
 )
-from app.utils.security import get_current_user, require_module, is_admin_user
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 from app.utils.helpers import product_label
 from app.services.stock_ledger import recalculate_product_stock
 
@@ -34,11 +34,7 @@ def _can_receive(db: Session, req: Requisicao, user: User) -> bool:
         return True
     if req.requester_id == user.id:
         return True
-    return req.deposit_requesting_id in _user_deposit_ids(user)
-
-
-def _user_deposit_ids(user: User) -> List[int]:
-    return [d.id for d in user.deposits] if user.deposits else []
+    return req.deposit_requesting_id in user_deposit_ids(user)
 
 
 def _req_to_response(r: Requisicao) -> RequisicaoResponse:
@@ -89,7 +85,7 @@ def list_requisicoes(
         joinedload(Requisicao.items).joinedload(RequisicaoItem.product),
     )
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         query = query.filter(or_(
             Requisicao.requester_id == current_user.id,
             Requisicao.deposit_requesting_id.in_(deposit_ids),
@@ -173,7 +169,7 @@ def get_requisicao(
     if not r:
         raise HTTPException(404, "Requisição não encontrada")
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         visible = (
             r.requester_id == current_user.id
             or r.deposit_requesting_id in deposit_ids
@@ -326,7 +322,7 @@ def fulfill_requisicao(
     if req.status != "aprovado":
         raise HTTPException(400, "Requisição precisa estar liberada para ser atendida")
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         if req.deposit_fulfilling_id not in deposit_ids:
             raise HTTPException(403, "Este depósito não pode atender esta requisição")
 

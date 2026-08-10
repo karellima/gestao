@@ -1,6 +1,5 @@
 import os
 import logging
-import warnings
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,8 +29,18 @@ CORS_ORIGINS_RAW = os.getenv("CORS_ORIGINS", ",".join([
 ]))
 CORS_ORIGINS = [o.strip() for o in CORS_ORIGINS_RAW.split(",") if o.strip()]
 
-ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@admin.com")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")
+# O CORS sobe com `allow_credentials=True`. Um `*` na lista faria o Starlette
+# refletir a origem de qualquer site e ainda liberar credenciais — o buraco
+# clássico. Origem tem de ser enumerada; curinga não é configuração, é engano.
+if "*" in CORS_ORIGINS:
+    raise RuntimeError(
+        "CORS_ORIGINS não aceita '*': liste as origens explicitamente "
+        "(ex.: CORS_ORIGINS=https://seu-dominio.com,http://localhost:5173)."
+    )
+
+# O administrador inicial vem só do ambiente, em `seed.py`. Não há credencial
+# padrão: banco sem ADMIN_EMAIL/ADMIN_PASSWORD nasce sem usuário nenhum, que é
+# o que README e AGENTS.md prometem.
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FORMAT = os.getenv("LOG_FORMAT", "text")

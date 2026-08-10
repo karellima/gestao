@@ -27,7 +27,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/fborgess/gestao
+          images: ghcr.io/karellima/gestao
           tags: |
             type=raw,value=main
             type=sha,format=short,prefix=sha-

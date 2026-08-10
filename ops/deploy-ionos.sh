@@ -3,7 +3,7 @@ set -euo pipefail
 
 HOST="${IONOS_HOST:-ionos-prod}"
 REMOTE_DIR="${IONOS_APP_DIR:-/opt/gestao}"
-IMAGE="${APP_IMAGE:-ghcr.io/fborgess/gestao:main}"
+IMAGE="${APP_IMAGE:-ghcr.io/karellima/gestao:main}"
 APPLY=0
 YES=0
 

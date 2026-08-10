@@ -1,17 +1,29 @@
+# Atenção: .dockerignore NÃO é .gitignore. O Docker casa os padrões com o
+# caminho inteiro (regras do filepath.Match do Go), então `.env` sozinho pega
+# só a raiz — `backend/.env` e `backend/gestao.db` entrariam na imagem via
+# `COPY backend/`. Daí o `**/` em tudo que pode aparecer em subpasta.
 .git
 .github
-.env
-.env.*
+
+**/.env
+**/.env.*
 !.env.ionos.example
-*.db
-*.sqlite
-*.sqlite3
+**/backup.env
+
+**/*.db
+**/*.sqlite
+**/*.sqlite3
 backups/
-backup.env
-frontend/node_modules/
+
+**/node_modules/
 frontend/dist/
-backend/__pycache__/
-backend/.pytest_cache/
+
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.venv/
+**/venv/
+
 docs/superpowers/
 startup.log
 *.ps1

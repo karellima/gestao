@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import Optional, Callable
+from typing import List, Optional, Callable
 from jose import JWTError, jwt
 import bcrypt
 from fastapi import Depends, HTTPException, status
@@ -55,6 +55,17 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 def is_admin_user(db: Session, user: User) -> bool:
     role = db.query(Role).filter(Role.name == user.role).first()
     return bool(role and role.is_admin)
+
+
+def user_deposit_ids(user: User) -> List[int]:
+    """Depósitos que o usuário enxerga — o escopo de tudo que não é admin.
+
+    Lista vazia quer dizer "nenhum depósito", não "todos": quem chama filtra
+    por ela e devolve nada. Fica aqui, e não em cada router, porque um segundo
+    jeito de responder a mesma pergunta é um segundo jeito de vazar dado de
+    depósito alheio.
+    """
+    return [d.id for d in user.deposits] if user.deposits else []
 
 
 def require_module(module: str, access_level: str = "view") -> Callable:

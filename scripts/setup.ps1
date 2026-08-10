@@ -9,7 +9,8 @@ foreach ($Command in 'docker', 'py', 'node', 'npm') {
 
 & py -3 -m venv "$Root/backend/.venv"
 & "$Root/backend/.venv/Scripts/python.exe" -m pip install --upgrade pip
-& "$Root/backend/.venv/Scripts/python.exe" -m pip install -r "$Root/backend/requirements.txt"
+# O ambiente local roda os testes: requirements-dev puxa o de producao via -r.
+& "$Root/backend/.venv/Scripts/python.exe" -m pip install -r "$Root/backend/requirements-dev.txt"
 
 Push-Location "$Root/frontend"
 try {

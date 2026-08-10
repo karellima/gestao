@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_
 from typing import List
 from app.database import get_db
 from app.models.sale import SaleType, Sale, SaleItem
@@ -8,12 +7,11 @@ from app.models.contact import Contact
 from app.models.product import Product
 from app.models.price_table import PriceTable
 from app.models.user import User
-from app.models.role import Role
 from app.schemas.sale import (
     SaleTypeCreate, SaleTypeUpdate, SaleTypeResponse,
     SaleCreate, SaleUpdate, SaleResponse, SaleItemResponse,
 )
-from app.utils.security import get_current_user, require_module, is_admin_user
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 from app.utils.helpers import product_label
 
 
@@ -21,15 +19,11 @@ def _is_admin(db: Session, user: User) -> bool:
     return is_admin_user(db, user)
 
 
-def _user_deposit_ids(user: User) -> List[int]:
-    return [d.id for d in user.deposits] if user.deposits else []
-
-
 def _product_deposit_ids_in_scope(db: Session, user: User, product_ids: List[int]) -> bool:
     """Checks if all given product_ids belong to at least one user deposit."""
     if _is_admin(db, user):
         return True
-    deposit_ids = _user_deposit_ids(user)
+    deposit_ids = user_deposit_ids(user)
     if not deposit_ids:
         return len(product_ids) == 0
     count = db.query(Product).filter(
@@ -158,7 +152,7 @@ def list_sales(
         .options(joinedload(Sale.contact), joinedload(Sale.sale_type), joinedload(Sale.items).joinedload(SaleItem.product).joinedload(Product.unit))
     )
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         if not deposit_ids:
             return []
         sales = sales.filter(
@@ -184,7 +178,7 @@ def get_sale(
     if not s:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         product_ids = [it.product_id for it in s.items]
         count = db.query(Product).filter(
             Product.id.in_(product_ids),

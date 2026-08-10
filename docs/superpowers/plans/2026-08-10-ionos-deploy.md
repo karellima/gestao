@@ -46,7 +46,7 @@
 
 - [ ] **Step 2: Build and publish immutable and moving tags**
 
-  Use official checkout, login, metadata, and build-push actions to publish `ghcr.io/fborgess/gestao:sha-<shortsha>` and `:main` from the repository Dockerfile, with GitHub Actions cache enabled.
+  Use official checkout, login, metadata, and build-push actions to publish `ghcr.io/karellima/gestao:sha-<shortsha>` and `:main` from the repository Dockerfile, with GitHub Actions cache enabled.
 
 - [ ] **Step 3: Validate workflow YAML and image naming**
 

@@ -12,7 +12,9 @@ done
 
 python3 -m venv "$root_dir/backend/.venv"
 "$root_dir/backend/.venv/bin/python" -m pip install --upgrade pip
-"$root_dir/backend/.venv/bin/python" -m pip install -r "$root_dir/backend/requirements.txt"
+# O ambiente local roda os testes: instala o requirements-dev, que puxa o de
+# produção via `-r` e acrescenta pytest/httpx.
+"$root_dir/backend/.venv/bin/python" -m pip install -r "$root_dir/backend/requirements-dev.txt"
 
 (cd "$root_dir/frontend" && npm ci)
 

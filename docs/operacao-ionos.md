@@ -6,7 +6,7 @@ produção; o deploy só deve ser feito depois de uma autorização explícita.
 
 ## Arquitetura
 
-- GitHub Actions constrói `Dockerfile` e publica `ghcr.io/fborgess/gestao` com as
+- GitHub Actions constrói `Dockerfile` e publica `ghcr.io/karellima/gestao` com as
   tags `main` e `sha-<commit>`.
 - `docker-compose.ionos.yml` executa a imagem da aplicação e um PostgreSQL 16.
   O volume `postgres_data` é persistente; a porta do banco não é publicada.
@@ -24,7 +24,7 @@ Assumindo `/opt/gestao` como diretório da aplicação:
 sudo apt update
 sudo apt install -y ca-certificates curl git
 # Instale Docker Engine e o plugin Compose conforme a documentação da distribuição.
-sudo git clone https://github.com/Fborgess/gestao /opt/gestao
+sudo git clone https://github.com/karellima/gestao /opt/gestao
 cd /opt/gestao
 sudo cp .env.ionos.example .env.ionos
 sudo chmod 600 .env.ionos
@@ -61,13 +61,13 @@ systemctl list-timers gestao-backup.timer
 O script é simulação por padrão:
 
 ```bash
-./ops/deploy-ionos.sh --sim --image ghcr.io/fborgess/gestao:sha-abc1234
+./ops/deploy-ionos.sh --sim --image ghcr.io/karellima/gestao:sha-abc1234
 ```
 
 Depois de autorização explícita, aplique a mesma tag e confirme o healthcheck:
 
 ```bash
-./ops/deploy-ionos.sh --apply --yes --image ghcr.io/fborgess/gestao:sha-abc1234
+./ops/deploy-ionos.sh --apply --yes --image ghcr.io/karellima/gestao:sha-abc1234
 curl --fail https://SEU-DOMINIO/api/health
 ```
 
@@ -106,8 +106,8 @@ As tags SHA são imutáveis no pipeline. Para voltar a uma versão anterior, pri
 rode a simulação e depois o deploy autorizado com a tag conhecida:
 
 ```bash
-./ops/deploy-ionos.sh --sim --image ghcr.io/fborgess/gestao:sha-OLD1234
-./ops/deploy-ionos.sh --apply --yes --image ghcr.io/fborgess/gestao:sha-OLD1234
+./ops/deploy-ionos.sh --sim --image ghcr.io/karellima/gestao:sha-OLD1234
+./ops/deploy-ionos.sh --apply --yes --image ghcr.io/karellima/gestao:sha-OLD1234
 curl --fail https://SEU-DOMINIO/api/health
 ```
 

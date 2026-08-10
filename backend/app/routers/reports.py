@@ -1,10 +1,9 @@
 from io import BytesIO
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, extract
-from datetime import datetime, timedelta, date
+from sqlalchemy import func
+from datetime import datetime, timedelta
 from calendar import monthrange
-from typing import List
 from app.database import get_db
 from app.models.product import Product
 from app.models.stock import StockMovement
@@ -12,8 +11,7 @@ from app.models.financial import Transaction
 from app.models.financial_category import FinancialCategory
 from app.models.contact import Contact
 from app.models.user import User
-from app.models.role import Role
-from app.utils.security import get_current_user, require_module, is_admin_user
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -30,10 +28,6 @@ def _is_admin(db: Session, user: User) -> bool:
     return is_admin_user(db, user)
 
 
-def _user_deposit_ids(user: User) -> List[int]:
-    return [d.id for d in user.deposits] if user.deposits else []
-
-
 @router.get("/dashboard")
 def get_dashboard(
     db: Session = Depends(get_db),
@@ -42,7 +36,7 @@ def get_dashboard(
 ):
     product_query = db.query(Product).filter(Product.is_active == True)
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         if deposit_ids:
             product_query = product_query.filter(Product.deposit_id.in_(deposit_ids))
         else:
@@ -332,7 +326,7 @@ def get_stock_summary(
 
     mov_query = db.query(StockMovement).filter(StockMovement.created_at >= since)
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         if not deposit_ids:
             return {"periodo_dias": days, "total_entradas": 0, "total_saidas": 0}
         mov_query = mov_query.filter(StockMovement.deposit_id.in_(deposit_ids))
@@ -378,6 +372,25 @@ HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=T
 BODY_ALIGNMENT = Alignment(vertical="center", wrap_text=True)
 
 
+#: Caracteres que o Excel recusa num nome de aba. Sem a troca, um título com
+#: uma barra (uma data "01/2026", por exemplo) derruba o endpoint em 500.
+_SHEET_TITLE_INVALID = str.maketrans({c: "-" for c in r"[]:*?/\\"})
+
+#: O nome de arquivo entra num header HTTP entre aspas. Aspa, barra e quebra de
+#: linha vindas do cliente sairiam do campo e reescreveriam a resposta.
+_FILENAME_ALLOWED = " .,-_()[]"
+
+
+def _safe_sheet_title(title: str) -> str:
+    limpo = (title or "").translate(_SHEET_TITLE_INVALID).strip()
+    return limpo[:31] or "Dados"
+
+
+def _safe_filename(name: str) -> str:
+    limpo = "".join(c for c in (name or "") if c.isalnum() or c in _FILENAME_ALLOWED).strip()
+    return limpo[:100] or "relatorio"
+
+
 def _apply_cell_style(cell, is_header=False):
     if is_header:
         cell.font = HEADER_FONT
@@ -396,7 +409,7 @@ def export_excel(
 ):
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = payload.title[:31]
+    ws.title = _safe_sheet_title(payload.title)
 
     for col_idx, col in enumerate(payload.columns, 1):
         cell = ws.cell(row=1, column=col_idx, value=col.header)
@@ -406,6 +419,10 @@ def export_excel(
     for row_idx, row in enumerate(payload.rows, 2):
         for col_idx, col in enumerate(payload.columns, 1):
             value = row.get(col.header, "")
+            # `rows` é JSON livre: uma lista ou um objeto aninhado faria o
+            # openpyxl levantar ValueError no meio da planilha, virando 500.
+            if isinstance(value, (dict, list, tuple, set)):
+                value = str(value)
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
             _apply_cell_style(cell, is_header=False)
 
@@ -416,7 +433,7 @@ def export_excel(
     wb.save(buf)
     buf.seek(0)
 
-    disposition_filename = f"{payload.filename or payload.title}.xlsx"
+    disposition_filename = f"{_safe_filename(payload.filename or payload.title)}.xlsx"
     return StreamingResponse(
         buf,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

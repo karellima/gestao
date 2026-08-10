@@ -5,17 +5,13 @@ from app.database import get_db
 from app.models.deposit import Deposit
 from app.models.user import User
 from app.schemas.deposit import DepositCreate, DepositUpdate, DepositResponse
-from app.utils.security import get_current_user, require_module, is_admin_user
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 
 router = APIRouter(prefix="/api/deposits", tags=["Depósitos"])
 
 
 def _is_admin(db: Session, user: User) -> bool:
     return is_admin_user(db, user)
-
-
-def _user_deposit_ids(user: User) -> List[int]:
-    return [d.id for d in user.deposits] if user.deposits else []
 
 
 @router.get("/", response_model=List[DepositResponse])
@@ -26,7 +22,7 @@ def list_deposits(
 ):
     if _is_admin(db, current_user):
         return db.query(Deposit).filter(Deposit.is_active == True).order_by(Deposit.name).all()
-    deposit_ids = _user_deposit_ids(current_user)
+    deposit_ids = user_deposit_ids(current_user)
     if not deposit_ids:
         return []
     return db.query(Deposit).filter(
@@ -85,7 +81,7 @@ def get_deposit(
     if not dep:
         raise HTTPException(status_code=404, detail="Depósito não encontrado")
     if not _is_admin(db, current_user):
-        deposit_ids = _user_deposit_ids(current_user)
+        deposit_ids = user_deposit_ids(current_user)
         if deposit_id not in deposit_ids:
             raise HTTPException(status_code=404, detail="Depósito não encontrado")
     return dep
