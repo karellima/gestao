@@ -15,6 +15,8 @@ from app.models.role import Role, RoleModule
 from app.models.pricing import ProductPricing
 from app.models.contact_segment import ContactSegment
 from app.models.settings import Setting
+from app.models.price_table import PriceTable, PriceTableItem
+from app.models.sale import SaleType, Sale, SaleItem
 
 __all__ = [
     "User", "user_deposits", "Product", "Category", "StockMovement",
@@ -26,4 +28,6 @@ __all__ = [
     "ProductPricing",
     "ContactSegment",
     "Setting",
+    "PriceTable", "PriceTableItem",
+    "SaleType", "Sale", "SaleItem",
 ]

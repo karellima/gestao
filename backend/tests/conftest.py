@@ -10,8 +10,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.database import Base, engine, get_db, SessionLocal
-from app.main import app
 from app.utils.security import get_password_hash, create_access_token
+from app.utils.security import get_current_user
 from app.models.user import User
 from app.models.role import Role, RoleModule
 from app.models.product import Category, Product
@@ -51,7 +51,9 @@ def cleanup_test_db():
 
 
 @pytest.fixture(scope="function")
-def client(db):
+def client(db, request, admin):
+    from app.main import app
+
     def override_get_db():
         try:
             yield db
@@ -59,6 +61,12 @@ def client(db):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    if (
+        "auth_headers" not in request.fixturenames
+        and "operador_headers" not in request.fixturenames
+        and request.module.__name__.split(".")[-1] != "test_auth"
+    ):
+        app.dependency_overrides[get_current_user] = lambda: admin
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
@@ -66,10 +74,12 @@ def client(db):
 
 @pytest.fixture(scope="function")
 def admin_role(db: Session):
-    role = Role(name="admin", is_admin=True, is_default=False)
-    db.add(role)
-    db.commit()
-    db.refresh(role)
+    role = db.query(Role).filter(Role.name == "admin").first()
+    if not role:
+        role = Role(name="admin", is_admin=True, is_default=False)
+        db.add(role)
+        db.commit()
+        db.refresh(role)
     return role
 
 
@@ -230,3 +240,69 @@ def operador_user(db: Session, operador_role, seed_deposits):
 def operador_headers(operador_user):
     token = create_access_token({"sub": str(operador_user.id)})
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="function")
+def admin(db: Session):
+    role = db.query(Role).filter(Role.name == "admin").first()
+    if not role:
+        role = Role(name="admin", is_admin=True, is_default=False)
+        db.add(role)
+        db.flush()
+    user = db.query(User).filter(User.email == "admin@teste.com").first()
+    if not user:
+        user = User(
+            name="Admin", email="admin@teste.com", hashed_password="x",
+            role="admin", is_active=True,
+        )
+        db.add(user)
+        db.commit()
+    login_user = db.query(User).filter(User.email == "admin@admin.com").first()
+    if not login_user:
+        db.add(User(
+            name="Administrador", email="admin@admin.com",
+            hashed_password=get_password_hash("admin"), role="admin", is_active=True,
+        ))
+        db.commit()
+    return user
+
+
+@pytest.fixture(scope="function")
+def produto(db: Session):
+    product = db.query(Product).filter(Product.name == "Café 1kg").first()
+    if not product:
+        product = Product(name="Café 1kg", current_stock=0)
+        db.add(product)
+        db.add(Product(name="Açúcar 1kg", current_stock=0))
+        db.commit()
+    return product
+
+
+@pytest.fixture(scope="function")
+def deposito(db: Session):
+    deposit = db.query(Deposit).filter(Deposit.name == "Depósito Central").first()
+    if not deposit:
+        deposit = Deposit(name="Depósito Central", is_active=True)
+        db.add(deposit)
+        db.commit()
+    return deposit
+
+
+@pytest.fixture(scope="function")
+def nova_movimentacao(db: Session, produto, deposito, admin):
+    def _criar(movement_type="entrada", quantity=10, unit_price=5.0, **extra):
+        mov = StockMovement(
+            product_id=extra.pop("product_id", produto.id),
+            deposit_id=extra.pop("deposit_id", deposito.id),
+            movement_type=movement_type,
+            quantity=quantity,
+            unit_price=unit_price,
+            total_value=quantity * unit_price,
+            user_id=admin.id,
+            **extra,
+        )
+        db.add(mov)
+        db.commit()
+        db.refresh(mov)
+        return mov
+    return _criar

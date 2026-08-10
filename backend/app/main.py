@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from app.database import engine, Base
+from app.database import engine
 from app.routers import auth, products, stock, financial, contacts, reports, payments
 from app.routers import categories, financial_categories, deposits, accounts, payment_types, units, recurrence_frequencies
 from app.routers import requisicoes, roles, pricing
@@ -18,191 +18,40 @@ from datetime import datetime
 
 from app.logging_config import setup_logging
 setup_logging()
-
 logger = logging.getLogger("gestao.main")
 
-from app.config import DATABASE_URL, CORS_ORIGINS
+# O boot não aplica DDL. Nenhuma.
+#
+# Este arquivo já criou o schema inteiro no import, a partir dos models, e ainda
+# corrigia colunas com dois blocos de ALTER — um para SQLite, outro para
+# Postgres — que rodavam a cada deploy e a cada worker do uvicorn. O schema
+# passava a ser o que os models dissessem no instante da subida: nada revisável,
+# nada reproduzível, nada reversível.
+#
+# Agora o schema muda só por migration, e só quando alguém manda:
+#     cd backend && alembic upgrade head
+#
+# O deploy roda isso antes de subir o app (ver `start.sh` e `render.yaml`).
+# Banco que já existia entra na cadeia com `alembic stamp 3f9bdb34aa4d` — ver
+# `backend/docs/migrations.md`.
 
-Base.metadata.create_all(bind=engine)
+from app.startup import verificar_schema
 
-from app.config import DATABASE_URL
+verificar_schema(engine)
 
-# Migrações SQLite (só executa se for SQLite)
-if DATABASE_URL.startswith("sqlite"):
-    import sqlite3
-    db_path = DATABASE_URL.replace("sqlite:///", "")
-    if os.path.exists(db_path):
-        conn = sqlite3.connect(db_path)
-        c = conn.cursor()
-        c.execute("PRAGMA table_info(stock_movements)")
-        cols = [row[1] for row in c.fetchall()]
-        if "movement_date" not in cols:
-            c.execute("ALTER TABLE stock_movements ADD COLUMN movement_date DATETIME DEFAULT CURRENT_TIMESTAMP")
-            conn.commit()
-        c.execute("PRAGMA table_info(products)")
-        product_cols = {row[1]: row for row in c.fetchall()}
-        if product_cols.get("name") and product_cols["name"][3]:
-            c.execute("CREATE TABLE IF NOT EXISTS products_new (id INTEGER PRIMARY KEY, name TEXT, description TEXT, sku TEXT UNIQUE, barcode TEXT, price REAL, cost_price REAL, markup REAL, current_stock INTEGER DEFAULT 0, min_stock INTEGER DEFAULT 0, unit_id INTEGER REFERENCES units(id), category_id INTEGER REFERENCES categories(id), deposit_id INTEGER REFERENCES deposits(id), is_active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME)")
-            c.execute("INSERT INTO products_new SELECT * FROM products")
-            c.execute("DROP TABLE products")
-            c.execute("ALTER TABLE products_new RENAME TO products")
-            c.execute("CREATE INDEX IF NOT EXISTS ix_products_sku ON products(sku)")
-            conn.commit()
-        c.execute("PRAGMA table_info(products)")
-        prod_cols2 = [row[1] for row in c.fetchall()]
-        if "markup" not in prod_cols2:
-            c.execute("ALTER TABLE products ADD COLUMN markup REAL")
-        conn.commit()
-        c.execute("PRAGMA table_info(accounts)")
-        acc_cols = [row[1] for row in c.fetchall()]
-        for col, typedef in [("flag", "TEXT"), ("closing_day", "INTEGER"), ("due_day", "INTEGER"), ("best_purchase_day", "INTEGER"), ("credit_limit", "REAL")]:
-            if col not in acc_cols:
-                c.execute("ALTER TABLE accounts ADD COLUMN " + col + " " + typedef)
-        conn.commit()
-        c.execute("PRAGMA table_info(contacts)")
-        ct_cols = [row[1] for row in c.fetchall()]
-        if "price_table_id" not in ct_cols:
-            c.execute("ALTER TABLE contacts ADD COLUMN price_table_id INTEGER")
-        if "segment" not in ct_cols:
-            c.execute("ALTER TABLE contacts ADD COLUMN segment TEXT")
-        if "cep" not in ct_cols:
-            c.execute("ALTER TABLE contacts ADD COLUMN cep TEXT")
-        conn.commit()
-        c.execute("PRAGMA table_info(transactions)")
-        tx_cols = [row[1] for row in c.fetchall()]
-        if "recurrence_frequency" not in tx_cols:
-            c.execute("ALTER TABLE transactions ADD COLUMN recurrence_frequency TEXT")
-            if "is_recurring" in tx_cols:
-                c.execute("UPDATE transactions SET recurrence_frequency = 'mensal' WHERE is_recurring = 1")
-        if "due_date" not in tx_cols:
-            c.execute("ALTER TABLE transactions ADD COLUMN due_date DATETIME")
-        if "status" not in tx_cols:
-            c.execute("ALTER TABLE transactions ADD COLUMN status TEXT DEFAULT 'pendente'")
-        c.execute("PRAGMA table_info(requisicao_items)")
-        ri_cols = [row[1] for row in c.fetchall()]
-        if "quantity_fulfilled" not in ri_cols:
-            c.execute("ALTER TABLE requisicao_items ADD COLUMN quantity_fulfilled INTEGER DEFAULT 0")
-        if "quantity_received" not in ri_cols:
-            c.execute("ALTER TABLE requisicao_items ADD COLUMN quantity_received INTEGER DEFAULT 0")
-        c.execute("PRAGMA table_info(stock_movements)")
-        sm_cols = [row[1] for row in c.fetchall()]
-        if "source" not in sm_cols:
-            c.execute("ALTER TABLE stock_movements ADD COLUMN source VARCHAR(20)")
-            c.execute("UPDATE stock_movements SET source='requisicao' WHERE reason LIKE 'Requisi\u00e7\u00e3o #%' OR reason LIKE 'Recebimento Requisi\u00e7\u00e3o #%'")
-        conn.commit()
-        conn.close()
-
-# Migrações PostgreSQL
-if not DATABASE_URL.startswith("sqlite"):
-    from sqlalchemy import text
-    with engine.connect() as conn:
-        cols = conn.execute(text(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'requisicao_items'"
-        )).fetchall()
-        ri_names = {row[0] for row in cols}
-        if "quantity_fulfilled" not in ri_names:
-            conn.execute(text(
-                "ALTER TABLE requisicao_items ADD COLUMN quantity_fulfilled INTEGER DEFAULT 0"
-            ))
-        if "quantity_received" not in ri_names:
-            conn.execute(text(
-                "ALTER TABLE requisicao_items ADD COLUMN quantity_received INTEGER DEFAULT 0"
-            ))
-        cols = conn.execute(text(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'stock_movements'"
-        )).fetchall()
-        if "source" not in {row[0] for row in cols}:
-            conn.execute(text(
-                "ALTER TABLE stock_movements ADD COLUMN source VARCHAR(20)"
-            ))
-            conn.execute(text(
-                "UPDATE stock_movements SET source='requisicao' WHERE reason LIKE 'Requisi\u00e7\u00e3o #%' OR reason LIKE 'Recebimento Requisi\u00e7\u00e3o #%'"
-            ))
-        cols = conn.execute(text(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'products'"
-        )).fetchall()
-        if "markup" not in {row[0] for row in cols}:
-            conn.execute(text(
-                "ALTER TABLE products ADD COLUMN markup DOUBLE PRECISION"
-            ))
-        for table, columns in {
-            "stock_movements": ["quantity"],
-            "requisicao_items": ["quantity_requested", "quantity_approved", "quantity_fulfilled", "quantity_received"],
-            "products": ["current_stock", "min_stock"],
-        }.items():
-            existing = {row[0] for row in conn.execute(text(
-                "SELECT column_name FROM information_schema.columns WHERE table_name = :t"
-            ).bindparams(t=table)).fetchall()}
-            for col in columns:
-                if col not in existing:
-                    continue
-                dtype = conn.execute(text(
-                    "SELECT data_type FROM information_schema.columns WHERE table_name = :t AND column_name = :c"
-                ).bindparams(t=table, c=col)).fetchone()[0]
-                if dtype in ("integer", "smallint", "bigint"):
-                    conn.execute(text(
-                        f"ALTER TABLE {table} ALTER COLUMN {col} TYPE DOUBLE PRECISION"
-                    ))
-        cols = conn.execute(text(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'contacts'"
-        )).fetchall()
-        if "price_table_id" not in {row[0] for row in cols}:
-            conn.execute(text(
-                "ALTER TABLE contacts ADD COLUMN price_table_id INTEGER REFERENCES price_tables(id)"
-            ))
-        conn.commit()
-        cols2 = conn.execute(text(
-            "SELECT column_name FROM information_schema.columns WHERE table_name = 'contacts'"
-        )).fetchall()
-        ct_names = {row[0] for row in cols2}
-        if "segment" not in ct_names:
-            conn.execute(text("ALTER TABLE contacts ADD COLUMN segment VARCHAR(50)"))
-        if "cep" not in ct_names:
-            conn.execute(text("ALTER TABLE contacts ADD COLUMN cep VARCHAR(10)"))
-        conn.commit()
-
-# Migração: movimentações de requisição só são gravadas após o recebimento.
-# Remove saídas de requisições ainda não recebidas (em trânsito).
-from sqlalchemy import func
+# O boot NÃO mexe em movimentações de estoque.
+#
+# Até aqui, toda subida do processo apagava as saídas de requisições ainda não
+# recebidas e recalculava o saldo de todos os produtos. Isso reescrevia
+# histórico sem registro de quem/quando, repetia a cada deploy e a cada worker
+# do uvicorn, e transformava um conserto pontual de dados legados em rotina
+# permanente. Movimentação gravada é fato: só se corrige por compensação.
+#
+# O conserto virou comando sob demanda, com dry-run e log:
+#     python -m app.cli.repair_stock            # simula e mostra o relatório
+#     python -m app.cli.repair_stock --apply    # aplica
+#     POST /api/stock/repair                    # mesmo reparo, restrito a admin
 from sqlalchemy.orm import Session
-from app.models.stock import StockMovement
-from app.models.requisicao import Requisicao
-from app.models.product import Product
-
-with Session(engine) as session:
-    pending = [r[0] for r in session.query(Requisicao.id).filter(Requisicao.status != "recebido").all()]
-    affected = set()
-    for rid in pending:
-        movs = session.query(StockMovement).filter(
-            StockMovement.movement_type == "saida",
-            StockMovement.source == "requisicao",
-            StockMovement.reason.like(f"Requisição #{rid}:%"),
-        ).all()
-        for m in movs:
-            affected.add(m.product_id)
-            session.delete(m)
-    if affected:
-        session.flush()
-        for pid in affected:
-            entrada = session.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-                StockMovement.product_id == pid, StockMovement.movement_type == "entrada"
-            ).scalar()
-            saida = session.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-                StockMovement.product_id == pid, StockMovement.movement_type == "saida"
-            ).scalar()
-            product = session.query(Product).filter(Product.id == pid).first()
-            if product:
-                product.current_stock = entrada - saida
-    # Recalcula o estoque global de todos os produtos a partir das movimentações
-    for product in session.query(Product).all():
-        entrada = session.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-            StockMovement.product_id == product.id, StockMovement.movement_type == "entrada"
-        ).scalar()
-        saida = session.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-            StockMovement.product_id == product.id, StockMovement.movement_type == "saida"
-        ).scalar()
-        product.current_stock = entrada - saida
-    session.commit()
 
 # Garante que o perfil operador tenha acesso aos relatórios de estoque e à busca de produtos
 from app.models.role import Role, RoleModule
@@ -268,6 +117,8 @@ with Session(engine) as session:
 
 app = FastAPI(title="Sistema de Gestão", version="1.0.0")
 
+from app.config import CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -275,8 +126,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-logger.info(f"CORS configurado com origens: {CORS_ORIGINS}")
+logger.info("CORS configurado com origens: %s", CORS_ORIGINS)
 
 
 @app.get("/api/health")
@@ -290,24 +140,19 @@ def health():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception(f"Erro não tratado em {request.method} {request.url.path}")
+    logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content={"detail": "Erro interno do servidor"},
     )
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     duration_ms = (time.time() - start) * 1000
-    logger.info(
-        "%s %s %d %.0fms",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration_ms,
-    )
+    logger.info("%s %s %d %.0fms", request.method, request.url.path, response.status_code, duration_ms)
     return response
 
 app.include_router(auth.router)

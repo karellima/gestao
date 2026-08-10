@@ -39,6 +39,9 @@ class StockMovementResponse(BaseModel):
     reason: Optional[str] = None
     notes: Optional[str] = None
     source: Optional[str] = None
+    # Preenchido quando esta linha é o estorno de outra — deixa o cliente
+    # exibir o par (lançamento errado + correção) em vez de um saldo mudo.
+    compensates_movement_id: Optional[int] = None
     created_at: Optional[datetime] = None
     user_id: Optional[int] = None
 
@@ -63,6 +66,63 @@ class StockAvariaCreate(BaseModel):
     deposit_id: int
     items: List[StockTransferItem]
     description: str
+
+
+class StockMovementCompensate(BaseModel):
+    """Estorno de uma movimentação: grava a inversa, mantém as duas no histórico."""
+    reason: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class StockRepairRequest(BaseModel):
+    """Reparo sob demanda. Simula por padrão — só grava com ``dry_run=False``."""
+    dry_run: bool = True
+    compensate_orphans: bool = True
+    resync_cache: bool = True
+
+
+class StockRepairOrphanExit(BaseModel):
+    movement_id: int
+    requisicao_id: int
+    product_id: int
+    deposit_id: int
+    quantity: float
+    reason: Optional[str] = None
+
+
+class StockRepairCompensation(BaseModel):
+    compensation_id: Optional[int] = None
+    movement_id: int
+    product_id: int
+    quantity: float
+
+
+class StockRepairDivergence(BaseModel):
+    product_id: int
+    product_name: Optional[str] = None
+    current_stock: float
+    derived_stock: float
+    delta: float
+
+
+class StockRepairResync(BaseModel):
+    product_id: int
+    product_name: Optional[str] = None
+    from_: float = Field(alias="from")
+    to: float
+
+    class Config:
+        populate_by_name = True
+
+
+class StockRepairReport(BaseModel):
+    dry_run: bool
+    executed_at: str
+    executed_by_user_id: Optional[int] = None
+    orphan_requisicao_exits: List[StockRepairOrphanExit]
+    stock_divergences: List[StockRepairDivergence]
+    compensations_created: List[StockRepairCompensation]
+    products_resynced: List[StockRepairResync]
 
 
 class StockBalanceItem(BaseModel):

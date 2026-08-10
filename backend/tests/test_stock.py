@@ -125,9 +125,12 @@ class TestStockMovements:
 
         resp = client.delete(f"/api/stock/movements/{mov_id}", headers=auth_headers)
         assert resp.status_code == 200
+        assert resp.json()["message"] == "Movimentação estornada"
 
         resp = client.get(f"/api/stock/movements/?product_id={seed_products[0].id}", headers=auth_headers)
-        assert len(resp.json()) == 0
+        assert len(resp.json()) == 2
+        assert any(item["id"] == mov_id for item in resp.json())
+        assert any(item["compensates_movement_id"] == mov_id for item in resp.json())
 
     def test_cannot_edit_requisition_movement(self, client, auth_headers, seed_products, seed_deposits, db):
         from app.models.stock import StockMovement

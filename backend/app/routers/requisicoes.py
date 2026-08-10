@@ -8,23 +8,19 @@ from app.models.product import Product
 from app.models.deposit import Deposit
 from app.models.stock import StockMovement
 from app.models.user import User
-from app.models.role import Role
 from app.schemas.requisicao import (
     RequisicaoCreate, RequisicaoUpdate, RequisicaoResponse,
     RequisicaoItemResponse, RequisicaoApprove, RequisicaoFulfill, RequisicaoReceive,
 )
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user
 from app.utils.helpers import product_label
-from app.routers.stock import recalculate_product_stock
+from app.services.stock_ledger import recalculate_product_stock
 
 router = APIRouter(prefix="/api/requisicoes", tags=["Requisições de Estoque"])
 
 
 def _is_admin(db: Session, user: User) -> bool:
-    if user.role == "admin":
-        return True
-    role = db.query(Role).filter(Role.name == user.role).first()
-    return bool(role and role.is_admin)
+    return is_admin_user(db, user)
 
 
 def _is_requester_or_admin(db: Session, req: Requisicao, user: User) -> bool:

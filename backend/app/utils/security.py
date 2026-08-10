@@ -52,6 +52,11 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+def is_admin_user(db: Session, user: User) -> bool:
+    role = db.query(Role).filter(Role.name == user.role).first()
+    return bool(role and role.is_admin)
+
+
 def require_module(module: str, access_level: str = "view") -> Callable:
     def checker(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         role = db.query(Role).filter(Role.name == current_user.role).first()
@@ -70,6 +75,17 @@ def require_module(module: str, access_level: str = "view") -> Callable:
             raise HTTPException(status_code=403, detail=f"Permissão insuficiente no módulo '{module}'")
         return current_user
     return checker
+
+
+def require_admin(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> User:
+    """Restringe a operação a administradores.
+
+    Usado por operações de manutenção (ex.: reparo de estoque) que escrevem no
+    histórico em nome do sistema e não pertencem a nenhum módulo de negócio.
+    """
+    if not is_admin_user(db, current_user):
+        raise HTTPException(status_code=403, detail="Operação restrita a administradores")
+    return current_user
 
 
 def require_any_module(modules, access_level: str = "view") -> Callable:
