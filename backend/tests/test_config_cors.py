@@ -40,24 +40,25 @@ def test_curinga_escondido_numa_lista_tambem_e_recusado(monkeypatch):
 
 def test_lista_explicita_passa(monkeypatch):
     monkeypatch.setenv(
-        "CORS_ORIGINS", "https://gestao-iscb.onrender.com, http://localhost:5173"
+        "CORS_ORIGINS", "https://gestao.exemplo.com.br, http://localhost:5173"
     )
 
     config = _recarrega()
 
     assert config.CORS_ORIGINS == [
-        "https://gestao-iscb.onrender.com",
+        "https://gestao.exemplo.com.br",
         "http://localhost:5173",
     ]
 
 
-def test_sem_variavel_usa_as_origens_padrao(monkeypatch):
+def test_sem_variavel_libera_so_o_desenvolvimento_local(monkeypatch):
+    """O default não conhece host de produção — quem publica enumera o seu."""
     monkeypatch.delenv("CORS_ORIGINS", raising=False)
 
     config = _recarrega()
 
-    assert "https://gestao-iscb.onrender.com" in config.CORS_ORIGINS
-    assert "*" not in config.CORS_ORIGINS
+    assert config.CORS_ORIGINS == ["http://localhost:5173", "http://127.0.0.1:5173"]
+    assert not any(o.startswith("https://") for o in config.CORS_ORIGINS)
 
 
 def test_nao_ha_credencial_de_admin_padrao(monkeypatch):

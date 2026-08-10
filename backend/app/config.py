@@ -22,8 +22,11 @@ if SECRET_KEY == DEFAULT_SECRET:
 
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
 
+# O default cobre só o desenvolvimento local. Produção enumera o próprio domínio
+# em CORS_ORIGINS — ver `.env.ionos.example`. Um default apontando para o host de
+# produção envelhece calado: continua parecendo certo depois que o endereço muda,
+# e o erro só aparece no navegador de quem usa o sistema.
 CORS_ORIGINS_RAW = os.getenv("CORS_ORIGINS", ",".join([
-    "https://gestao-iscb.onrender.com",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]))
