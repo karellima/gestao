@@ -2,27 +2,50 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta, date
 from calendar import monthrange
+from typing import List
 from app.database import get_db
 from app.models.product import Product
 from app.models.stock import StockMovement
 from app.models.financial import Transaction
 from app.models.financial_category import FinancialCategory
 from app.models.contact import Contact
+from app.models.user import User
+from app.models.role import Role
 from app.utils.security import get_current_user, require_module
 from fastapi import APIRouter, Depends
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
 
+def _is_admin(db: Session, user: User) -> bool:
+    if user.role == "admin":
+        return True
+    role = db.query(Role).filter(Role.name == user.role).first()
+    return bool(role and role.is_admin)
+
+
+def _user_deposit_ids(user: User) -> List[int]:
+    return [d.id for d in user.deposits] if user.deposits else []
+
+
 @router.get("/dashboard")
 def get_dashboard(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("dashboard")),
 ):
-    total_products = db.query(Product).filter(Product.is_active == True).count()
+    product_query = db.query(Product).filter(Product.is_active == True)
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if deposit_ids:
+            product_query = product_query.filter(Product.deposit_id.in_(deposit_ids))
+        else:
+            product_query = product_query.filter(False)
+
+    total_products = product_query.count()
     low_stock = (
-        db.query(Product)
-        .filter(Product.is_active == True, Product.current_stock <= Product.min_stock)
+        product_query
+        .filter(Product.current_stock <= Product.min_stock)
         .count()
     )
     total_contacts = db.query(Contact).filter(Contact.is_active == True).count()
@@ -296,19 +319,25 @@ def get_financial_summary(
 def get_stock_summary(
     days: int = 30,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     since = datetime.utcnow() - timedelta(days=days)
 
+    mov_query = db.query(StockMovement).filter(StockMovement.created_at >= since)
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return {"periodo_dias": days, "total_entradas": 0, "total_saidas": 0}
+        mov_query = mov_query.filter(StockMovement.deposit_id.in_(deposit_ids))
+
     entradas = (
-        db.query(func.coalesce(func.sum(StockMovement.quantity), 0))
-        .filter(StockMovement.movement_type == "entrada", StockMovement.created_at >= since)
-        .scalar()
+        mov_query.filter(StockMovement.movement_type == "entrada")
+        .with_entities(func.coalesce(func.sum(StockMovement.quantity), 0)).scalar()
     )
     saidas = (
-        db.query(func.coalesce(func.sum(StockMovement.quantity), 0))
-        .filter(StockMovement.movement_type == "saida", StockMovement.created_at >= since)
-        .scalar()
+        mov_query.filter(StockMovement.movement_type == "saida")
+        .with_entities(func.coalesce(func.sum(StockMovement.quantity), 0)).scalar()
     )
 
     return {

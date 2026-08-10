@@ -1,17 +1,45 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import or_
 from typing import List
 from app.database import get_db
 from app.models.sale import SaleType, Sale, SaleItem
 from app.models.contact import Contact
 from app.models.product import Product
 from app.models.price_table import PriceTable
+from app.models.user import User
+from app.models.role import Role
 from app.schemas.sale import (
     SaleTypeCreate, SaleTypeUpdate, SaleTypeResponse,
     SaleCreate, SaleUpdate, SaleResponse, SaleItemResponse,
 )
 from app.utils.security import get_current_user, require_module
 from app.utils.helpers import product_label
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    if user.role == "admin":
+        return True
+    role = db.query(Role).filter(Role.name == user.role).first()
+    return bool(role and role.is_admin)
+
+
+def _user_deposit_ids(user: User) -> List[int]:
+    return [d.id for d in user.deposits] if user.deposits else []
+
+
+def _product_deposit_ids_in_scope(db: Session, user: User, product_ids: List[int]) -> bool:
+    """Checks if all given product_ids belong to at least one user deposit."""
+    if _is_admin(db, user):
+        return True
+    deposit_ids = _user_deposit_ids(user)
+    if not deposit_ids:
+        return len(product_ids) == 0
+    count = db.query(Product).filter(
+        Product.id.in_(product_ids),
+        Product.deposit_id.in_(deposit_ids),
+    ).count()
+    return count == len(product_ids)
 
 
 def _prod_label(p):
@@ -125,14 +153,21 @@ sale_router = APIRouter(prefix="/api/sales", tags=["Lançamentos"])
 @sale_router.get("/", response_model=List[SaleResponse])
 def list_sales(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales")),
 ):
     sales = (
         db.query(Sale)
         .options(joinedload(Sale.contact), joinedload(Sale.sale_type), joinedload(Sale.items).joinedload(SaleItem.product).joinedload(Product.unit))
-        .order_by(Sale.created_at.desc())
-        .all()
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        sales = sales.filter(
+            Sale.items.any(SaleItem.product.has(Product.deposit_id.in_(deposit_ids)))
+        )
+    sales = sales.order_by(Sale.created_at.desc()).all()
     return [_sale_to_response(s) for s in sales]
 
 
@@ -140,6 +175,7 @@ def list_sales(
 def get_sale(
     sale_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales")),
 ):
     s = (
@@ -150,6 +186,15 @@ def get_sale(
     )
     if not s:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        product_ids = [it.product_id for it in s.items]
+        count = db.query(Product).filter(
+            Product.id.in_(product_ids),
+            Product.deposit_id.in_(deposit_ids),
+        ).count()
+        if count == 0:
+            raise HTTPException(status_code=404, detail="Lançamento não encontrado")
     return _sale_to_response(s)
 
 
@@ -158,11 +203,20 @@ def update_sale(
     sale_id: int,
     data: SaleUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales", "edit")),
 ):
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not _is_admin(db, current_user):
+        existing_product_ids = [it.product_id for it in sale.items]
+        if not _product_deposit_ids_in_scope(db, current_user, existing_product_ids):
+            raise HTTPException(status_code=403, detail="Sem acesso ao depósito dos produtos")
+        if data.items is not None:
+            new_product_ids = [it.product_id for it in data.items]
+            if not _product_deposit_ids_in_scope(db, current_user, new_product_ids):
+                raise HTTPException(status_code=403, detail="Sem acesso ao depósito de um dos novos produtos")
     if data.contact_id is not None:
         contact = db.query(Contact).filter(Contact.id == data.contact_id).first()
         if not contact:
@@ -203,11 +257,16 @@ def update_sale(
 def delete_sale(
     sale_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales", "edit")),
 ):
     sale = db.query(Sale).filter(Sale.id == sale_id).first()
     if not sale:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
+    if not _is_admin(db, current_user):
+        product_ids = [it.product_id for it in sale.items]
+        if not _product_deposit_ids_in_scope(db, current_user, product_ids):
+            raise HTTPException(status_code=403, detail="Sem acesso ao depósito dos produtos")
     db.delete(sale)
     db.commit()
     return {"message": "Lançamento removido"}
@@ -217,12 +276,16 @@ def delete_sale(
 def create_sale(
     data: SaleCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales", "edit")),
 ):
     contact = db.query(Contact).filter(Contact.id == data.contact_id).first()
     if not contact:
         raise HTTPException(status_code=400, detail="Cliente não encontrado")
+
+    product_ids = [it.product_id for it in data.items]
+    if not _product_deposit_ids_in_scope(db, current_user, product_ids):
+        raise HTTPException(status_code=403, detail="Sem acesso ao depósito de um dos produtos")
 
     total = 0
     items = []

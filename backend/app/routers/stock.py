@@ -7,6 +7,8 @@ from app.database import get_db
 from app.models.stock import StockMovement
 from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.user import User
+from app.models.role import Role
 from app.schemas.stock import (
     StockMovementCreate, StockMovementUpdate, StockMovementResponse,
     StockBalanceItem, StockMovementReportItem, StockTransferCreate, StockTransferItem,
@@ -16,6 +18,17 @@ from app.utils.security import get_current_user, require_module, require_any_mod
 from app.utils.helpers import product_label
 
 router = APIRouter(prefix="/api/stock", tags=["Estoque"])
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    if user.role == "admin":
+        return True
+    role = db.query(Role).filter(Role.name == user.role).first()
+    return bool(role and role.is_admin)
+
+
+def _user_deposit_ids(user: User) -> List[int]:
+    return [d.id for d in user.deposits] if user.deposits else []
 
 
 def parse_utc(s: str) -> datetime:
@@ -53,9 +66,15 @@ def list_movements(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
 ):
     query = db.query(StockMovement)
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if product_id:
@@ -75,9 +94,14 @@ def list_movements(
 def create_movement(
     movement: StockMovementCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if movement.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
+
     product = db.query(Product).filter(Product.id == movement.product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
@@ -120,11 +144,16 @@ def update_movement(
     movement_id: int,
     movement: StockMovementUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
     db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
     if not db_movement:
         raise HTTPException(status_code=404, detail="Movimentação não encontrada")
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if db_movement.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     if db_movement.source == "requisicao":
         raise HTTPException(status_code=400, detail="Movimentação gerada por requisição não pode ser editada")
 
@@ -164,11 +193,16 @@ def update_movement(
 def delete_movement(
     movement_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
     db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
     if not db_movement:
         raise HTTPException(status_code=404, detail="Movimentação não encontrada")
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if db_movement.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     if db_movement.source == "requisicao":
         raise HTTPException(status_code=400, detail="Movimentação gerada por requisição não pode ser excluída")
     product_id = db_movement.product_id
@@ -184,6 +218,7 @@ def stock_balance(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_any_module(["stock_reports", "deposits"])),
 ):
     query = (
@@ -191,6 +226,11 @@ def stock_balance(
         .join(Product, Product.id == StockMovement.product_id)
     )
 
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -252,6 +292,7 @@ def stock_movement_report(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     query = (
@@ -259,6 +300,11 @@ def stock_movement_report(
         .join(Product, Product.id == StockMovement.product_id)
         .join(Deposit, Deposit.id == StockMovement.deposit_id)
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -306,6 +352,11 @@ def transfer_stock(
         raise HTTPException(404, "Depósito de destino não encontrado")
     if data.transfer_type not in ("abastecimento", "devolucao"):
         raise HTTPException(400, "Tipo deve ser 'abastecimento' ou 'devolucao'")
+
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if data.source_deposit_id not in deposit_ids or data.destination_deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a um dos depósitos da transferência")
 
     type_label = "Abastecimento" if data.transfer_type == "abastecimento" else "Devolução"
     for it in data.items:
@@ -374,6 +425,10 @@ def register_avaria(
     deposit = db.query(Deposit).filter(Deposit.id == data.deposit_id).first()
     if not deposit:
         raise HTTPException(404, "Depósito não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if data.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     if not data.items:
         raise HTTPException(400, "Adicione pelo menos um item")
 
@@ -431,12 +486,18 @@ def list_avarias(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
 ):
     query = db.query(StockMovement).filter(
         StockMovement.movement_type == "saida",
         StockMovement.reason.like("Avaria:%"),
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -454,6 +515,7 @@ def transfer_report(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     """
@@ -462,6 +524,11 @@ def transfer_report(
     abastecimento = o que enviou aos filhos. Venda = abastecimento - devolução - avaria.
     """
     query = db.query(Deposit).filter(Deposit.is_active == True)
+    if not _is_admin(db, current_user):
+        deposit_ids = _user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(Deposit.id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(Deposit.id == deposit_id)
     deposits = query.all()
