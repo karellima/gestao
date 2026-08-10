@@ -1,21 +1,34 @@
 # Regras do projeto
 
-## Toda alteração deve subir para a nuvem
+## Toda alteracao deve subir para a nuvem
 
-Toda alteração feita em código deve ser publicada na nuvem (commit + push). Sempre que concluir uma alteração:
+Toda alteracao feita em codigo deve ser publicada na nuvem (commit + push). Sempre que concluir uma alteracao:
 
-1. **Frontend**: rodar `npm run build` (na pasta `financas-pessoais/frontend`) e validar o build.
-2. **Commit** apenas os arquivos relevantes (nunca incluir `.db`/bancos de dados no commit).
+1. **Frontend**: rodar `npm run build` (na pasta `frontend`) e validar o build.
+2. **Commit** apenas os arquivos relevantes (nunca incluir `.db`/bancos de dados no commit, nem `backup.env`, nem `.xlsx`).
 3. **Push** para `origin/main` — o Render (autoDeploy) reimplanta sozinho.
-4. **Verificar** a nova versão no ar em `https://financas-pessoais-3udv.onrender.com` antes de encerrar.
+4. **Verificar** a nova versao no ar em `https://gestao-iscb.onrender.com` antes de encerrar.
 
 ## Deploy / infra
 
-- **App**: Finanças Pessoais — `financas-pessoais/` (repo `Fborgess/financas-pessoais`).
-- **Produção**: Render web service `financas-pessoais` → `https://financas-pessoais-3udv.onrender.com`.
-- **Banco de dados de produção**: PostgreSQL **Neon** (projeto `org-bitter-term-46439512`), definido via `DATABASE_URL` no Render (connection string Direct, termina com `?sslmode=require`).
-- O SQLite local (`financas-pessoais/backend/financas.db`) é **só desenvolvimento** — os dados reais ficam na nuvem (Neon).
-- Acesso para consultar a produção via API: login e senha estão definidos no gerenciador de senhas do projeto (não versionados). Autentica-se via JWT em `/api/auth/login`, depois usar `Authorization: Bearer <token>`.
-- ⚠️ Credenciais expostas anteriormente (commit `c009dd1` e anteriores) foram rotacionadas ou dependem do dono do repo `financas-pessoais` — veja `ROTACAO.md`.
-- O build injeta um marcador de versão (data + hash do commit), então o hash do bundle difere entre builds locais e do Render — para confirmar que o deploy subiu, verificar o **conteúdo** (nova lógica presente no bundle servido), não só o nome do arquivo.
-- Repositório raiz (Sistema de Gestão): repo `Fborgess/gestao` — também deve ter alterações commitadas/enviadas.
+- **App**: Sistema de Gestao — este repositorio (`Fborgess/gestao`).
+- **Producao**: Render web service `gestao` → `https://gestao-iscb.onrender.com`.
+- **Banco de dados de producao**: PostgreSQL gerenciado pelo Render (`gestao-db`), definido via `DATABASE_URL` injetada automaticamente.
+- O SQLite local (`backend/gestao.db`) e **so desenvolvimento** — os dados reais ficam no PostgreSQL do Render.
+- Acesso para consultar a producao via API: use credenciais definidas fora do repositorio; o seed so cria administrador quando `ADMIN_EMAIL` e `ADMIN_PASSWORD` estiverem configuradas.
+- O build injeta um marcador de versao (data + hash do commit), entao o hash do bundle difere entre builds locais e do Render — para confirmar que o deploy subiu, verificar o **conteudo** (nova logica presente no bundle servido), nao so o nome do arquivo.
+
+## Execucao local
+
+- **Backend**: `cd backend && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload`
+- **Frontend**: `cd frontend && npx vite --port 5173 --host 127.0.0.1`
+- O frontend em dev faz proxy de `/api` para `http://localhost:8000` (configurado no `vite.config.js`).
+- Em producao, o backend serve os arquivos estaticos do frontend (buildado em `frontend/dist/`), entao so o backend precisa rodar.
+
+## Riscos
+
+- Nunca commitar `backend/gestao.db`, `backup.env`, arquivos `.xlsx`, ou a pasta `backups/`.
+- Nao alterar `SECRET_KEY` em producao sem planejamento — invalidara todos os tokens JWT existentes.
+- O Render free tier hiberna apos inatividade; a primeira requisicao apos hibernacao pode demorar ~30s para responder (cold start).
+- O banco local e recriado por migrations quando apagado; os dados nao sobrevivem.
+- Scripts `.bat` e `.ps1` tem caminhos absolutos da maquina do autor (`C:\Python314\`, `C:\Users\fsbor\`). Nao funcionam em outras maquinas sem ajuste.
