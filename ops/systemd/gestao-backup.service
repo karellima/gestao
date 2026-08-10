@@ -1,0 +1,9 @@
+[Unit]
+Description=Backup diário do PostgreSQL do Sistema de Gestão
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/gestao
+ExecStart=/opt/gestao/ops/backup.sh

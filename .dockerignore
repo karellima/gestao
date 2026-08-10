@@ -1,0 +1,17 @@
+.git
+.github
+.env
+.env.*
+!.env.ionos.example
+*.db
+*.sqlite
+*.sqlite3
+backups/
+backup.env
+frontend/node_modules/
+frontend/dist/
+backend/__pycache__/
+backend/.pytest_cache/
+docs/superpowers/
+startup.log
+*.ps1
