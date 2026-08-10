@@ -1,6 +1,8 @@
 """
-Script para popular dados iniciais de exemplo.
-Executa apenas se o banco estiver vazio (sem usuarios).
+Script para popular dados iniciais em banco novo.
+- Cria perfis (roles), categorias, unidades e depósitos de exemplo.
+- Administrador só é criado se as variáveis ADMIN_EMAIL e ADMIN_PASSWORD
+  estiverem definidas no ambiente. Sem elas, o banco nasce sem usuários.
 """
 import sys
 import os
@@ -16,6 +18,32 @@ from app.models.role import Role, RoleModule
 from app.utils.security import get_password_hash
 
 ALL_MODULES = ["dashboard", "contacts", "deposits", "deposits_manage", "products", "stock_reports", "requisicoes", "categories", "units", "stock_movements", "accounts", "financial", "financial_categories", "payment_types", "recurrence_frequencies", "financial_reports", "sale_types", "sales", "users", "roles", "precificacao", "price_tables", "settings"]
+
+
+def _create_admin_user(db):
+    admin_email = os.getenv("ADMIN_EMAIL", "").strip()
+    admin_password = os.getenv("ADMIN_PASSWORD", "").strip()
+
+    if not admin_email or not admin_password:
+        print("ADMIN_EMAIL e ADMIN_PASSWORD nao definidos — pulando criacao do administrador.")
+        return
+
+    admin_name = os.getenv("ADMIN_NAME", "Administrador").strip()
+    admin_role = db.query(Role).filter(Role.name == "admin").first()
+    if not admin_role:
+        print("Perfil admin nao encontrado — pulando criacao do administrador.")
+        return
+
+    user = User(
+        name=admin_name,
+        email=admin_email,
+        hashed_password=get_password_hash(admin_password),
+        role="admin",
+    )
+    db.add(user)
+    db.commit()
+    print(f"Administrador criado: {admin_email}")
+
 
 def seed():
     db = SessionLocal()
@@ -49,14 +77,7 @@ def seed():
 
         db.flush()
 
-        user = User(
-            name="Administrador",
-            email="admin@admin.com",
-            hashed_password=get_password_hash("admin"),
-            role="admin",
-        )
-        db.add(user)
-        db.commit()
+        _create_admin_user(db)
 
         cats = [
             Category(name="Bebidas"),
@@ -91,7 +112,6 @@ def seed():
         db.commit()
 
         print("Dados iniciais criados!")
-        print("  Login: admin@admin.com / admin")
     finally:
         db.close()
 
