@@ -15,6 +15,7 @@ Toda alteração feita em código deve ser publicada na nuvem (commit + push). S
 - **Produção**: Render web service `financas-pessoais` → `https://financas-pessoais-3udv.onrender.com`.
 - **Banco de dados de produção**: PostgreSQL **Neon** (projeto `org-bitter-term-46439512`), definido via `DATABASE_URL` no Render (connection string Direct, termina com `?sslmode=require`).
 - O SQLite local (`financas-pessoais/backend/financas.db`) é **só desenvolvimento** — os dados reais ficam na nuvem (Neon).
-- Acesso para consultar a produção via API: login `admin@financas.com` / `admin123` (JWT) em `/api/auth/login`, depois usar `Authorization: Bearer <token>`.
+- Acesso para consultar a produção via API: login e senha estão definidos no gerenciador de senhas do projeto (não versionados). Autentica-se via JWT em `/api/auth/login`, depois usar `Authorization: Bearer <token>`.
+- ⚠️ Credenciais expostas anteriormente (commit `c009dd1` e anteriores) foram rotacionadas ou dependem do dono do repo `financas-pessoais` — veja `ROTACAO.md`.
 - O build injeta um marcador de versão (data + hash do commit), então o hash do bundle difere entre builds locais e do Render — para confirmar que o deploy subiu, verificar o **conteúdo** (nova lógica presente no bundle servido), não só o nome do arquivo.
 - Repositório raiz (Sistema de Gestão): repo `Fborgess/gestao` — também deve ter alterações commitadas/enviadas.
