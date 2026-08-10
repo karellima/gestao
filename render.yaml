@@ -14,6 +14,12 @@ services:
         generateValue: true
       - key: ACCESS_TOKEN_EXPIRE_MINUTES
         value: 480
+      - key: LOG_LEVEL
+        value: INFO
+      - key: LOG_FORMAT
+        value: json
+      - key: CORS_ORIGINS
+        value: https://gestao-iscb.onrender.com
 
 databases:
   - name: gestao-db

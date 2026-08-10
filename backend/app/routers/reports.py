@@ -1,3 +1,5 @@
+from io import BytesIO
+
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta, date
@@ -12,7 +14,14 @@ from app.models.contact import Contact
 from app.models.user import User
 from app.models.role import Role
 from app.utils.security import get_current_user, require_module
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional
+
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
@@ -345,3 +354,76 @@ def get_stock_summary(
         "total_entradas": entradas,
         "total_saidas": saidas,
     }
+
+
+class ExcelExportColumn(BaseModel):
+    header: str
+    width: Optional[int] = 15
+
+
+class ExcelExportRequest(BaseModel):
+    title: str
+    columns: list[ExcelExportColumn]
+    rows: list[dict]
+    filename: Optional[str] = None
+
+
+HEADER_FILL = PatternFill(start_color="14B8A6", end_color="14B8A6", fill_type="solid")
+HEADER_FONT = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+BODY_FONT = Font(name="Calibri", size=11)
+THIN_BORDER = Border(
+    left=Side(style="thin", color="D1D5DB"),
+    right=Side(style="thin", color="D1D5DB"),
+    top=Side(style="thin", color="D1D5DB"),
+    bottom=Side(style="thin", color="D1D5DB"),
+)
+HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
+BODY_ALIGNMENT = Alignment(vertical="center", wrap_text=True)
+
+
+def _apply_cell_style(cell, is_header=False):
+    if is_header:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGNMENT
+    else:
+        cell.font = BODY_FONT
+        cell.alignment = BODY_ALIGNMENT
+    cell.border = THIN_BORDER
+
+
+@router.post("/export-excel")
+def export_excel(
+    payload: ExcelExportRequest = Body(...),
+    _=Depends(get_current_user),
+):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = payload.title[:31]
+
+    for col_idx, col in enumerate(payload.columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col.header)
+        _apply_cell_style(cell, is_header=True)
+        ws.column_dimensions[get_column_letter(col_idx)].width = col.width or 15
+
+    for row_idx, row in enumerate(payload.rows, 2):
+        for col_idx, col in enumerate(payload.columns, 1):
+            value = row.get(col.header, "")
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            _apply_cell_style(cell, is_header=False)
+
+    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = "A2"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    disposition_filename = f"{payload.filename or payload.title}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{disposition_filename}"'
+        },
+    )

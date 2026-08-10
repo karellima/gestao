@@ -1,57 +1,56 @@
-import * as XLSX from 'xlsx';
-import { saveAs } from 'file-saver';
+import api from '../services/api';
 
-export function exportToExcel(a, b, c) {
+export async function exportToExcel(a, b, c) {
+  let title, columns, rows, filename;
+
   if (a && typeof a === 'object' && a.rows !== undefined) {
-    const { title, columns, rows, filename } = a;
-    const header = columns.map(col => col.header);
-    const data = rows.map(row =>
-      columns.map(col => {
-        let val = typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor];
-        if (col.format) val = col.format(val, row);
-        return val;
-      })
-    );
-    const ws = XLSX.utils.aoa_to_sheet([header, ...data]);
-    ws['!cols'] = columns.map(col => ({ wch: col.width || 15 }));
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, title.slice(0, 31));
-    XLSX.writeFile(wb, `${filename || title}.xlsx`);
+    title = a.title;
+    columns = a.columns;
+    rows = a.rows;
+    filename = a.filename || title;
   } else {
-    const data = a;
-    const columns = b;
-    const filename = c;
-    const rows = data.map(row => {
-      const obj = {};
-      columns.forEach(col => {
-        obj[col.header] = col.accessor(row);
-      });
-      return obj;
+    rows = a;
+    columns = b;
+    filename = c;
+    title = filename || 'Dados';
+  }
+
+  const processedColumns = columns.map(col => ({
+    header: col.header,
+    width: col.width || 15,
+  }));
+
+  const processedRows = rows.map(row => {
+    const obj = {};
+    columns.forEach(col => {
+      let val = typeof col.accessor === 'function' ? col.accessor(row) : row[col.accessor];
+      if (col.format) val = col.format(val, row);
+      obj[col.header] = val ?? '';
     });
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Dados');
-    ws['!cols'] = columns.map(col => ({ wch: col.width || 15 }));
-    const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-    const blob = new Blob([buf], { type: 'application/octet-stream' });
-    saveAs(blob, `${filename}.xlsx`);
+    return obj;
+  });
+
+  try {
+    const res = await api.post('/reports/export-excel', {
+      title,
+      columns: processedColumns,
+      rows: processedRows,
+      filename,
+    }, { responseType: 'blob' });
+
+    const url = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename || title}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    alert('Erro ao exportar planilha. Tente novamente.');
+    console.error('Export error:', err);
   }
 }
-
-const printToolbar = `
-<div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:8px 12px;background:#f3f4f6;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;position:sticky;top:0;z-index:999">
-  <span style="font-size:13px;color:#666">Pr\u00e9-visualiza\u00e7\u00e3o de impress\u00e3o</span>
-  <div style="display:flex;gap:6px">
-    <button onclick="window.print()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#0d9488;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
-      Imprimir
-    </button>
-    <button onclick="window.close()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:white;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-      Fechar
-    </button>
-  </div>
-</div>`;
 
 export function printReport(title) {
   const content = document.getElementById('report-content');
@@ -153,3 +152,18 @@ export function printTable(title, columns, data) {
   win.document.close();
   win.focus();
 }
+
+const printToolbar = `
+<div class="no-print" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:8px 12px;background:#f3f4f6;border-radius:8px;font-family:system-ui,-apple-system,sans-serif;position:sticky;top:0;z-index:999">
+  <span style="font-size:13px;color:#666">Pr\u00e9-visualiza\u00e7\u00e3o de impress\u00e3o</span>
+  <div style="display:flex;gap:6px">
+    <button onclick="window.print()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:#0d9488;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+      Imprimir
+    </button>
+    <button onclick="window.close()" style="display:inline-flex;align-items:center;gap:4px;padding:5px 12px;background:white;border:1px solid #d1d5db;border-radius:6px;cursor:pointer;font-size:13px;font-family:inherit">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:inline-block"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      Fechar
+    </button>
+  </div>
+</div>`;

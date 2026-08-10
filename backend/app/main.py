@@ -11,9 +11,17 @@ from app.routers import contact_segments
 from app.routers import settings
 from app.routers.sales import sale_type_router, sale_router
 
-import traceback
+import logging
+import time
 import os
 from datetime import datetime
+
+from app.logging_config import setup_logging
+setup_logging()
+
+logger = logging.getLogger("gestao.main")
+
+from app.config import DATABASE_URL, CORS_ORIGINS
 
 Base.metadata.create_all(bind=engine)
 
@@ -262,15 +270,13 @@ app = FastAPI(title="Sistema de Gestão", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://gestao-iscb.onrender.com",
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
-    allow_credentials=False,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+logger.info(f"CORS configurado com origens: {CORS_ORIGINS}")
 
 
 @app.get("/api/health")
@@ -284,11 +290,25 @@ def health():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    traceback.print_exc()
+    logger.exception(f"Erro não tratado em {request.method} {request.url.path}")
     return JSONResponse(
         status_code=500,
         content={"detail": "Erro interno do servidor"},
     )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = (time.time() - start) * 1000
+    logger.info(
+        "%s %s %d %.0fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+    )
+    return response
 
 app.include_router(auth.router)
 app.include_router(categories.router)
