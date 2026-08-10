@@ -28,6 +28,9 @@ Thumbs.db
 backups/
 backup.env
 
+# Utilitários pessoais / fora do projeto
+fix-lenovo-audio/
+
 # Logs
 startup.log
 
