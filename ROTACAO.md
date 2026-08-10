@@ -1,91 +1,83 @@
-# Rotação de credenciais — financas-pessoais
+# Rotação de credencial exposta
 
-Este documento registra as credenciais do sistema `Fborgess/financas-pessoais` que foram
-expostas em commits anteriores deste repositório (`gestao`) e o que precisa ser
-rotacionado pelo dono do repo `financas-pessoais`.
+Um commit antigo deste repositório publicou, em texto plano no `AGENTS.md`, o login
+de administrador da produção do sistema **`financas-pessoais`** — outro projeto do
+mesmo dono. Este documento registra o incidente e o que falta fazer.
 
-## O que foi exposto
+**A senha não é repetida aqui.** Ela está no commit `a93c6c8` e nos que vieram
+depois, até a limpeza. Documentar o vazamento não é motivo para publicá-lo de novo
+num arquivo que também vai para o GitHub.
 
-| Credencial | Onde estava | Risco | Status |
-|---|---|---|---|
-| Login de admin: `admin@financas.com` / `admin123` | `AGENTS.md` (antes de 2026-08-10) | Acesso total à API de produção | **Aguardando rotação pelo dono** |
-| Neon project ID: `org-bitter-term-46439512` | `AGENTS.md` (antes de 2026-08-10) | Identificação do projeto (não é segredo, mas expõe infra) | Documentado |
-| Render app URL: `financas-pessoais-3udv.onrender.com` | `AGENTS.md` (antes de 2026-08-10) | URL pública (já visível) | N/A |
-| GitHub owner: `Fborgess` | `AGENTS.md` (antes de 2026-08-10) | Handle público | N/A |
+## Situação
 
-## Ações pendentes — dono do `financas-pessoais`
+| Item | Onde estava | Situação |
+|---|---|---|
+| Login de admin do `financas-pessoais` | `AGENTS.md`, até a limpeza de 2026-08-10 | **Pendente de rotação pelo dono** |
+| ID do projeto Neon | `AGENTS.md`, até a limpeza | Não é segredo, mas expõe a infraestrutura |
+| URL pública do app no Render | `AGENTS.md` | Já era pública, sem ação |
 
-### 1. Rotacionar senha do admin (URGENTE)
+O commit que introduziu a credencial é ancestral da `main` de dois repositórios
+públicos: `Fborgess/gestao` e o fork `karellima/gestao`. Enquanto a limpeza não for
+publicada, a senha aparece no arquivo atual, não só no histórico.
 
-A senha `admin123` está em commits públicos do GitHub. Qualquer pessoa com acesso
-a esses commits pode autenticar-se na API de produção.
+## O que fazer, nesta ordem
 
-**Passos:**
+### 1. Rotacionar a senha — dono do `financas-pessoais`
 
-1. Acesse `https://financas-pessoais-3udv.onrender.com`
-2. Faça login com `admin@financas.com` / `admin123`
-3. Altere a senha para um valor forte e único
-4. Armazene a nova senha em um gerenciador de senhas (ex: 1Password, Bitwarden)
-5. **Não** reescreva a nova senha em nenhum arquivo versionado
+É a única mitigação real. Enquanto a senha valer, tanto faz o que se faça com o
+histórico: quem já clonou tem a credencial.
 
-### 2. Verificar histórico de commits do GitHub
+1. Entrar no sistema de produção com o acesso atual.
+2. Trocar por uma senha forte e única.
+3. Guardar a nova senha num gerenciador (1Password, Bitwarden, o que o time usar).
+4. Não escrever a nova senha em nenhum arquivo versionado — em lugar nenhum.
 
-Os commits anteriores a `c009dd1` (e o próprio `c009dd1`) no repo `gestao` continham
-a senha em texto plano. Esses commits permanecem no histórico do Git e são acessíveis
-publicamente. A rotação da senha é a única mitigação real — reescrever o histórico
-não impede que clones/caches já existentes contenham a credencial.
+### 2. Publicar esta limpeza
 
-### 3. Considerar expurgo do histórico (opcional, baixa prioridade)
+Depois da rotação. Subir antes funciona, mas chama atenção para a credencial ainda
+válida: o diff mostra exatamente o que foi removido, e o commit é recente.
 
-Se o dono do `Fborgess/gestao` quiser remover os commits do histórico:
+Com a limpeza publicada, a senha some do arquivo atual dos dois repositórios. Quem
+abrir o repositório deixa de encontrá-la; quem procurar no histórico ainda acha.
+
+### 3. Revisar o `AGENTS.md` do `financas-pessoais`
+
+O mesmo padrão pode estar lá. Credencial de produção não vai em arquivo versionado,
+nem para uso de agente: vai em variável de ambiente e em gerenciador de senhas.
+
+### 4. Confirmar que a connection string do Neon não vazou
+
+Ela não está no código versionado deste repositório — é variável de ambiente no
+Render. Vale confirmar que também não apareceu em log de build ou em outro arquivo
+versionado do `financas-pessoais`:
 
 ```bash
-git filter-branch --force --tree-filter 'sed -i "/admin123/d" AGENTS.md 2>/dev/null || true' -- --all
-git push --force origin main
+git log --all -p | grep -i "DATABASE_URL"
 ```
 
-**Cuidado**: force-push quebra clones de outros colaboradores e não remove o conteúdo
-de forks/clones já existentes. A rotação da senha é a mitigação mais importante.
+Se aparecer, gerar uma nova no painel do Neon e atualizar a variável.
 
-### 4. Rever DATABASE_URL do Neon
+### 5. Expurgo do histórico — opcional, e não substitui a rotação
 
-A connection string do Neon **não** está no código versionado (está definida como
-variável de ambiente `DATABASE_URL` no Render). Confirme que a string de conexão
-não foi exposta em logs de build ou outros arquivos versionados.
+Reescrever o histórico com `git filter-repo` e force-push **não resolve o vazamento**:
 
-**Verificação rápida:**
-```bash
-# No repo financas-pessoais, rode:
-git log --all -p | grep -i "DATABASE_URL" | grep -v "^[+-].*DATABASE_URL"
-```
+- o fork já propagou os commits;
+- o GitHub mantém commits órfãos acessíveis por hash mesmo depois do force-push;
+- clones e caches de terceiros continuam intactos;
+- e o force-push quebra o trabalho de quem tiver o repositório clonado.
 
-Se a connection string aparecer, gere uma nova no dashboard do Neon e atualize a
-variável `DATABASE_URL` no Render.
+Faz sentido apenas como faxina, depois da rotação, e combinado entre os dois donos.
 
-### 5. Atualizar AGENTS.md no repo `financas-pessoais`
+## O que já foi feito neste repositório
 
-O `AGENTS.md` do repo `financas-pessoais` deve ser revisado para garantir que também
-não contenha credenciais hardcoded. Seguir o mesmo padrão: referenciar variáveis
-de ambiente e gerenciador de senhas para credenciais.
+- A credencial saiu do `AGENTS.md`.
+- `backup.env` está no `.gitignore`; a `PROD_DATABASE_URL` do backup não é versionada.
+- O sistema deixou de ter administrador padrão: só existe usuário inicial quando
+  `ADMIN_EMAIL` e `ADMIN_PASSWORD` são definidos no ambiente.
 
-## O que este repo (gestao) já fez
+## Convenção daqui em diante
 
-- ✂️ `AGENTS.md` não contém mais credenciais em texto plano — referencia o
-  gerenciador de senhas do projeto
-- 📄 `ROTACAO.md` (este arquivo) documenta o que precisa ser rotacionado e por quem
-- 🔒 `backup.env` está no `.gitignore` — a `PROD_DATABASE_URL` do backup NÃO é versionada
-
-## Convenção daqui pra frente
-
-Nenhum arquivo versionado neste repositório ou no `financas-pessoais` deve conter:
-
-- Senhas (mesmo de desenvolvimento)
-- Connection strings de produção
-- Tokens de API
-- Chaves secretas
-
-Credenciais vão **exclusivamente** em:
-- Variáveis de ambiente (`.env` local, NÃO versionado)
-- Variáveis de ambiente do Render (dashboard, NÃO no `render.yaml`)
-- Gerenciador de senhas do projeto (ex: compartilhado via 1Password/Bitwarden entre os
-  mantenedores)
+Nenhum arquivo versionado leva senha (nem de desenvolvimento), connection string de
+produção, token de API ou chave secreta. Credencial vive em variável de ambiente
+(`.env` local, `.env.ionos` no servidor, ambos fora do git) e em gerenciador de
+senhas compartilhado entre os mantenedores.
