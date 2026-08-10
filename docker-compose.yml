@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: gestao
+      POSTGRES_USER: gestao
+      POSTGRES_PASSWORD: gestao
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - gestao_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gestao -d gestao"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  gestao_postgres_data:

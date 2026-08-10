@@ -29,4 +29,5 @@ Os scripts devem parar no primeiro erro e exibir uma ação corretiva quando Doc
 
 - "PostgreSQL via Docker como fluxo canônico": reproduz a base de dados relacional usada pelo sistema e evita instruções dependentes de instalação manual por sistema operacional.
 - "SQLite apenas como fallback implícito ou caminho secundário": não será apresentado como o fluxo principal.
+- "Gerar chave local aleatória somente ao criar backend/.env": mantém o exemplo seguro sem exigir configuração manual no primeiro bootstrap.
 - "Evite assumir a consolidação final de README.md e AGENTS.md": a Task 04 é responsável por essa harmonização; esta tarefa publicará apenas um guia operacional específico.
