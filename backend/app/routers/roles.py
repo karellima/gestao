@@ -5,7 +5,7 @@ from app.database import get_db
 from app.models.role import Role, RoleModule
 from app.models.user import User
 from app.schemas.role import RoleCreate, RoleUpdate, RoleResponse, RoleModuleCreate
-from app.utils.security import get_current_user
+from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/roles", tags=["Perfis de Acesso"])
 
@@ -21,15 +21,13 @@ def _role_to_response(r: Role) -> RoleResponse:
 
 
 @router.get("/", response_model=List[RoleResponse])
-def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("roles"))):
     roles = db.query(Role).order_by(Role.name).all()
     return [_role_to_response(r) for r in roles]
 
 
 @router.post("/", response_model=RoleResponse, status_code=201)
-def create_role(data: RoleCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(403, "Apenas administradores podem gerenciar perfis")
+def create_role(data: RoleCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("roles", "edit"))):
     existing = db.query(Role).filter(Role.name == data.name).first()
     if existing:
         raise HTTPException(400, "Perfil já existe")
@@ -44,9 +42,7 @@ def create_role(data: RoleCreate, db: Session = Depends(get_db), current_user: U
 
 
 @router.put("/{role_id}", response_model=RoleResponse)
-def update_role(role_id: int, data: RoleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(403, "Apenas administradores podem gerenciar perfis")
+def update_role(role_id: int, data: RoleUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("roles", "edit"))):
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(404, "Perfil não encontrado")
@@ -69,9 +65,7 @@ def update_role(role_id: int, data: RoleUpdate, db: Session = Depends(get_db), c
 
 
 @router.delete("/{role_id}")
-def delete_role(role_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(403, "Apenas administradores podem gerenciar perfis")
+def delete_role(role_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("roles", "edit"))):
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(404, "Perfil não encontrado")

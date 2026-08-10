@@ -11,15 +11,14 @@ from app.utils.security import (
     get_password_hash,
     create_access_token,
     get_current_user,
+    require_module,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticação"])
 
 
 @router.post("/register", response_model=UserResponse)
-def register(user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem criar usuários")
+def register(user: UserCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
 
     role = db.query(Role).filter(Role.name == user.role).first()
     if not role:
@@ -48,17 +47,13 @@ def register(user: UserCreate, db: Session = Depends(get_db), current_user: User
 
 
 @router.get("/users", response_model=List[UserResponse])
-def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem listar usuários")
+def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
     users = db.query(User).order_by(User.name).all()
     return [UserResponse.from_orm_with_password(u) for u in users]
 
 
 @router.put("/users/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem alterar usuários")
+def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
@@ -87,9 +82,7 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), c
 
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Apenas administradores podem remover usuários")
+def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")

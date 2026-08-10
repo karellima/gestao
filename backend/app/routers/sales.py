@@ -13,15 +13,12 @@ from app.schemas.sale import (
     SaleTypeCreate, SaleTypeUpdate, SaleTypeResponse,
     SaleCreate, SaleUpdate, SaleResponse, SaleItemResponse,
 )
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user
 from app.utils.helpers import product_label
 
 
 def _is_admin(db: Session, user: User) -> bool:
-    if user.role == "admin":
-        return True
-    role = db.query(Role).filter(Role.name == user.role).first()
-    return bool(role and role.is_admin)
+    return is_admin_user(db, user)
 
 
 def _user_deposit_ids(user: User) -> List[int]:

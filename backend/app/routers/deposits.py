@@ -4,18 +4,14 @@ from typing import List
 from app.database import get_db
 from app.models.deposit import Deposit
 from app.models.user import User
-from app.models.role import Role
 from app.schemas.deposit import DepositCreate, DepositUpdate, DepositResponse
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user
 
 router = APIRouter(prefix="/api/deposits", tags=["Depósitos"])
 
 
 def _is_admin(db: Session, user: User) -> bool:
-    if user.role == "admin":
-        return True
-    role = db.query(Role).filter(Role.name == user.role).first()
-    return bool(role and role.is_admin)
+    return is_admin_user(db, user)
 
 
 def _user_deposit_ids(user: User) -> List[int]:
@@ -45,7 +41,7 @@ def list_my_deposits(
     current_user=Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
-    if current_user.role == "admin":
+    if is_admin_user(db, current_user):
         return db.query(Deposit).filter(Deposit.is_active == True).order_by(Deposit.name).all()
     deposit_ids = [d.id for d in current_user.deposits]
     children = db.query(Deposit.id).filter(
@@ -65,7 +61,7 @@ def list_parent_deposits(
     current_user=Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
-    if current_user.role == "admin":
+    if is_admin_user(db, current_user):
         return db.query(Deposit).filter(
             Deposit.is_active == True,
             Deposit.parent_id.is_(None),

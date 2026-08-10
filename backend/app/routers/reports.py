@@ -13,7 +13,7 @@ from app.models.financial_category import FinancialCategory
 from app.models.contact import Contact
 from app.models.user import User
 from app.models.role import Role
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user
 from fastapi import APIRouter, Depends, Body
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -27,10 +27,7 @@ router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
 
 def _is_admin(db: Session, user: User) -> bool:
-    if user.role == "admin":
-        return True
-    role = db.query(Role).filter(Role.name == user.role).first()
-    return bool(role and role.is_admin)
+    return is_admin_user(db, user)
 
 
 def _user_deposit_ids(user: User) -> List[int]:
