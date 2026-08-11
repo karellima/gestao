@@ -1,100 +1,130 @@
-# Sistema de Gestao
+# Sistema de Gestão
 
-ERP-lite para gestao de estoque, vendas, financeiro e contatos.
-
-## Stack
+ERP-lite para gestão de estoque, vendas, financeiro e contatos. Backend FastAPI,
+frontend React, banco PostgreSQL, rodando em servidor próprio.
 
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0, JWT (python-jose + bcrypt) |
 | Frontend | React 18, Vite 5, Tailwind CSS 3.3, PWA |
-| Banco (dev) | PostgreSQL via Docker Compose (SQLite tambem e suportado) |
-| Banco (prod) | PostgreSQL (Render managed database `gestao-db`) |
-| Host | Render → `https://gestao-iscb.onrender.com` |
-| Repo | `karellima/gestao` |
+| Banco | PostgreSQL 16 (SQLite serve só para teste rápido local) |
+| Produção | Servidor próprio na IONOS, via Docker |
+| Imagem | `ghcr.io/karellima/gestao` |
 
-## Rodando localmente
+## Começando
 
-### Backend
-
-```bash
-cd backend
-cp .env.example .env         # edite se quiser PostgreSQL; padrao usa SQLite local
-pip install -r requirements-dev.txt   # producao usa requirements.txt, sem pytest/httpx
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-
-### Frontend
+Primeira vez — sobe o banco, aplica as migrations, popula os dados de demonstração
+e imprime o login local:
 
 ```bash
-cd frontend
-npm install
-npx vite --port 5173 --host 127.0.0.1
+./scripts/setup.sh
 ```
 
-### Acesso
+No Windows: `powershell -ExecutionPolicy Bypass -File .\scripts\setup.ps1`
 
-- App: `http://localhost:5173`
-- API docs: `http://localhost:8000/docs`
-- Login: configure `ADMIN_EMAIL` e `ADMIN_PASSWORD` antes de executar o seed; nao ha credenciais padrao versionadas.
+Depois disso, o dia a dia é um comando só. Ele sobe banco, API e Vite juntos:
 
-## Variaveis de ambiente
+```bash
+./scripts/dev.sh
+```
 
-| Variavel | Descricao | Padrao local |
+- App: <http://localhost:5173>
+- API e documentação interativa: <http://localhost:8000/docs>
+
+Pré-requisitos, como reiniciar o ambiente do zero e o que fazer quando algo não
+sobe: [docs/AMBIENTE_LOCAL.md](docs/AMBIENTE_LOCAL.md).
+
+### Rodando as partes separadamente
+
+Quando você precisa de só um lado no ar — depurar a API sem o Vite, por exemplo:
+
+```bash
+cd backend && uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+cd frontend && npx vite --port 5173 --host 127.0.0.1
+```
+
+Em desenvolvimento o Vite faz proxy de `/api` para `localhost:8000`. Em produção
+não existe Vite: o backend serve o frontend já buildado, então basta ele no ar.
+
+## Configuração
+
+O backend lê tudo de variáveis de ambiente. Os modelos estão em
+`backend/.env.example` (local) e `.env.ionos.example` (produção); o `.env.ionos`
+real não é versionado.
+
+| Variável | O que faz | Padrão local |
 |---|---|---|
-| `DATABASE_URL` | Conexao com o banco | `sqlite:///./gestao.db` |
-| `SECRET_KEY` | Chave de assinatura JWT | `your-secret-key-change-in-production` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiracao do token JWT | `480` (8h) |
+| `DATABASE_URL` | Conexão com o banco | `sqlite:///./gestao.db` |
+| `SECRET_KEY` | Assinatura dos tokens JWT | valor de desenvolvimento |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Expiração do token | `480` (8h) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Criam o administrador no seed | sem padrão |
 
-Em producao no Render, `DATABASE_URL` e `SECRET_KEY` sao injetadas automaticamente.
+**Não existe credencial de administrador versionada.** O seed só cria o admin
+quando `ADMIN_EMAIL` e `ADMIN_PASSWORD` estão definidos no ambiente.
+
+## Como o schema muda
+
+Só por migration, nunca pelo boot da aplicação:
+
+```bash
+cd backend && alembic revision --autogenerate -m "descricao"
+cd backend && alembic upgrade head
+```
+
+Mudança de model sem migration correspondente é bug. O motivo, o que fazer com
+banco que já existia e como testar a cadeia inteira estão em
+[backend/docs/migrations.md](backend/docs/migrations.md).
+
+Movimentação de estoque é imutável: linha de `stock_movements` não se apaga nem
+se reescreve — erro se corrige por compensação
+([backend/docs/estoque-historico-imutavel.md](backend/docs/estoque-historico-imutavel.md)).
 
 ## Deploy
 
-Deploy automatico via Render (branch `main`). O `render.yaml` define o servico:
+Produção roda em servidor próprio na IONOS, com Docker. **Não há autoDeploy:**
+publicar é um passo manual e explícito, e nada sobe sem autorização do dono do
+sistema.
 
-1. Build: `npm install && npm run build` (frontend), `pip install -r requirements.txt` (backend)
-2. Start: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-3. O backend serve os arquivos estaticos do frontend (buildado), entao basta um unico servico.
+1. O GitHub Actions constrói a imagem e publica em `ghcr.io/karellima/gestao`.
+2. `docker-compose.ionos.yml` sobe a aplicação e o PostgreSQL no servidor.
+3. `ops/entrypoint.sh` roda `alembic upgrade head` antes de subir a aplicação —
+   migration quebrada derruba o start, e o app nunca sobe apontando para um
+   banco em estado indefinido.
 
-## Estrutura
+O backup do banco é diário, por timer systemd, com retenção de 14 dias
+(`ops/backup.sh`); a restauração é `ops/restore.sh`, que exige `--confirm`.
 
-```
-gestao/
-  AGENTS.md              # instrucoes para agentes
-  render.yaml            # config de deploy no Render
-  backend/
-    app/
-      main.py            # entrypoint, monta middlewares e rotas
-      config.py          # leitura de env vars
-      database.py        # engine SQLAlchemy
-      models/            # modelos (User, Product, StockMovement, Transaction, etc.)
-      schemas/           # schemas Pydantic
-      routers/           # endpoints REST (/api/*)
-      utils/security.py  # JWT, bcrypt, decorators de permissao
-    seed.py              # dados iniciais (roles, admin user, categorias, etc.)
-    requirements.txt
-    .env.example
-  frontend/
-    src/
-      App.jsx            # rotas React Router + auth gate
-      main.jsx           # entrypoint
-      contexts/          # AuthContext, SettingsContext
-      services/api.js    # axios com token JWT
-      pages/             # ~30 paginas (Dashboard, Produtos, Estoque, Financeiro, etc.)
-      components/        # Layout, SearchableSelect, ImportExcelModal, etc.
-    vite.config.js
-    package.json
-  startup/               # scripts de auto-start no Windows
-  backup.ps1             # backup local + producao (pg_dump)
-  restore.ps1            # restauracao de backup
-  status.ps1             # status dos servicos
-  iniciar.bat            # atalho Windows para iniciar backend + frontend
+Runbook completo — instalar, publicar versão nova, restaurar backup, investigar
+incidente: [docs/operacao-ionos.md](docs/operacao-ionos.md).
+
+## Qualidade
+
+`quality/gate.py` é uma catraca. Ele mede violações de lint, complexidade,
+cobertura, duplicação, tamanho de arquivo e ciclos de import, e falha se algum
+número piorar em relação ao `quality/baseline.json`. Roda no CI e no hook de
+pre-commit.
+
+```bash
+python3 quality/gate.py
 ```
 
-## Backup e restauracao (Windows/PowerShell)
+Números melhoram enquanto o código piora — por isso existe
+[quality/review.md](quality/review.md), a lista do que o gate não pega e um
+humano precisa olhar no PR.
 
-- `backup.ps1` — faz dump do banco local (SQLite) e do banco de producao (PostgreSQL, via `pg_dump`). Espelha no OneDrive. Mantem os ultimos 10 backups.
-- `restore.ps1` — restaura um `.dump` no banco de destino usando `pg_restore`.
-- `status.ps1` — mostra status dos processos backend e frontend, IP local e testes de conectividade.
+## Onde as coisas ficam
 
-Para backup de producao, copie `backup.env.example` para `backup.env` e preencha `PROD_DATABASE_URL` com a External Database URL do Render.
+```
+backend/     API FastAPI: models, schemas, routers, migrations, testes
+frontend/    SPA React: pages, components, contexts, services
+scripts/     setup e dev — o que você roda na sua máquina
+ops/         deploy, backup, restore, systemd — o que roda no servidor
+quality/     catraca de qualidade, baseline e rubrica de review
+docs/        documentação do projeto
+```
+
+A regra de qual arquivo pode morar na raiz, e por que ela é curta:
+[docs/estrutura-do-repositorio.md](docs/estrutura-do-repositorio.md).
+
+As regras de trabalho no projeto — o que rodar antes de commitar, o que nunca
+versionar, quais invariantes não se quebra — estão em [AGENTS.md](AGENTS.md).

@@ -1,7 +1,7 @@
 """O schema só muda por migration — e a cadeia tem de servir banco novo e velho.
 
 Os testes rodam o `alembic` em subprocesso, do mesmo jeito que o deploy roda
-(`start.sh` / `render.yaml`), em vez de chamar a API interna: o que precisa
+(`ops/entrypoint.sh`), em vez de chamar a API interna: o que precisa
 funcionar é o comando, não a biblioteca.
 """
 
@@ -188,7 +188,8 @@ def test_reconciliacao_reclassifica_movimentacao_antiga(banco_legado):
 def test_ensaio_do_corte_de_producao(banco_legado):
     """O procedimento inteiro do banco que já existia: stamp, upgrade, subir.
 
-    É o que vai ser feito no Neon. Se este teste passa, o corte tem ensaio.
+    É o que vai ser feito no banco de produção. Se este teste passa, o corte
+    tem ensaio.
     """
     assert _alembic(banco_legado, "stamp", BASELINE).returncode == 0
     assert _alembic(banco_legado, "upgrade", "head").returncode == 0
