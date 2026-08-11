@@ -10,6 +10,7 @@ class RequisicaoItemCreate(BaseModel):
 
 
 class RequisicaoItemUpdate(BaseModel):
+    id: int | None = None
     product_id: int | None = None
     quantity_requested: float | None = None
     quantity_approved: float | None = None

@@ -84,6 +84,36 @@ class TestRequisicaoWorkflow:
         assert resp.json()["reason"] == "Atualizada"
         assert resp.json()["notes"] == "Nova nota"
 
+    def test_update_requisicao_syncs_items(self, client, auth_headers, seed_products, seed_deposits):
+        create_resp = client.post("/api/requisicoes/", json={
+            "deposit_requesting_id": seed_deposits[1].id,
+            "deposit_fulfilling_id": seed_deposits[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity_requested": 5, "unit_price": 10},
+                {"product_id": seed_products[1].id, "quantity_requested": 3, "unit_price": 20},
+            ],
+        }, headers=auth_headers)
+        items = create_resp.json()["items"]
+
+        resp = client.put(f"/api/requisicoes/{create_resp.json()['id']}", json={
+            "items": [
+                {
+                    "id": items[0]["id"],
+                    "product_id": seed_products[0].id,
+                    "quantity_requested": 8,
+                    "unit_price": 12,
+                },
+                {"product_id": seed_products[1].id, "quantity_requested": 2, "unit_price": 30},
+            ],
+        }, headers=auth_headers)
+
+        assert resp.status_code == 200
+        updated_items = {item["product_id"]: item for item in resp.json()["items"]}
+        assert set(updated_items) == {seed_products[0].id, seed_products[1].id}
+        assert updated_items[seed_products[0].id]["quantity_requested"] == 8
+        assert updated_items[seed_products[0].id]["unit_price"] == 12
+        assert updated_items[seed_products[1].id]["quantity_requested"] == 2
+
     def test_delete_requisicao_pendente(self, client, auth_headers, seed_products, seed_deposits):
         create_resp = client.post("/api/requisicoes/", json={
             "deposit_requesting_id": seed_deposits[1].id,
