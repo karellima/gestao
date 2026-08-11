@@ -179,9 +179,29 @@ app.include_router(contact_segments.router)
 app.include_router(settings.router)
 
 FRONTEND_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "frontend", "dist")
-if os.path.isdir(FRONTEND_DIR):
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
-else:
+
+
+def montar_frontend(app, diretorio=FRONTEND_DIR):
+    """Serve o SPA buildado. Sem build, a raiz responde só a mensagem da API.
+
+    Este `if` já morou solto aqui no fim do módulo, e o ramo executado dependia
+    de `frontend/dist/` existir na máquina. Isso vazava para a cobertura do
+    backend: quem tinha rodado `npm run build` media um número, quem não tinha
+    media outro — e o quality gate reprovava conforme o estado do disco, não
+    conforme o código. Como função com o diretório injetável, os dois caminhos
+    são exercitados por teste em qualquer máquina.
+
+    Devolve `True` se montou o SPA.
+    """
+    if os.path.isdir(diretorio):
+        app.mount("/", StaticFiles(directory=diretorio, html=True), name="frontend")
+        return True
+
     @app.get("/")
     def root():
         return {"message": "API do Sistema de Gestão - Estoque, Vendas e Financeiro"}
+
+    return False
+
+
+montar_frontend(app)
