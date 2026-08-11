@@ -3,3 +3,11 @@
 -r requirements.txt
 pytest>=8.0.0
 httpx>=0.28.0
+
+# Ferramentas do quality gate (../quality/gate.py).
+# Pinadas com == de propósito: uma atualização de ruff/lizard muda a contagem
+# sem ninguém mexer no código, e a catraca acusaria uma piora falsa.
+ruff==0.16.2
+lizard==1.23.0
+grimp==3.15
+pytest-cov==7.1.0

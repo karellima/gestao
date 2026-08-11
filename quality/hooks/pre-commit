@@ -1,0 +1,19 @@
+#!/bin/sh
+# Quality gate em catraca. Instalado via:
+#   git config core.hooksPath quality/hooks
+#
+# Cuidado: o gate mede a árvore de trabalho, não o índice. Se você tem
+# alterações não-staged, elas entram na conta. O aviso abaixo lembra disso.
+#
+# Para pular num caso excepcional: git commit --no-verify
+
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+if ! git diff --quiet; then
+    echo "quality gate: atenção — há alterações não-staged; o gate mede a árvore inteira." >&2
+fi
+
+echo "quality gate: rodando (leva ~1-2 min)..." >&2
+python3 "$ROOT/quality/gate.py"
