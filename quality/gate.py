@@ -157,19 +157,16 @@ def collect_coverage():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def collect_frontend_tests():
-    """The frontend suite is a gate and its line coverage is ratcheted below."""
-    proc = run(["npm", "run", "test:run", "--", "--reporter=dot"],
-               cwd=ROOT / "frontend")
-    if proc.returncode != 0:
-        die(f"a suíte frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
-
-
 def collect_frontend_coverage():
+    """Roda a suíte frontend uma vez só: `test:coverage` já é `vitest run`.
+
+    Suíte vermelha derruba o gate aqui mesmo — pelo código de saída do Vitest —,
+    do mesmo jeito que a do backend derruba em collect_coverage.
+    """
     proc = run(["npm", "run", "test:coverage", "--", "--reporter=dot"],
                cwd=ROOT / "frontend")
     if proc.returncode != 0:
-        die(f"a cobertura frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
+        die(f"a suíte frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
     report = ROOT / "frontend" / "coverage" / "coverage-summary.json"
     if not report.exists():
         die("Vitest não gerou frontend/coverage/coverage-summary.json")
@@ -235,9 +232,7 @@ def collect_all(with_tests=True):
     print("  ciclos...", file=sys.stderr)
     metrics["import_cycles"] = collect_cycles()
     if with_tests:
-        print("  vitest frontend...", file=sys.stderr)
-        collect_frontend_tests()
-        print("  cobertura frontend...", file=sys.stderr)
+        print("  vitest + cobertura frontend...", file=sys.stderr)
         metrics["coverage_frontend_pct"] = collect_frontend_coverage()
         print("  pytest + cobertura (demora ~1min)...", file=sys.stderr)
         metrics["coverage_backend_pct"] = collect_coverage()
