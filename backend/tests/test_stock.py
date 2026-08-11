@@ -1,4 +1,4 @@
-import pytest
+from app.models.stock import StockMovement
 
 
 class TestStockMovements:
@@ -202,13 +202,59 @@ class TestStockBalance:
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) >= 1
-        item = [d for d in data if d["product_id"] == seed_products[0].id][0]
+        item = next(d for d in data if d["product_id"] == seed_products[0].id)
         assert item["quantity_entries"] == 50
         assert item["quantity_exits"] == 20
         assert item["balance"] == 30
 
 
 class TestStockTransfer:
+    def test_transfer_report_aggregates_child_movements(
+        self, client, auth_headers, seed_products, seed_deposits, db,
+    ):
+        seed_deposits[1].parent_id = seed_deposits[0].id
+        db.add_all([
+            StockMovement(
+                product_id=seed_products[0].id,
+                deposit_id=seed_deposits[1].id,
+                movement_type="entrada",
+                quantity=30,
+                unit_price=30,
+                total_value=900,
+                reason="Transferência: Abastecimento ← Depósito Central",
+            ),
+            StockMovement(
+                product_id=seed_products[0].id,
+                deposit_id=seed_deposits[1].id,
+                movement_type="saida",
+                quantity=5,
+                unit_price=30,
+                total_value=150,
+                reason="Transferência: Devolução → Depósito Central",
+            ),
+            StockMovement(
+                product_id=seed_products[0].id,
+                deposit_id=seed_deposits[1].id,
+                movement_type="saida",
+                quantity=2,
+                unit_price=30,
+                total_value=60,
+                reason="Avaria: embalagem danificada",
+            ),
+        ])
+        db.commit()
+
+        resp = client.get("/api/stock/transfer-report/", headers=auth_headers)
+
+        assert resp.status_code == 200
+        item = next(row for row in resp.json() if row["deposit_id"] == seed_deposits[1].id)
+        assert item["product_id"] == seed_products[0].id
+        assert item["abastecimento_qty"] == 30
+        assert item["devolucao_qty"] == 5
+        assert item["avaria_qty"] == 2
+        assert item["venda_qty"] == 23
+        assert item["venda_total"] == 690
+
     def test_transfer_abastecimento(self, client, auth_headers, seed_products, seed_deposits):
         client.post("/api/stock/movements/", json={
             "product_id": seed_products[0].id,
@@ -232,8 +278,14 @@ class TestStockTransfer:
 
         resp = client.get(f"/api/stock/movements/?product_id={seed_products[0].id}", headers=auth_headers)
         movements = resp.json()
-        saidas = [m for m in movements if m["movement_type"] == "saida" and "abastecimento" in (m["reason"] or "").lower()]
-        entradas = [m for m in movements if m["movement_type"] == "entrada" and "abastecimento" in (m["reason"] or "").lower()]
+        saidas = [
+            m for m in movements
+            if m["movement_type"] == "saida" and "abastecimento" in (m["reason"] or "").lower()
+        ]
+        entradas = [
+            m for m in movements
+            if m["movement_type"] == "entrada" and "abastecimento" in (m["reason"] or "").lower()
+        ]
         assert len(saidas) == 1
         assert len(entradas) == 1
 

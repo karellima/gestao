@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
 import { formatCurrency } from '../services/format';
-import { BarChart3, ArrowDownCircle, ArrowUpCircle, FileText, Download, Printer, List, AlignJustify } from 'lucide-react';
+import { ArrowDownCircle, ArrowUpCircle, FileText, Download, Printer, List, AlignJustify } from 'lucide-react';
 import PrintPreview from '../components/PrintPreview';
 import { exportToExcel } from '../utils/reportExport';
 

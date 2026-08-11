@@ -1,5 +1,4 @@
-import pytest
-from datetime import datetime
+
 
 
 class TestFinancialTransactions:
@@ -107,6 +106,22 @@ class TestFinancialTransactions:
 
         resp = client.get("/api/financial/transactions/", headers=auth_headers)
         assert len(resp.json()) == 0
+
+    def test_delete_transaction_with_payments(self, client, auth_headers, seed_financial_categories):
+        create_resp = client.post("/api/financial/transactions/", json={
+            "type": "receita", "financial_category_id": seed_financial_categories[0].id,
+            "description": "Venda recebida", "amount": 200.0, "date": "2025-01-01T00:00:00",
+        }, headers=auth_headers)
+        tx_id = create_resp.json()["id"]
+        client.post("/api/payments/", json={
+            "transaction_id": tx_id, "amount": 200.0,
+            "payment_date": "2025-01-15T00:00:00",
+        }, headers=auth_headers)
+
+        resp = client.delete(f"/api/financial/transactions/{tx_id}", headers=auth_headers)
+
+        assert resp.status_code == 200
+        assert client.get(f"/api/financial/transactions/{tx_id}", headers=auth_headers).status_code == 404
 
 
 class TestFinancialPayments:

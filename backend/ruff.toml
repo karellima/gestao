@@ -13,3 +13,7 @@ select = ["E", "W", "F", "I", "UP", "B", "SIM", "DTZ", "S", "BLE", "FLY", "PLW",
 [lint.per-file-ignores]
 # Testes podem usar assert e credenciais de mentira.
 "tests/**" = ["S101", "S105", "S106"]
+# Defaults com Depends são a forma declarativa usada pelo FastAPI para
+# construir dependências de rota e de autorização; B008 não se aplica a eles.
+"app/routers/**" = ["B008"]
+"app/utils/security.py" = ["B008"]

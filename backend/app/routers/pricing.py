@@ -1,10 +1,11 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.pricing import ProductPricing
 from app.models.product import Product
-from app.schemas.pricing import PricingInput, PricingResult, PricingResponse, ApplyResult
+from app.schemas.pricing import ApplyResult, PricingInput, PricingResponse, PricingResult
 from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/pricing", tags=["Precificação de Produtos"])
@@ -108,7 +109,7 @@ def calculate_pricing(
     return calculate(data)
 
 
-@router.get("/", response_model=List[PricingResponse])
+@router.get("/", response_model=list[PricingResponse])
 def list_pricings(
     db: Session = Depends(get_db),
     _=Depends(require_module("precificacao")),

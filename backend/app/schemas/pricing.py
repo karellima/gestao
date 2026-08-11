@@ -1,10 +1,10 @@
-from pydantic import BaseModel, Field
-from typing import Optional
 from datetime import datetime
+
+from pydantic import BaseModel, Field
 
 
 class PricingInput(BaseModel):
-    product_id: Optional[int] = None
+    product_id: int | None = None
     acquisition_price: float = Field(default=0, ge=0)
     lote: float = Field(default=1, gt=0)
     avarias_pct: float = Field(default=0.06, ge=0)
@@ -36,14 +36,14 @@ class PricingResult(BaseModel):
 
 class PricingResponse(PricingInput):
     id: int
-    product_name: Optional[str] = None
-    display_name: Optional[str] = None
-    cost_price: Optional[float] = None
-    price: Optional[float] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    product_name: str | None = None
+    display_name: str | None = None
+    cost_price: float | None = None
+    price: float | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
 
 class ApplyResult(BaseModel):
     result: PricingResult
-    product: Optional[dict] = None
+    product: dict | None = None

@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel
-from app.database import get_db
-from app.models.product import Product, Category
-from app.models.unit import Unit
-from app.models.user import User
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
-import openpyxl
-import io
 import os
 import tempfile
+from contextlib import suppress
+
+import openpyxl
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.product import Product
+from app.models.user import User
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.services.product_import import InvalidProductImportFile, import_products
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 
 def _is_admin(db: Session, user: User) -> bool:
@@ -20,8 +21,8 @@ def _is_admin(db: Session, user: User) -> bool:
 
 
 def cleanup(path: str):
-    try: os.unlink(path)
-    except: pass
+    with suppress(FileNotFoundError):
+        os.unlink(path)
 
 
 def sync_markup(product, explicit_markup=False, explicit_price=False):
@@ -39,23 +40,23 @@ def sync_markup(product, explicit_markup=False, explicit_price=False):
 
 class ImportResult(BaseModel):
     imported: int
-    errors: List[str]
+    errors: list[str]
 
 router = APIRouter(prefix="/api/products", tags=["Produtos"])
 
 
-@router.get("/", response_model=List[ProductResponse])
+@router.get("/", response_model=list[ProductResponse])
 def list_products(
     skip: int = 0,
     limit: int = 100,
-    search: Optional[str] = None,
-    category_id: Optional[int] = None,
-    deposit_id: Optional[int] = None,
+    search: str | None = None,
+    category_id: int | None = None,
+    deposit_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("products")),
 ):
-    query = db.query(Product).filter(Product.is_active == True)
+    query = db.query(Product).filter(Product.is_active.is_(True))
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)
         if not deposit_ids:
@@ -80,13 +81,14 @@ def export_template(background_tasks: BackgroundTasks, _=Depends(require_module(
     for col, w in [("A",30), ("B",20), ("C",40), ("D",20), ("E",14), ("F",14), ("G",20), ("H",20), ("I",14)]:
         ws.column_dimensions[col].width = w
 
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx")
-    wb.save(tmp.name)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+        wb.save(tmp.name)
+        tmp_path = tmp.name
     wb.close()
-    background_tasks.add_task(cleanup, tmp.name)
+    background_tasks.add_task(cleanup, tmp_path)
 
     return FileResponse(
-        tmp.name,
+        tmp_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         filename="modelo_importacao_produtos.xlsx",
         headers={"Access-Control-Expose-Headers": "Content-Disposition"},
@@ -194,117 +196,14 @@ def import_products_excel(
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(400, "Formato inválido. Envie um arquivo .xlsx ou .xls")
 
-    contents = file.file.read()
-    wb = openpyxl.load_workbook(io.BytesIO(contents))
-    ws = wb.active
-
-    headers = [str(c.value).strip().lower() if c.value else "" for c in next(ws.iter_rows())]
-    has_cost_price = "preco custo" in headers or "preço custo" in headers
-    has_stock = any("estoque" in h for h in headers)
-    # Column layout always: 0=Nome, 1=SKU, 2=Desc, 3=CodBarras, 4=PrecoVenda
-    # Then 5=PrecoCusto (if exists), else 5=Categoria
-    ci = 5 if not has_cost_price else 6
-
-    rows = list(ws.iter_rows(min_row=2, values_only=True))
-    imported = 0
-    errors = []
-
-    units_map = {u.abbreviation.strip().lower(): u.id for u in db.query(Unit).all()}
-    units_names = {u.name.strip().lower(): u.id for u in db.query(Unit).all()}
-    cats_list = db.query(Category).all()
-    cats_by_name = {}
-    for c in cats_list:
-        key = c.name.strip().lower()
-        if key not in cats_by_name:
-            cats_by_name[key] = []
-        cats_by_name[key].append(c)
-
-    for i, row in enumerate(rows, start=2):
-        try:
-            if not row or all(v is None for v in row):
-                continue
-            name = str(row[0]).strip() if row[0] else ""
-            sku = str(row[1]).strip() if row[1] else ""
-            if not name or not sku:
-                errors.append(f"Linha {i}: Nome e SKU são obrigatórios")
-                continue
-
-            category_name = str(row[ci]).strip() if len(row) > ci and row[ci] else ""
-            sub_name = str(row[ci + 1]).strip() if len(row) > ci + 1 and row[ci + 1] else ""
-            unit_val = str(row[ci + 2]).strip().lower() if len(row) > ci + 2 and row[ci + 2] else ""
-
-            category_id = None
-            if category_name or sub_name:
-                target_cat = category_name.lower() if category_name else ""
-                target_sub = sub_name.lower() if sub_name else ""
-
-                if target_sub:
-                    candidates = cats_by_name.get(target_sub, [])
-                    if target_cat:
-                        parent_ids = {c.id for c in cats_by_name.get(target_cat, []) if not c.parent_id}
-                        matches = [c for c in candidates if c.parent_id in parent_ids]
-                    else:
-                        matches = [c for c in candidates if c.parent_id is not None]
-                    if len(matches) == 1:
-                        category_id = matches[0].id
-                    elif len(matches) == 0:
-                        detail = f"Subcategoria '{sub_name}'" + (f" sob '{category_name}'" if category_name else "") + " não encontrada"
-                        errors.append(f"Linha {i}: {detail}")
-                        continue
-                    else:
-                        detail = f"Subcategoria '{sub_name}' é ambígua. Especifique também a categoria pai."
-                        errors.append(f"Linha {i}: {detail}")
-                        continue
-                elif target_cat:
-                    candidates = cats_by_name.get(target_cat, [])
-                    parents = [c for c in candidates if c.parent_id is None]
-                    if len(parents) == 1:
-                        category_id = parents[0].id
-                    else:
-                        errors.append(f"Linha {i}: Categoria '{category_name}' não encontrada")
-                        continue
-
-            unit_id = None
-            if unit_val:
-                unit_id = units_map.get(unit_val) or units_names.get(unit_val)
-                if not unit_id:
-                    errors.append(f"Linha {i}: Unidade '{row[ci + 2].strip()}' não encontrada")
-                    continue
-
-            existing = db.query(Product).filter(Product.sku == sku).first()
-            data = {
-                "name": name,
-                "sku": sku,
-                "description": str(row[2]).strip() if len(row) > 2 and row[2] else None,
-                "barcode": str(row[3]).strip() if len(row) > 3 and row[3] else None,
-                "price": float(row[4]) if len(row) > 4 and row[4] is not None else None,
-                "cost_price": float(row[5]) if has_cost_price and len(row) > 5 and row[5] is not None else None,
-                "category_id": category_id,
-                "unit_id": unit_id,
-            }
-
-            if existing:
-                for key, value in data.items():
-                    if value is not None:
-                        setattr(existing, key, value)
-            else:
-                if has_stock:
-                    sc = ci + 3  # stock current
-                    sm = ci + 4  # stock min
-                    data["current_stock"] = float(row[sc]) if len(row) > sc and row[sc] is not None else 0
-                    data["min_stock"] = float(row[sm]) if len(row) > sm and row[sm] is not None else 0
-                db.add(Product(**data))
-
-            imported += 1
-        except Exception as e:
-            errors.append(f"Linha {i}: {str(e)}")
-
-    db.commit()
-    wb.close()
-    return ImportResult(imported=imported, errors=errors)
+    try:
+        result = import_products(file.file.read(), db)
+    except InvalidProductImportFile as exc:
+        raise HTTPException(400, "Arquivo Excel inválido") from exc
+    return ImportResult(imported=result.imported, errors=result.errors)
 
 
-@router.get("/low-stock/", response_model=List[ProductResponse])
+@router.get("/low-stock/", response_model=list[ProductResponse])
 def get_low_stock_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -312,7 +211,7 @@ def get_low_stock_products(
 ):
     query = (
         db.query(Product)
-        .filter(Product.is_active == True, Product.current_stock <= Product.min_stock)
+        .filter(Product.is_active.is_(True), Product.current_stock <= Product.min_stock)
     )
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)

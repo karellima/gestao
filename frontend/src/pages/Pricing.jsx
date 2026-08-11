@@ -3,7 +3,7 @@ import api from '../services/api';
 import { Calculator, Save, Trash2, Package, Percent, Edit, Tag, X, TrendingUp } from 'lucide-react';
 import {
   currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency,
-  maskPercentInput, parsePercent, isWeightUnit, unitDecimals, formatValue,
+  maskPercentInput, parsePercent, unitDecimals, formatValue,
 } from '../services/masks';
 
 const PERCENT_FIELDS = ['avarias_pct', 'comissao_pct', 'frete_pct', 'outros_custos_pct', 'recursos_humanos_pct', 'taxa_cartao_pct', 'taxas_antecipacao_pct', 'margem_alvo', 'impostos_pct'];
@@ -40,7 +40,7 @@ const saveBasePercents = (form) => {
     const obj = {};
     PERCENT_FIELDS.forEach(k => { obj[k] = form[k]; });
     localStorage.setItem(PERCENT_STORAGE_KEY, JSON.stringify(obj));
-  } catch {}
+  } catch { /* armazenamento local indisponível */ }
 };
 
 const defaultForm = () => ({ ...DEFAULTS, ...loadBasePercents() });
@@ -136,7 +136,7 @@ export default function Pricing() {
       try {
         const res = await api.post('/pricing/calculate', toPayload(form, decimals));
         setResult(res.data);
-      } catch (e) { setResult(null); }
+      } catch { setResult(null); }
       finally { setCalcLoading(false); }
     }, 300);
     return () => clearTimeout(timer.current);

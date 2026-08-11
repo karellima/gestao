@@ -1,10 +1,11 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models.role import Role, RoleModule
 from app.models.user import User
-from app.schemas.role import RoleCreate, RoleUpdate, RoleResponse, RoleModuleCreate
+from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/roles", tags=["Perfis de Acesso"])
@@ -20,7 +21,7 @@ def _role_to_response(r: Role) -> RoleResponse:
     )
 
 
-@router.get("/", response_model=List[RoleResponse])
+@router.get("/", response_model=list[RoleResponse])
 def list_roles(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("roles"))):
     roles = db.query(Role).order_by(Role.name).all()
     return [_role_to_response(r) for r in roles]

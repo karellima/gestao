@@ -1,17 +1,18 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.database import get_db
 from app.models.product import Category
-from app.schemas.product import CategoryCreate, CategoryUpdate, CategoryResponse
-from app.utils.security import get_current_user, require_module
+from app.schemas.product import CategoryCreate, CategoryResponse, CategoryUpdate
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/categories", tags=["Categorias de Produtos"])
 
 
-@router.get("/", response_model=List[CategoryResponse])
+@router.get("/", response_model=list[CategoryResponse])
 def list_categories(
-    parent_id: Optional[int] = None,
+    parent_id: int | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("categories")),
 ):
@@ -23,7 +24,7 @@ def list_categories(
     return query.all()
 
 
-@router.get("/all", response_model=List[CategoryResponse])
+@router.get("/all", response_model=list[CategoryResponse])
 def list_all_categories(
     db: Session = Depends(get_db),
     _=Depends(require_module("categories")),

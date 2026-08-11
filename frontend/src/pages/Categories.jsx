@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
-import { Plus, Edit, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
+import CategoryTree from '../components/CategoryTree';
 
 export default function Categories() {
   const [categories, setCategories] = useState([]);
@@ -21,9 +22,7 @@ export default function Categories() {
 
   useEffect(() => { loadCategories(); }, []);
 
-  const sortByName = (arr) => [...arr].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  const sortedCategories = useMemo(() => sortByName(categories), [categories]);
-  const getSubcategories = (parentId) => sortByName(allCategories.filter(c => c.parent_id === parentId));
+  const sortedCategories = useMemo(() => [...categories].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')), [categories]);
 
   const toggleExpand = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -51,29 +50,6 @@ export default function Categories() {
     catch (err) { alert(err.response?.data?.detail || 'Erro ao remover categoria'); }
   };
 
-  const renderCategory = (cat, level = 0) => {
-    const subs = getSubcategories(cat.id);
-    const isExpanded = expanded[cat.id];
-    return (
-      <div key={cat.id}>
-        <div className={`flex items-center gap-2 p-3 border-b hover:bg-gray-50 ${level > 0 ? 'bg-gray-25' : ''}`} style={{ paddingLeft: `${12 + level * 24}px` }}>
-          {subs.length > 0 ? (
-            <button onClick={() => toggleExpand(cat.id)} className="text-gray-400 hover:text-gray-600">
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-          ) : <div className="w-4" />}
-          <div className="flex-1">
-            <span className={level > 0 ? 'text-sm' : 'font-medium'}>{cat.name}</span>
-            {subs.length > 0 && <span className="text-xs text-gray-400 ml-2">({subs.length} sub)</span>}
-          </div>
-          <button onClick={() => handleEdit(cat)} className="text-brand-600 hover:text-brand-800 mr-2"><Edit size={14} /></button>
-          <button onClick={() => handleDelete(cat.id)} className="text-red-600 hover:text-red-800"><Trash2 size={14} /></button>
-        </div>
-        {isExpanded && subs.map(sub => renderCategory(sub, level + 1))}
-      </div>
-    );
-  };
-
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -88,7 +64,14 @@ export default function Categories() {
         {sortedCategories.length === 0 ? (
           <div className="p-8 text-center text-gray-500">Nenhuma categoria cadastrada</div>
         ) : (
-          sortedCategories.map(cat => renderCategory(cat))
+          <CategoryTree
+            rootCategories={sortedCategories}
+            allCategories={allCategories}
+            expanded={expanded}
+            onToggle={toggleExpand}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
         )}
       </div>
 
@@ -105,7 +88,7 @@ export default function Categories() {
               <select value={form.parent_id} onChange={e => setForm({...form, parent_id: e.target.value})}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
                 <option value="">Sem subcategoria (categoria pai)</option>
-                {sortByName(allCategories.filter(c => !c.parent_id)).map(c => (
+                {sortedCategories.map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>

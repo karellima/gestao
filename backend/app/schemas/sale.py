@@ -1,28 +1,27 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SaleTypeCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 
 class SaleTypeUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    is_active: bool | None = None
 
 
 class SaleTypeResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SaleItemCreate(BaseModel):
@@ -37,25 +36,24 @@ class SaleItemResponse(BaseModel):
     quantity: float
     unit_price: float
     total_price: float
-    product_name: Optional[str] = None
+    product_name: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SaleCreate(BaseModel):
     contact_id: int
     sale_type_id: int
-    notes: Optional[str] = None
-    items: List[SaleItemCreate]
+    notes: str | None = None
+    items: list[SaleItemCreate]
 
 
 class SaleUpdate(BaseModel):
-    contact_id: Optional[int] = None
-    sale_type_id: Optional[int] = None
-    status: Optional[str] = None
-    notes: Optional[str] = None
-    items: Optional[List[SaleItemCreate]] = None
+    contact_id: int | None = None
+    sale_type_id: int | None = None
+    status: str | None = None
+    notes: str | None = None
+    items: list[SaleItemCreate] | None = None
 
 
 class SaleResponse(BaseModel):
@@ -64,12 +62,11 @@ class SaleResponse(BaseModel):
     sale_type_id: int
     total_amount: float
     status: str
-    notes: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    contact_name: Optional[str] = None
-    sale_type_name: Optional[str] = None
-    items: List[SaleItemResponse] = []
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    contact_name: str | None = None
+    sale_type_name: str | None = None
+    items: list[SaleItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

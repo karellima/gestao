@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '../services/api';
 import { formatCurrency, getTodayLocal } from '../services/format';
 import { qtyStep, qtyMin, roundQty, currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
@@ -14,7 +14,6 @@ export default function Stock() {
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [activeTab, setActiveTab] = useState('entrada');
-  const [loading, setLoading] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: 'movement_date', direction: 'desc' });
   const [form, setForm] = useState({
     product_id: '', deposit_id: '',     movement_date: getTodayLocal(),
@@ -27,11 +26,9 @@ export default function Stock() {
   }, [form.product_id, showModal]);
 
   const loadMovements = () => {
-    setLoading(true);
     api.get('/stock/movements/')
       .then(res => setMovements(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -40,12 +37,12 @@ export default function Stock() {
     loadMovements();
   }, []);
 
-  const getProductName = (id) => {
+  const getProductName = useCallback((id) => {
     const p = products.find(p => p.id === id);
     if (!p) return '-';
     return p.display_name || (p.unit?.abbreviation ? `${p.name} ${p.unit.abbreviation}` : p.name);
-  };
-  const getDepositName = (id) => deposits.find(d => d.id === id)?.name || '-';
+  }, [products]);
+  const getDepositName = useCallback((id) => deposits.find(d => d.id === id)?.name || '-', [deposits]);
 
   const sortedMovements = useMemo(() => {
     const arr = [...movements];
@@ -63,7 +60,7 @@ export default function Stock() {
       return 0;
     });
     return arr;
-  }, [movements, sortConfig, products, deposits]);
+  }, [movements, sortConfig, getProductName, getDepositName]);
 
   const handleSort = (key, direction) => setSortConfig({ key, direction });
 

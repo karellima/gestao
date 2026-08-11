@@ -1,19 +1,20 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.contact_segment import ContactSegment
 from app.schemas.contact_segment import (
     ContactSegmentCreate,
-    ContactSegmentUpdate,
     ContactSegmentResponse,
+    ContactSegmentUpdate,
 )
 from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/contact-segments", tags=["Seguimentos"])
 
 
-@router.get("/", response_model=List[ContactSegmentResponse])
+@router.get("/", response_model=list[ContactSegmentResponse])
 def list_segments(
     db: Session = Depends(get_db),
     _=Depends(require_module("contacts")),

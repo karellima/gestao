@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
-import { Plus, Edit, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
+import CategoryTree from '../components/CategoryTree';
 
 export default function FinancialCategories() {
   const [allCategories, setAllCategories] = useState([]);
@@ -11,16 +12,17 @@ export default function FinancialCategories() {
   const [expanded, setExpanded] = useState({});
   const [form, setForm] = useState({ name: '', description: '', type: 'despesa', parent_id: '' });
 
-  const loadCategories = () => {
+  const loadCategories = useCallback(() => {
     const params = filter ? { type: filter } : {};
     api.get('/financial-categories/all', { params }).then(res => setAllCategories(res.data));
-  };
+  }, [filter]);
 
-  useEffect(() => { loadCategories(); }, [filter]);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
 
-  const sortByName = (arr) => [...arr].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
-  const parents = useMemo(() => sortByName(allCategories.filter(c => !c.parent_id)), [allCategories]);
-  const getSubcategories = (parentId) => sortByName(allCategories.filter(c => c.parent_id === parentId));
+  const parents = useMemo(
+    () => [...allCategories.filter(category => !category.parent_id)].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),
+    [allCategories],
+  );
 
   const toggleExpand = (id) => setExpanded(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -49,31 +51,6 @@ export default function FinancialCategories() {
     catch (err) { alert(err.response?.data?.detail || 'Erro ao remover categoria financeira'); }
   };
 
-  const renderCategory = (cat, level = 0) => {
-    const subs = getSubcategories(cat.id);
-    const isExpanded = expanded[cat.id];
-    return (
-      <div key={cat.id}>
-        <div className={`flex items-center gap-2 p-3 border-b hover:bg-gray-50`} style={{ paddingLeft: `${12 + level * 24}px` }}>
-          {subs.length > 0 ? (
-            <button onClick={() => toggleExpand(cat.id)} className="text-gray-400 hover:text-gray-600">
-              {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-            </button>
-          ) : <div className="w-4" />}
-          <span className={`px-2 py-0.5 rounded text-xs font-medium ${cat.type === 'receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-            {cat.type === 'receita' ? 'Receita' : 'Despesa'}
-          </span>
-          <span className={level > 0 ? 'text-sm' : 'font-medium'}>{cat.name}</span>
-          {subs.length > 0 && <span className="text-xs text-gray-400 ml-1">({subs.length})</span>}
-          <div className="flex-1" />
-          <button onClick={() => handleEdit(cat)} className="text-brand-600 hover:text-brand-800 mr-2"><Edit size={14} /></button>
-          <button onClick={() => handleDelete(cat.id)} className="text-red-600 hover:text-red-800"><Trash2 size={14} /></button>
-        </div>
-        {isExpanded && subs.map(sub => renderCategory(sub, level + 1))}
-      </div>
-    );
-  };
-
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -97,7 +74,15 @@ export default function FinancialCategories() {
         {parents.length === 0 ? (
           <div className="p-8 text-center text-gray-500">Nenhuma categoria cadastrada</div>
         ) : (
-          parents.map(cat => renderCategory(cat))
+          <CategoryTree
+            rootCategories={parents}
+            allCategories={allCategories}
+            expanded={expanded}
+            onToggle={toggleExpand}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            showType
+          />
         )}
       </div>
 
@@ -115,7 +100,7 @@ export default function FinancialCategories() {
                 <select value={form.parent_id} onChange={e => setForm({...form, parent_id: e.target.value})}
                   className="px-3 py-2 border rounded-lg text-sm">
                   <option value="">Categoria pai</option>
-                  {sortByName(parents.filter(c => c.type === form.type)).map(c => (
+                  {parents.filter(c => c.type === form.type).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>

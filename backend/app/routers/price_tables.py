@@ -1,14 +1,18 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+
 from app.database import get_db
 from app.models.price_table import PriceTable, PriceTableItem
 from app.models.product import Product
 from app.schemas.price_table import (
-    PriceTableCreate, PriceTableUpdate, PriceTableResponse, PriceTableItemResponse,
+    PriceTableCreate,
+    PriceTableItemResponse,
+    PriceTableResponse,
+    PriceTableUpdate,
 )
-from app.utils.security import require_module
 from app.utils.helpers import product_label
+from app.utils.security import require_module
 
 
 def _item_to_response(it: PriceTableItem) -> PriceTableItemResponse:
@@ -35,7 +39,7 @@ def _table_to_response(t: PriceTable) -> PriceTableResponse:
 router = APIRouter(prefix="/api/price-tables", tags=["Tabelas de Preços"])
 
 
-@router.get("/", response_model=List[PriceTableResponse])
+@router.get("/", response_model=list[PriceTableResponse])
 def list_price_tables(
     db: Session = Depends(get_db),
     _=Depends(require_module("price_tables")),

@@ -1,19 +1,20 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.recurrence_frequency import RecurrenceFrequency
 from app.schemas.recurrence_frequency import (
     RecurrenceFrequencyCreate,
-    RecurrenceFrequencyUpdate,
     RecurrenceFrequencyResponse,
+    RecurrenceFrequencyUpdate,
 )
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/recurrence-frequencies", tags=["Frequências de Recorrência"])
 
 
-@router.get("/", response_model=List[RecurrenceFrequencyResponse])
+@router.get("/", response_model=list[RecurrenceFrequencyResponse])
 def list_frequencies(
     db: Session = Depends(get_db),
     _=Depends(require_module("recurrence_frequencies")),
@@ -21,7 +22,7 @@ def list_frequencies(
     return db.query(RecurrenceFrequency).order_by(RecurrenceFrequency.days_interval).all()
 
 
-@router.get("/active", response_model=List[RecurrenceFrequencyResponse])
+@router.get("/active", response_model=list[RecurrenceFrequencyResponse])
 def list_active_frequencies(
     db: Session = Depends(get_db),
     _=Depends(require_module("recurrence_frequencies")),

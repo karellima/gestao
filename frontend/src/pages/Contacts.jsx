@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
@@ -27,24 +27,24 @@ export default function Contacts() {
     phone: '', address: '', cep: '', city: '', state: '', notes: '', price_table_id: '',
   });
 
-  const loadContacts = () => {
+  const loadContacts = useCallback(() => {
     const params = {};
     if (search) params.search = search;
     if (filter) params.contact_type = filter;
     api.get('/contacts/', { params }).then(res => setContacts(res.data)).catch(() => {});
-  };
+  }, [search, filter]);
 
-  useEffect(() => { loadContacts(); }, [search, filter]);
+  useEffect(() => { loadContacts(); }, [loadContacts]);
 
   useEffect(() => {
     api.get('/price-tables/').then(res => setPriceTables(res.data)).catch(() => {});
   }, []);
 
-  const loadSegments = () => {
+  const loadSegments = useCallback(() => {
     api.get('/contact-segments/').then(res => setSegments(res.data)).catch(() => {});
-  };
+  }, []);
 
-  useEffect(() => { loadSegments(); }, []);
+  useEffect(() => { loadSegments(); }, [loadSegments]);
 
   const addSegment = async () => {
     const name = newSegment.trim();

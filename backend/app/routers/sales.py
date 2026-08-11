@@ -1,25 +1,31 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
-from typing import List
+
 from app.database import get_db
-from app.models.sale import SaleType, Sale, SaleItem
 from app.models.contact import Contact
-from app.models.product import Product
 from app.models.price_table import PriceTable
+from app.models.product import Product
+from app.models.sale import Sale, SaleItem, SaleType
 from app.models.user import User
 from app.schemas.sale import (
-    SaleTypeCreate, SaleTypeUpdate, SaleTypeResponse,
-    SaleCreate, SaleUpdate, SaleResponse, SaleItemResponse,
+    SaleCreate,
+    SaleItemResponse,
+    SaleResponse,
+    SaleTypeCreate,
+    SaleTypeResponse,
+    SaleTypeUpdate,
+    SaleUpdate,
 )
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 from app.utils.helpers import product_label
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 
 def _is_admin(db: Session, user: User) -> bool:
     return is_admin_user(db, user)
 
 
-def _product_deposit_ids_in_scope(db: Session, user: User, product_ids: List[int]) -> bool:
+def _product_deposit_ids_in_scope(db: Session, user: User, product_ids: list[int]) -> bool:
     """Checks if all given product_ids belong to at least one user deposit."""
     if _is_admin(db, user):
         return True
@@ -84,7 +90,7 @@ def _resolve_price(db: Session, contact_id: int, product_id: int, sent_price: fl
 sale_type_router = APIRouter(prefix="/api/sale-types", tags=["Tipos de Lançamento"])
 
 
-@sale_type_router.get("/", response_model=List[SaleTypeResponse])
+@sale_type_router.get("/", response_model=list[SaleTypeResponse])
 def list_sale_types(
     db: Session = Depends(get_db),
     _=Depends(require_module("sale_types")),
@@ -141,7 +147,7 @@ def delete_sale_type(
 sale_router = APIRouter(prefix="/api/sales", tags=["Lançamentos"])
 
 
-@sale_router.get("/", response_model=List[SaleResponse])
+@sale_router.get("/", response_model=list[SaleResponse])
 def list_sales(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

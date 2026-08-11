@@ -1,11 +1,12 @@
+
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from typing import List
+from sqlalchemy.orm import Session
+
 from app.database import get_db
 from app.models.deposit import Deposit
 from app.models.user import User
-from app.schemas.deposit import DepositCreate, DepositUpdate, DepositResponse
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
+from app.schemas.deposit import DepositCreate, DepositResponse, DepositUpdate
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 router = APIRouter(prefix="/api/deposits", tags=["Depósitos"])
 
@@ -14,7 +15,7 @@ def _is_admin(db: Session, user: User) -> bool:
     return is_admin_user(db, user)
 
 
-@router.get("/", response_model=List[DepositResponse])
+@router.get("/", response_model=list[DepositResponse])
 def list_deposits(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -31,7 +32,7 @@ def list_deposits(
     ).order_by(Deposit.name).all()
 
 
-@router.get("/mine", response_model=List[DepositResponse])
+@router.get("/mine", response_model=list[DepositResponse])
 def list_my_deposits(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
@@ -51,7 +52,7 @@ def list_my_deposits(
     ).order_by(Deposit.name).all()
 
 
-@router.get("/parents", response_model=List[DepositResponse])
+@router.get("/parents", response_model=list[DepositResponse])
 def list_parent_deposits(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),

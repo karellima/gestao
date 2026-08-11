@@ -1,22 +1,39 @@
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-from app.database import engine
-from app.routers import auth, products, stock, financial, contacts, reports, payments
-from app.routers import categories, financial_categories, deposits, accounts, payment_types, units, recurrence_frequencies
-from app.routers import requisicoes, roles, pricing
-from app.routers import price_tables
-from app.routers import contact_segments
-from app.routers import settings
-from app.routers.sales import sale_type_router, sale_router
-
 import logging
-import time
 import os
+import time
 from datetime import datetime
 
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.database import engine
 from app.logging_config import setup_logging
+from app.routers import (
+    accounts,
+    auth,
+    categories,
+    contact_segments,
+    contacts,
+    deposits,
+    financial,
+    financial_categories,
+    payment_types,
+    payments,
+    price_tables,
+    pricing,
+    products,
+    recurrence_frequencies,
+    reports,
+    requisicoes,
+    roles,
+    settings,
+    stock,
+    units,
+)
+from app.routers.sales import sale_router, sale_type_router
+
 setup_logging()
 logger = logging.getLogger("gestao.main")
 
@@ -99,6 +116,7 @@ with Session(engine) as session:
             session.commit()
 
 from seed import seed, seed_frequencies
+
 seed()
 seed_frequencies()
 

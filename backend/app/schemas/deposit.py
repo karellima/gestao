@@ -1,31 +1,30 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
 
 
 class DepositCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    address: Optional[str] = None
-    parent_id: Optional[int] = None
+    description: str | None = None
+    address: str | None = None
+    parent_id: int | None = None
 
 
 class DepositUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    address: Optional[str] = None
-    parent_id: Optional[int] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    address: str | None = None
+    parent_id: int | None = None
+    is_active: bool | None = None
 
 
 class DepositResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
-    address: Optional[str] = None
-    parent_id: Optional[int] = None
+    description: str | None = None
+    address: str | None = None
+    parent_id: int | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

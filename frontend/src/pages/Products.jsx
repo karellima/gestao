@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { Plus, Edit, Trash2, Search, Upload } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
@@ -31,17 +31,17 @@ export default function Products() {
     ? allCategories.filter(c => c.parent_id === parseInt(form.category_id))
     : [];
 
-  const loadProducts = () => {
+  const loadProducts = useCallback(() => {
     const params = search ? { search } : {};
     api.get('/products/', { params }).then(res => setProducts(res.data)).catch(() => {});
-  };
+  }, [search]);
 
   useEffect(() => {
     api.get('/categories/all').then(res => setAllCategories(res.data)).catch(() => {});
     api.get('/units/').then(res => setUnits(res.data)).catch(() => {});
   }, []);
 
-  useEffect(() => { loadProducts(); }, [search]);
+  useEffect(() => { loadProducts(); }, [loadProducts]);
 
   const sortedProducts = useMemo(() => {
     const arr = [...products];

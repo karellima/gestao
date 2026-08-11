@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { BarChart3, ArrowRightLeft, AlertTriangle, TrendingUp, Printer } from 'lucide-react';
 import PrintPreview from '../components/PrintPreview';
@@ -35,7 +35,7 @@ export default function TransferReport() {
   const subDeposits = useMemo(() => deposits.filter(d => d.parent_id), [deposits]);
   const parentDeposits = useMemo(() => deposits.filter(d => !d.parent_id), [deposits]);
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     setLoading(true);
     try {
       const params = {};
@@ -49,9 +49,9 @@ export default function TransferReport() {
     } catch (err) {
       alert(err.response?.data?.detail || 'Erro ao carregar relatório');
     } finally { setLoading(false); }
-  };
+  }, [filterDeposit, startDate, endDate]);
 
-  useEffect(() => { loadReport(); }, [filterDeposit, startDate, endDate]);
+  useEffect(() => { loadReport(); }, [loadReport]);
 
   const summaries = useMemo(() => {
     const byDeposit = {};

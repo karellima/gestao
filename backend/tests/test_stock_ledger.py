@@ -80,10 +80,10 @@ def test_recalculate_de_produto_inexistente_nao_explode(db):
 
 
 def test_compensacao_e_datada_de_agora(db, nova_movimentacao, admin):
-    from datetime import datetime, timedelta
+    from datetime import UTC, datetime, timedelta
 
     antiga = nova_movimentacao(movement_type="entrada", quantity=5)
-    antiga.movement_date = datetime.utcnow() - timedelta(days=30)
+    antiga.movement_date = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
     db.commit()
 
     compensacao = compensate_movement(db, antiga, user_id=admin.id)

@@ -1,14 +1,16 @@
-from datetime import datetime, timedelta
-from typing import List, Optional, Callable
-from jose import JWTError, jwt
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
+
 import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.orm import Session
-from app.config import SECRET_KEY, ACCESS_TOKEN_EXPIRE_MINUTES
+
+from app.config import ACCESS_TOKEN_EXPIRE_MINUTES, SECRET_KEY
 from app.database import get_db
-from app.models.user import User
 from app.models.role import Role, RoleModule
+from app.models.user import User
 
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
@@ -22,9 +24,9 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -41,8 +43,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if user_id_str is None:
             raise credentials_exception
         user_id = int(user_id_str)
-    except (JWTError, ValueError):
-        raise credentials_exception
+    except (JWTError, ValueError) as error:
+        raise credentials_exception from error
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -57,7 +59,7 @@ def is_admin_user(db: Session, user: User) -> bool:
     return bool(role and role.is_admin)
 
 
-def user_deposit_ids(user: User) -> List[int]:
+def user_deposit_ids(user: User) -> list[int]:
     """Depósitos que o usuário enxerga — o escopo de tudo que não é admin.
 
     Lista vazia quer dizer "nenhum depósito", não "todos": quem chama filtra

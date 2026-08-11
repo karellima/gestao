@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from datetime import UTC
 
 
 def setup_logging():
@@ -9,12 +10,12 @@ def setup_logging():
 
     if fmt_env == "json":
         import json
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         class JsonFormatter(logging.Formatter):
             def format(self, record):
                 log_entry = {
-                    "ts": datetime.now(timezone.utc).isoformat(),
+                    "ts": datetime.now(UTC).isoformat(),
                     "lvl": record.levelname,
                     "logger": record.name,
                     "msg": record.getMessage(),

@@ -1,28 +1,45 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
-from typing import List, Optional
-from datetime import datetime, timezone
+
 from app.database import get_db
-from app.models.stock import StockMovement
-from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.product import Product
+from app.models.stock import StockMovement
 from app.models.user import User
 from app.schemas.stock import (
-    StockMovementCreate, StockMovementUpdate, StockMovementResponse,
-    StockBalanceItem, StockMovementReportItem, StockTransferCreate,
-    StockAvariaCreate, TransferReportItem, StockRepairRequest, StockRepairReport,
+    StockAvariaCreate,
+    StockBalanceItem,
+    StockMovementCreate,
+    StockMovementReportItem,
+    StockMovementResponse,
+    StockMovementUpdate,
+    StockRepairReport,
+    StockRepairRequest,
+    StockTransferCreate,
+    TransferReportItem,
 )
-from app.utils.security import (
-    get_current_user, require_module, require_any_module, require_admin,
-    is_admin_user, user_deposit_ids,
-)
-from app.utils.helpers import product_label
 from app.services.stock_ledger import (
-    SOURCE_ESTORNO, SOURCE_REPARO,
-    compensate_movement, is_compensated, recalculate_product_stock,
+    SOURCE_ESTORNO,
+    SOURCE_REPARO,
+    compensate_movement,
+    is_compensated,
+    recalculate_product_stock,
 )
 from app.services.stock_repair import repair_stock
+from app.services.transfer_report import build_transfer_report
+from app.utils.helpers import product_label
+from app.utils.security import (
+    get_current_user,
+    is_admin_user,
+    require_admin,
+    require_any_module,
+    require_module,
+    user_deposit_ids,
+)
+from app.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/stock", tags=["Estoque"])
 
@@ -36,19 +53,19 @@ def parse_utc(s: str) -> datetime:
     s = s.strip().replace("Z", "+00:00")
     dt = datetime.fromisoformat(s)
     if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt
 
 
-@router.get("/movements/", response_model=List[StockMovementResponse])
+@router.get("/movements/", response_model=list[StockMovementResponse])
 def list_movements(
     skip: int = 0,
     limit: int = 200,
-    product_id: Optional[int] = None,
-    deposit_id: Optional[int] = None,
-    movement_type: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    product_id: int | None = None,
+    deposit_id: int | None = None,
+    movement_type: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
@@ -94,11 +111,11 @@ def create_movement(
     if movement.movement_type == "saida" and not movement.reason:
         raise HTTPException(status_code=400, detail="Requisição de saída deve informar o motivo/destino")
 
-    movement_date = None
-    if movement.movement_date:
-        movement_date = datetime.fromisoformat(movement.movement_date)
-    else:
-        movement_date = datetime.utcnow()
+    movement_date = (
+        datetime.fromisoformat(movement.movement_date)
+        if movement.movement_date
+        else utc_now_naive()
+    )
 
     total_value = movement.quantity * movement.unit_price
     db_movement = StockMovement(
@@ -163,12 +180,16 @@ def update_movement(
 
     data = movement.model_dump(exclude_unset=True)
 
-    if data.get("product_id") is not None:
-        if not db.query(Product).filter(Product.id == data["product_id"]).first():
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    if data.get("deposit_id") is not None:
-        if not db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first():
-            raise HTTPException(status_code=404, detail="Depósito não encontrado")
+    if (
+        data.get("product_id") is not None
+        and not db.query(Product).filter(Product.id == data["product_id"]).first()
+    ):
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    if (
+        data.get("deposit_id") is not None
+        and not db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first()
+    ):
+        raise HTTPException(status_code=404, detail="Depósito não encontrado")
 
     old_product_id = db_movement.product_id
 
@@ -246,7 +267,7 @@ def delete_movement(
 
 @router.post("/repair", response_model=StockRepairReport)
 def repair(
-    data: Optional[StockRepairRequest] = None,
+    data: StockRepairRequest | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
@@ -266,11 +287,11 @@ def repair(
     )
 
 
-@router.get("/balance/", response_model=List[StockBalanceItem])
+@router.get("/balance/", response_model=list[StockBalanceItem])
 def stock_balance(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_any_module(["stock_reports", "deposits"])),
@@ -340,11 +361,11 @@ def stock_balance(
     ]
 
 
-@router.get("/report/", response_model=List[StockMovementReportItem])
+@router.get("/report/", response_model=list[StockMovementReportItem])
 def stock_movement_report(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
@@ -381,7 +402,11 @@ def stock_movement_report(
             movement_date=m.movement_date,
             quantity=m.quantity,
             unit_price=m.unit_price if (m.unit_price and m.unit_price > 0) else (cost_price or product_price or 0),
-            total_value=m.total_value if (m.unit_price and m.unit_price > 0) else (m.quantity * (cost_price or product_price or 0)),
+            total_value=(
+                m.total_value
+                if (m.unit_price and m.unit_price > 0)
+                else (m.quantity * (cost_price or product_price or 0))
+            ),
             reason=m.reason,
             created_at=m.created_at,
         )
@@ -511,7 +536,11 @@ def register_avaria(
         ).scalar()
         available = entrada - saida
         if it.quantity > available:
-            raise HTTPException(400, f"Avariado para '{product.name}' ({it.quantity} und) excede o estoque disponível ({available} und)")
+            raise HTTPException(
+                400,
+                f"Avariado para '{product.name}' ({it.quantity} und) excede o "
+                f"estoque disponível ({available} und)",
+            )
 
         unit_price = it.unit_price or product.cost_price or product.price or 0
         mov = StockMovement(
@@ -531,11 +560,11 @@ def register_avaria(
     return {"message": "Avaria registrada com sucesso", "items_count": len(data.items)}
 
 
-@router.get("/avarias/", response_model=List[StockMovementResponse])
+@router.get("/avarias/", response_model=list[StockMovementResponse])
 def list_avarias(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
@@ -560,21 +589,17 @@ def list_avarias(
     return query.order_by(StockMovement.movement_date.desc()).all()
 
 
-@router.get("/transfer-report/", response_model=List[TransferReportItem])
+@router.get("/transfer-report/", response_model=list[TransferReportItem])
 def transfer_report(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
-    """
-    Relatório de abastecimento vs devolução vs avarias vs vendas por depósito.
-    Para sub-depósitos, abastecimento = o que recebeu do pai; para depósitos pai,
-    abastecimento = o que enviou aos filhos. Venda = abastecimento - devolução - avaria.
-    """
-    query = db.query(Deposit).filter(Deposit.is_active == True)
+    """Relatório de abastecimento, devolução, avarias e vendas por depósito."""
+    query = db.query(Deposit).filter(Deposit.is_active.is_(True))
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)
         if not deposit_ids:
@@ -582,105 +607,6 @@ def transfer_report(
         query = query.filter(Deposit.id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(Deposit.id == deposit_id)
-    deposits = query.all()
-
-    def apply_dates(q):
-        if start_date:
-            q = q.filter(StockMovement.movement_date >= parse_utc(start_date))
-        if end_date:
-            q = q.filter(StockMovement.movement_date <= parse_utc(end_date))
-        return q
-
-    result = []
-
-    for dep in deposits:
-        is_parent = not dep.parent_id
-        parent_name = None
-        if not is_parent:
-            parent = db.query(Deposit).filter(Deposit.id == dep.parent_id).first()
-            parent_name = parent.name if parent else "?"
-
-        if is_parent:
-            # Pai: abastecimento = o que enviou aos filhos (saídas)
-            ab_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "saida",
-                StockMovement.reason.like("%Abastecimento%"),
-            )
-            # Devolução = o que recebeu de volta dos filhos (entradas)
-            dev_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "entrada",
-                StockMovement.reason.like("%Devolução%"),
-            )
-        else:
-            # Sub-depósito: abastecimento = o que recebeu do pai (entradas)
-            ab_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "entrada",
-                StockMovement.reason.like(f"%Abastecimento%{parent_name}%"),
-            )
-            # Devolução = o que devolveu ao pai (saídas)
-            dev_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "saida",
-                StockMovement.reason.like("%Devolução%"),
-            )
-
-        av_query = db.query(
-            StockMovement.product_id,
-            func.sum(StockMovement.quantity).label("total_qty"),
-        ).filter(
-            StockMovement.deposit_id == dep.id,
-            StockMovement.movement_type == "saida",
-            StockMovement.reason.like("Avaria:%"),
-        )
-
-        abastecimento_data = {r.product_id: r for r in apply_dates(ab_query).group_by(StockMovement.product_id).all()}
-        devolucao_data = {r.product_id: r for r in apply_dates(dev_query).group_by(StockMovement.product_id).all()}
-        avaria_data = {r.product_id: r.total_qty for r in apply_dates(av_query).group_by(StockMovement.product_id).all()}
-
-        all_product_ids = set(abastecimento_data.keys()) | set(devolucao_data.keys()) | set(avaria_data.keys())
-
-        for pid in sorted(all_product_ids):
-            product = db.query(Product).filter(Product.id == pid).first()
-            pname = product_label(product) or f"Produto #{pid}"
-            ab_qty = abastecimento_data[pid].total_qty if pid in abastecimento_data else 0
-            dev_qty = devolucao_data[pid].total_qty if pid in devolucao_data else 0
-            av_qty = avaria_data.get(pid, 0)
-            venda_qty = ab_qty - dev_qty - av_qty
-            avg_price = abastecimento_data[pid].avg_price if pid in abastecimento_data else (devolucao_data[pid].avg_price if pid in devolucao_data else 0)
-
-            if ab_qty == 0 and dev_qty == 0 and av_qty == 0:
-                continue
-
-            result.append(TransferReportItem(
-                deposit_id=dep.id,
-                deposit_name=dep.name,
-                product_id=pid,
-                product_name=pname,
-                abastecimento_qty=ab_qty,
-                devolucao_qty=dev_qty,
-                avaria_qty=av_qty,
-                venda_qty=max(0, venda_qty),
-                unit_price=avg_price or 0,
-                venda_total=max(0, venda_qty) * (avg_price or 0),
-            ))
-
-    return result
+    start = parse_utc(start_date) if start_date else None
+    end = parse_utc(end_date) if end_date else None
+    return build_transfer_report(db, query.all(), start, end)

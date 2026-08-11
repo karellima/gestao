@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PriceTableItemCreate(BaseModel):
@@ -10,34 +10,32 @@ class PriceTableItemCreate(BaseModel):
 
 class PriceTableCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    items: List[PriceTableItemCreate] = []
+    description: str | None = None
+    items: list[PriceTableItemCreate] = []
 
 
 class PriceTableUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    items: Optional[List[PriceTableItemCreate]] = None
+    name: str | None = None
+    description: str | None = None
+    items: list[PriceTableItemCreate] | None = None
 
 
 class PriceTableItemResponse(BaseModel):
     id: int
     product_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     price: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PriceTableResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    items: List[PriceTableItemResponse] = []
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    items: list[PriceTableItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

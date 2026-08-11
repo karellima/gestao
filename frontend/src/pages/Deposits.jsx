@@ -1,16 +1,10 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '../services/api';
-import { Plus, Edit, Trash2, Warehouse, ChevronDown, ChevronRight, ArrowRightLeft, AlertTriangle, BarChart3, Package, X, Search, MinusCircle, ClipboardCheck, ArrowDownCircle, ArrowUpCircle, Save } from 'lucide-react';
+import { Plus, Edit, Trash2, Warehouse, ArrowRightLeft, AlertTriangle, BarChart3, Package, X, ClipboardCheck, ArrowDownCircle, ArrowUpCircle, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 import { qtyStep, qtyMin, roundQty, currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
-
-const statusColors = {
-  maintained: 'bg-brand-100 text-brand-700 border-brand-200',
-  damaged: 'bg-red-100 text-red-700 border-red-200',
-  sold: 'bg-green-100 text-green-700 border-green-200',
-};
 
 const SIDES = {
   abastecimento: { label: 'Abastecimento', icon: ArrowRightLeft, color: 'text-brand-600', bg: 'bg-brand-50', btn: 'bg-brand-600 hover:bg-brand-700' },
@@ -19,30 +13,6 @@ const SIDES = {
 };
 
 const productLabel = (p) => p?.display_name || (p?.unit?.abbreviation ? `${p.name} ${p.unit.abbreviation}` : p?.name || '');
-
-function ProductSearch({ products, onSelect, onClose }) {
-  const [q, setQ] = useState('');
-  const results = useMemo(() => {
-    if (q.length < 1) return [];
-    const lq = q.toLowerCase();
-    return products.filter(p => p.name.toLowerCase().includes(lq) || (p.sku && p.sku.toLowerCase().includes(lq))).slice(0, 8);
-  }, [q, products]);
-  return (
-    <div className="p-3 border border-brand-200 rounded-lg bg-brand-50 mb-3">
-      <input type="text" placeholder="Buscar produto..." value={q} onChange={e => setQ(e.target.value)}
-        autoFocus className="w-full px-3 py-2 border rounded-lg text-sm mb-2" />
-      {results.map(p => (
-        <button key={p.id} type="button" onClick={() => onSelect(p)}
-          className="w-full text-left px-3 py-2 text-sm hover:bg-brand-100 border-b flex justify-between">
-          <span>{productLabel(p)}</span>
-          <span className="text-gray-400 text-xs">{p.sku}</span>
-        </button>
-      ))}
-      {q && results.length === 0 && <p className="text-xs text-gray-500">Nenhum produto</p>}
-      <button type="button" onClick={onClose} className="text-xs text-gray-500 mt-1">Cancelar</button>
-    </div>
-  );
-}
 
 function TransferModal({ type, deposit, deposits, onClose, onDone }) {
   const side = SIDES[type];
@@ -392,21 +362,21 @@ function AvariaModal({ deposit, deposits, onClose, onDone }) {
   );
 }
 
-function MovementsModal({ deposit, products, deposits, onClose }) {
+function MovementsModal({ deposit, products, onClose }) {
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editMov, setEditMov] = useState(null);
   const [editForm, setEditForm] = useState({ quantity: '', reason: '', notes: '', unit_price: '' });
 
-  const load = () => {
+  const load = useCallback(() => {
     if (!deposit) return;
     setLoading(true);
     api.get('/stock/movements/', { params: { deposit_id: deposit.id } })
       .then(res => setMovements(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  };
-  useEffect(() => { load(); }, [deposit]);
+  }, [deposit]);
+  useEffect(() => { load(); }, [load]);
 
   const startEdit = (m) => {
     setEditMov(m);
@@ -818,7 +788,7 @@ export default function Deposits() {
         <StockBalanceModal deposit={balanceDeposit} onClose={() => setBalanceDeposit(null)} />
       )}
       {movementsDeposit && (
-        <MovementsModal deposit={movementsDeposit} products={products} deposits={deposits}
+        <MovementsModal deposit={movementsDeposit} products={products}
           onClose={() => setMovementsDeposit(null)} />
       )}
     </div>

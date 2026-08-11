@@ -1,20 +1,27 @@
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_
-from typing import List
+
 from app.database import get_db
-from app.models.requisicao import Requisicao, RequisicaoItem
-from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.product import Product
+from app.models.requisicao import Requisicao, RequisicaoItem
 from app.models.stock import StockMovement
 from app.models.user import User
 from app.schemas.requisicao import (
-    RequisicaoCreate, RequisicaoUpdate, RequisicaoResponse,
-    RequisicaoItemResponse, RequisicaoApprove, RequisicaoFulfill, RequisicaoReceive,
+    RequisicaoApprove,
+    RequisicaoCreate,
+    RequisicaoFulfill,
+    RequisicaoItemResponse,
+    RequisicaoReceive,
+    RequisicaoResponse,
+    RequisicaoUpdate,
 )
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
-from app.utils.helpers import product_label
+from app.services.requisition_workflow import apply_requisicao_update
 from app.services.stock_ledger import recalculate_product_stock
+from app.utils.helpers import product_label
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 router = APIRouter(prefix="/api/requisicoes", tags=["Requisições de Estoque"])
 
@@ -70,9 +77,9 @@ def _req_to_response(r: Requisicao) -> RequisicaoResponse:
     )
 
 
-@router.get("/", response_model=List[RequisicaoResponse])
+@router.get("/", response_model=list[RequisicaoResponse])
 def list_requisicoes(
-    status: str = None,
+    status: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("requisicoes")),
@@ -198,38 +205,7 @@ def update_requisicao(
     if req.status not in ("pendente",):
         raise HTTPException(400, "Só é possível editar requisições pendentes")
 
-    if data.deposit_requesting_id is not None:
-        req.deposit_requesting_id = data.deposit_requesting_id
-    if data.deposit_fulfilling_id is not None:
-        req.deposit_fulfilling_id = data.deposit_fulfilling_id
-    if data.reason is not None:
-        req.reason = data.reason
-    if data.notes is not None:
-        req.notes = data.notes
-
-    if data.items is not None:
-        existing = {it.id for it in req.items if it.id}
-        sent_ids = {it.id for it in data.items if it.id}
-        for item in req.items[:]:
-            if item.id and item.id not in sent_ids:
-                db.delete(item)
-        for it in data.items:
-            if it.id and it.id in existing:
-                item = db.query(RequisicaoItem).filter(RequisicaoItem.id == it.id).first()
-                if item:
-                    if it.product_id is not None:
-                        item.product_id = it.product_id
-                    if it.quantity_requested is not None:
-                        item.quantity_requested = it.quantity_requested
-                    if it.unit_price is not None:
-                        item.unit_price = it.unit_price
-            else:
-                db.add(RequisicaoItem(
-                    requisicao_id=req.id,
-                    product_id=it.product_id,
-                    quantity_requested=it.quantity_requested or 0,
-                    unit_price=it.unit_price,
-                ))
+    apply_requisicao_update(req, data, db)
 
     db.commit()
     db.refresh(req)

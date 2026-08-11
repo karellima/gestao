@@ -11,7 +11,7 @@ export function SettingsProvider({ children }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
     let active = true;
     api.get('/settings/')
       .then(res => { if (active) setDataCase(res.data.data_entry_case || 'title'); })
