@@ -1,19 +1,26 @@
+# Segredos. `.env` sozinho não pegava `.env.ionos`, que carrega SECRET_KEY e
+# DATABASE_URL de produção — daí os três padrões. Os modelos `*.example` são
+# versionados de propósito e voltam pela negação.
+.env
+.env.*
+*.env
+!*.example
+
 # Python
 __pycache__/
 *.py[cod]
 *.egg-info/
-.env
 venv/
 .venv/
 .pytest_cache/
+.ruff_cache/
+.grimp_cache/
+.coverage
 *.db
 
 # Node
 node_modules/
 frontend/dist/
-financas-pessoais/frontend/dist/
-financas-pessoais/
-
 
 # IDE
 .vscode/
@@ -28,16 +35,6 @@ Thumbs.db
 
 # Backups
 backups/
-backup.env
-
-# Utilitários pessoais / fora do projeto
-fix-lenovo-audio/
-
-# Logs
-startup.log
 
 # Quality gate: o report é gerado a cada rodada; o baseline é versionado.
 quality/report.md
-.ruff_cache/
-.coverage
-

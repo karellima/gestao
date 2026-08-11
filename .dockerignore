@@ -24,6 +24,6 @@ frontend/dist/
 **/.venv/
 **/venv/
 
-docs/superpowers/
-startup.log
-*.ps1
+docs/
+quality/
+scripts/
