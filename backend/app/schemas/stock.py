@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class StockMovementCreate(BaseModel):
@@ -46,8 +45,7 @@ class StockMovementResponse(BaseModel):
     created_at: datetime | None = None
     user_id: int | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class StockTransferItem(BaseModel):
@@ -112,8 +110,7 @@ class StockRepairResync(BaseModel):
     from_: float = Field(alias="from")
     to: float
 
-    class Config:
-        populate_by_name = True
+    model_config = ConfigDict(populate_by_name=True)
 
 
 class StockRepairReport(BaseModel):

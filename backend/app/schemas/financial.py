@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class Payment简(BaseModel):
@@ -10,8 +9,7 @@ class Payment简(BaseModel):
     interest: float
     payment_date: datetime
     notes: str | None = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class FinancialCategory简(BaseModel):
@@ -19,16 +17,14 @@ class FinancialCategory简(BaseModel):
     name: str
     type: str | None = None
     parent_id: int | None = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentType简(BaseModel):
     id: int
     name: str
     requires_installments: bool | None = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Account简(BaseModel):
@@ -37,15 +33,13 @@ class Account简(BaseModel):
     account_type: str | None = None
     bank_name: str | None = None
     flag: str | None = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Contact简(BaseModel):
     id: int
     name: str
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TransactionCreate(BaseModel):
@@ -103,5 +97,4 @@ class TransactionResponse(BaseModel):
     contact: Contact简 | None = None
     payments: list[Payment简] | None = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

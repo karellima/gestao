@@ -1,6 +1,4 @@
-from typing import Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RoleModuleCreate(BaseModel):
@@ -27,8 +25,7 @@ class RoleModuleResponse(BaseModel):
     module: str
     access_level: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RoleResponse(BaseModel):
@@ -38,5 +35,4 @@ class RoleResponse(BaseModel):
     is_default: bool
     modules: list[RoleModuleResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

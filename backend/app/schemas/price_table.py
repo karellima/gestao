@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PriceTableItemCreate(BaseModel):
@@ -27,8 +26,7 @@ class PriceTableItemResponse(BaseModel):
     product_name: str | None = None
     price: float
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PriceTableResponse(BaseModel):
@@ -40,5 +38,4 @@ class PriceTableResponse(BaseModel):
     updated_at: datetime | None = None
     items: list[PriceTableItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

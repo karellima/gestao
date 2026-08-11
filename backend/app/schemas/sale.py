@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class SaleTypeCreate(BaseModel):
@@ -22,8 +21,7 @@ class SaleTypeResponse(BaseModel):
     is_active: bool
     created_at: datetime | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SaleItemCreate(BaseModel):
@@ -40,8 +38,7 @@ class SaleItemResponse(BaseModel):
     total_price: float
     product_name: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class SaleCreate(BaseModel):
@@ -72,5 +69,4 @@ class SaleResponse(BaseModel):
     sale_type_name: str | None = None
     items: list[SaleItemResponse] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

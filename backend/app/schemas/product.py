@@ -1,7 +1,6 @@
 from datetime import datetime
-from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CategoryCreate(BaseModel):
@@ -24,8 +23,7 @@ class CategoryResponse(BaseModel):
     created_at: datetime | None = None
     subcategories: list["CategoryResponse"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UnitResponse(BaseModel):
@@ -33,8 +31,7 @@ class UnitResponse(BaseModel):
     name: str
     abbreviation: str
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProductCreate(BaseModel):
@@ -85,8 +82,7 @@ class ProductResponse(BaseModel):
     unit: UnitResponse | None = None
     display_name: str | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 CategoryResponse.model_rebuild()
