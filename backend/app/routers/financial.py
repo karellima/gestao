@@ -1,16 +1,18 @@
+from datetime import datetime
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime
+
 from app.database import get_db
 from app.models.financial import Transaction
-from app.schemas.financial import TransactionCreate, TransactionUpdate, TransactionResponse
+from app.schemas.financial import TransactionCreate, TransactionResponse, TransactionUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/financial", tags=["Financeiro"])
 
 
-@router.get("/transactions/", response_model=List[TransactionResponse])
+@router.get("/transactions/", response_model=list[TransactionResponse])
 def list_transactions(
     skip: int = 0,
     limit: int = 100,
@@ -18,8 +20,8 @@ def list_transactions(
     status: str = None,
     start_date: datetime = None,
     end_date: datetime = None,
-    due_date_start: Optional[datetime] = None,
-    due_date_end: Optional[datetime] = None,
+    due_date_start: datetime | None = None,
+    due_date_end: datetime | None = None,
     contact_id: int = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("financial")),

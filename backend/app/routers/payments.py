@@ -1,6 +1,7 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.financial import Transaction
 from app.models.payment import Payment
@@ -25,7 +26,7 @@ def update_transaction_status(db: Session, transaction_id: int):
     db.commit()
 
 
-@router.get("/by-transaction/{transaction_id}", response_model=List[PaymentResponse])
+@router.get("/by-transaction/{transaction_id}", response_model=list[PaymentResponse])
 def list_payments(transaction_id: int, db: Session = Depends(get_db), _=Depends(require_module("financial"))):
     return db.query(Payment).filter(Payment.transaction_id == transaction_id).order_by(Payment.payment_date).all()
 

@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Table, ForeignKey
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
-from app.database import Base
 
+from app.database import Base
 
 user_deposits = Table(
     "user_deposits",

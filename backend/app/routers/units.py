@@ -1,15 +1,16 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.unit import Unit
-from app.schemas.unit import UnitCreate, UnitUpdate, UnitResponse
+from app.schemas.unit import UnitCreate, UnitResponse, UnitUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/units", tags=["Unidades de Medida"])
 
 
-@router.get("/", response_model=List[UnitResponse])
+@router.get("/", response_model=list[UnitResponse])
 def list_units(
     db: Session = Depends(get_db),
     _=Depends(require_module("units")),

@@ -1,5 +1,6 @@
+from typing import Optional
+
 from pydantic import BaseModel
-from typing import List, Optional
 
 
 class RoleModuleCreate(BaseModel):
@@ -11,14 +12,14 @@ class RoleCreate(BaseModel):
     name: str
     is_admin: bool = False
     is_default: bool = False
-    modules: List[RoleModuleCreate] = []
+    modules: list[RoleModuleCreate] = []
 
 
 class RoleUpdate(BaseModel):
-    name: Optional[str] = None
-    is_admin: Optional[bool] = None
-    is_default: Optional[bool] = None
-    modules: Optional[List[RoleModuleCreate]] = None
+    name: str | None = None
+    is_admin: bool | None = None
+    is_default: bool | None = None
+    modules: list[RoleModuleCreate] | None = None
 
 
 class RoleModuleResponse(BaseModel):
@@ -35,7 +36,7 @@ class RoleResponse(BaseModel):
     name: str
     is_admin: bool
     is_default: bool
-    modules: List[RoleModuleResponse] = []
+    modules: list[RoleModuleResponse] = []
 
     class Config:
         from_attributes = True

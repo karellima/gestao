@@ -1,28 +1,44 @@
+from datetime import UTC, datetime, timezone
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
-from sqlalchemy import func, case
-from typing import List, Optional
-from datetime import datetime, timezone
+
 from app.database import get_db
-from app.models.stock import StockMovement
-from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.product import Product
+from app.models.stock import StockMovement
 from app.models.user import User
 from app.schemas.stock import (
-    StockMovementCreate, StockMovementUpdate, StockMovementResponse,
-    StockBalanceItem, StockMovementReportItem, StockTransferCreate,
-    StockAvariaCreate, TransferReportItem, StockRepairRequest, StockRepairReport,
+    StockAvariaCreate,
+    StockBalanceItem,
+    StockMovementCreate,
+    StockMovementReportItem,
+    StockMovementResponse,
+    StockMovementUpdate,
+    StockRepairReport,
+    StockRepairRequest,
+    StockTransferCreate,
+    TransferReportItem,
 )
-from app.utils.security import (
-    get_current_user, require_module, require_any_module, require_admin,
-    is_admin_user, user_deposit_ids,
-)
-from app.utils.helpers import product_label
 from app.services.stock_ledger import (
-    SOURCE_ESTORNO, SOURCE_REPARO,
-    compensate_movement, is_compensated, recalculate_product_stock,
+    SOURCE_ESTORNO,
+    SOURCE_REPARO,
+    compensate_movement,
+    is_compensated,
+    recalculate_product_stock,
 )
 from app.services.stock_repair import repair_stock
+from app.utils.helpers import product_label
+from app.utils.security import (
+    get_current_user,
+    is_admin_user,
+    require_admin,
+    require_any_module,
+    require_module,
+    user_deposit_ids,
+)
 
 router = APIRouter(prefix="/api/stock", tags=["Estoque"])
 
@@ -36,19 +52,19 @@ def parse_utc(s: str) -> datetime:
     s = s.strip().replace("Z", "+00:00")
     dt = datetime.fromisoformat(s)
     if dt.tzinfo is not None:
-        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+        dt = dt.astimezone(UTC).replace(tzinfo=None)
     return dt
 
 
-@router.get("/movements/", response_model=List[StockMovementResponse])
+@router.get("/movements/", response_model=list[StockMovementResponse])
 def list_movements(
     skip: int = 0,
     limit: int = 200,
-    product_id: Optional[int] = None,
-    deposit_id: Optional[int] = None,
-    movement_type: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    product_id: int | None = None,
+    deposit_id: int | None = None,
+    movement_type: str | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
@@ -246,7 +262,7 @@ def delete_movement(
 
 @router.post("/repair", response_model=StockRepairReport)
 def repair(
-    data: Optional[StockRepairRequest] = None,
+    data: StockRepairRequest | None = None,
     db: Session = Depends(get_db),
     current_user=Depends(require_admin),
 ):
@@ -266,11 +282,11 @@ def repair(
     )
 
 
-@router.get("/balance/", response_model=List[StockBalanceItem])
+@router.get("/balance/", response_model=list[StockBalanceItem])
 def stock_balance(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_any_module(["stock_reports", "deposits"])),
@@ -340,11 +356,11 @@ def stock_balance(
     ]
 
 
-@router.get("/report/", response_model=List[StockMovementReportItem])
+@router.get("/report/", response_model=list[StockMovementReportItem])
 def stock_movement_report(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
@@ -531,11 +547,11 @@ def register_avaria(
     return {"message": "Avaria registrada com sucesso", "items_count": len(data.items)}
 
 
-@router.get("/avarias/", response_model=List[StockMovementResponse])
+@router.get("/avarias/", response_model=list[StockMovementResponse])
 def list_avarias(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
@@ -560,11 +576,11 @@ def list_avarias(
     return query.order_by(StockMovement.movement_date.desc()).all()
 
 
-@router.get("/transfer-report/", response_model=List[TransferReportItem])
+@router.get("/transfer-report/", response_model=list[TransferReportItem])
 def transfer_report(
-    deposit_id: Optional[int] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
+    deposit_id: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),

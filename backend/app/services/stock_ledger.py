@@ -39,7 +39,7 @@ def inverse_type(movement_type: str) -> str:
     return SAIDA if movement_type == ENTRADA else ENTRADA
 
 
-def derived_stock(db: Session, product_id: int, deposit_id: Optional[int] = None) -> float:
+def derived_stock(db: Session, product_id: int, deposit_id: int | None = None) -> float:
     """Saldo do produto calculado a partir do histórico (entradas - saídas).
 
     Sem ``deposit_id`` devolve o saldo global, que é o que ``current_stock``
@@ -57,7 +57,7 @@ def derived_stock(db: Session, product_id: int, deposit_id: Optional[int] = None
     return total(ENTRADA) - total(SAIDA)
 
 
-def recalculate_product_stock(db: Session, product_id: int, commit: bool = True) -> Optional[float]:
+def recalculate_product_stock(db: Session, product_id: int, commit: bool = True) -> float | None:
     """Re-sincroniza o cache ``products.current_stock`` com o histórico.
 
     Só toca no produto: nenhuma movimentação é criada, alterada ou apagada.
@@ -84,10 +84,10 @@ def compensate_movement(
     db: Session,
     movement: StockMovement,
     *,
-    user_id: Optional[int] = None,
-    reason: Optional[str] = None,
+    user_id: int | None = None,
+    reason: str | None = None,
     source: str = SOURCE_ESTORNO,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     log: bool = True,
 ) -> StockMovement:
     """Grava a movimentação inversa que anula ``movement``, preservando as duas.

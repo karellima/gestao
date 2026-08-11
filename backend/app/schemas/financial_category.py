@@ -1,31 +1,32 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class FinancialCategoryCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str  # "receita" ou "despesa"
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
 
 
 class FinancialCategoryUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    type: Optional[str] = None
-    parent_id: Optional[int] = None
+    name: str | None = None
+    description: str | None = None
+    type: str | None = None
+    parent_id: int | None = None
 
 
 class FinancialCategoryResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     type: str
-    parent_id: Optional[int] = None
+    parent_id: int | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    subcategories: List["FinancialCategoryResponse"] = []
+    created_at: datetime | None = None
+    subcategories: list["FinancialCategoryResponse"] = []
 
     class Config:
         from_attributes = True

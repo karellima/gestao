@@ -1,23 +1,24 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr
 
 
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
-    role: Optional[str] = "user"
-    deposit_ids: Optional[List[int]] = None
+    role: str | None = "user"
+    deposit_ids: list[int] | None = None
 
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
-    email: Optional[EmailStr] = None
-    password: Optional[str] = None
-    role: Optional[str] = None
-    is_active: Optional[bool] = None
-    deposit_ids: Optional[List[int]] = None
+    name: str | None = None
+    email: EmailStr | None = None
+    password: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+    deposit_ids: list[int] | None = None
 
 
 class UserResponse(BaseModel):
@@ -27,8 +28,8 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool = True
     has_password: bool = True
-    deposit_ids: List[int] = []
-    created_at: Optional[datetime] = None
+    deposit_ids: list[int] = []
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True

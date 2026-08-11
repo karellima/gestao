@@ -1,15 +1,16 @@
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.database import get_db
 from app.models.payment_type import PaymentType
-from app.schemas.payment_type import PaymentTypeCreate, PaymentTypeUpdate, PaymentTypeResponse
+from app.schemas.payment_type import PaymentTypeCreate, PaymentTypeResponse, PaymentTypeUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/payment-types", tags=["Tipos de Pagamento"])
 
 
-@router.get("/", response_model=List[PaymentTypeResponse])
+@router.get("/", response_model=list[PaymentTypeResponse])
 def list_payment_types(
     db: Session = Depends(get_db),
     _=Depends(require_module("payment_types")),

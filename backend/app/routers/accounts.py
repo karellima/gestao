@@ -1,17 +1,19 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.database import get_db
 from app.models.account import Account
-from app.schemas.account import AccountCreate, AccountUpdate, AccountResponse
+from app.schemas.account import AccountCreate, AccountResponse, AccountUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/accounts", tags=["Contas e Cartões"])
 
 
-@router.get("/", response_model=List[AccountResponse])
+@router.get("/", response_model=list[AccountResponse])
 def list_accounts(
-    account_type: Optional[str] = None,
+    account_type: str | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("accounts")),
 ):

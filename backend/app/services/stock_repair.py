@@ -15,7 +15,7 @@ Aqui o reparo é explícito:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import case, func
@@ -76,7 +76,7 @@ def find_orphan_requisicao_exits(db: Session) -> list[dict]:
     return orfas
 
 
-def _requisicao_id_from_reason(reason: Optional[str]) -> Optional[int]:
+def _requisicao_id_from_reason(reason: str | None) -> int | None:
     """Extrai o número da requisição de ``"Requisição #12: motivo"``."""
     if not reason or not reason.startswith("Requisição #"):
         return None
@@ -128,7 +128,7 @@ def repair_stock(
     db: Session,
     *,
     dry_run: bool = True,
-    user_id: Optional[int] = None,
+    user_id: int | None = None,
     compensate_orphans: bool = True,
     resync_cache: bool = True,
 ) -> dict:
@@ -144,7 +144,7 @@ def repair_stock(
 
     Devolve um relatório serializável com tudo que viu e tudo que fez.
     """
-    iniciado_em = datetime.now(timezone.utc)
+    iniciado_em = datetime.now(UTC)
     logger.info(
         "estoque.reparo.inicio dry_run=%s usuario=%s compensar_orfas=%s ressincronizar=%s",
         dry_run, user_id, compensate_orphans, resync_cache,

@@ -1,20 +1,26 @@
+
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import or_, and_
-from typing import List
+
 from app.database import get_db
-from app.models.requisicao import Requisicao, RequisicaoItem
-from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.product import Product
+from app.models.requisicao import Requisicao, RequisicaoItem
 from app.models.stock import StockMovement
 from app.models.user import User
 from app.schemas.requisicao import (
-    RequisicaoCreate, RequisicaoUpdate, RequisicaoResponse,
-    RequisicaoItemResponse, RequisicaoApprove, RequisicaoFulfill, RequisicaoReceive,
+    RequisicaoApprove,
+    RequisicaoCreate,
+    RequisicaoFulfill,
+    RequisicaoItemResponse,
+    RequisicaoReceive,
+    RequisicaoResponse,
+    RequisicaoUpdate,
 )
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
-from app.utils.helpers import product_label
 from app.services.stock_ledger import recalculate_product_stock
+from app.utils.helpers import product_label
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 router = APIRouter(prefix="/api/requisicoes", tags=["Requisições de Estoque"])
 
@@ -70,7 +76,7 @@ def _req_to_response(r: Requisicao) -> RequisicaoResponse:
     )
 
 
-@router.get("/", response_model=List[RequisicaoResponse])
+@router.get("/", response_model=list[RequisicaoResponse])
 def list_requisicoes(
     status: str = None,
     db: Session = Depends(get_db),

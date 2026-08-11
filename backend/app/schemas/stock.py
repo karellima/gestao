@@ -1,49 +1,50 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class StockMovementCreate(BaseModel):
     product_id: int
     deposit_id: int
     movement_type: str
-    movement_date: Optional[str] = None
+    movement_date: str | None = None
     quantity: float = Field(gt=0)
-    unit_price: Optional[float] = 0
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    unit_price: float | None = 0
+    reason: str | None = None
+    notes: str | None = None
 
 
 class StockMovementUpdate(BaseModel):
-    product_id: Optional[int] = None
-    deposit_id: Optional[int] = None
-    movement_type: Optional[str] = None
-    movement_date: Optional[str] = None
-    quantity: Optional[float] = Field(default=None, gt=0)
-    unit_price: Optional[float] = None
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    product_id: int | None = None
+    deposit_id: int | None = None
+    movement_type: str | None = None
+    movement_date: str | None = None
+    quantity: float | None = Field(default=None, gt=0)
+    unit_price: float | None = None
+    reason: str | None = None
+    notes: str | None = None
 
 
 class StockMovementResponse(BaseModel):
     id: int
     product_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     deposit_id: int
-    deposit_name: Optional[str] = None
+    deposit_name: str | None = None
     movement_type: str
-    movement_date: Optional[datetime] = None
+    movement_date: datetime | None = None
     quantity: float
     unit_price: float
     total_value: float
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    source: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
+    source: str | None = None
     # Preenchido quando esta linha é o estorno de outra — deixa o cliente
     # exibir o par (lançamento errado + correção) em vez de um saldo mudo.
-    compensates_movement_id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    user_id: Optional[int] = None
+    compensates_movement_id: int | None = None
+    created_at: datetime | None = None
+    user_id: int | None = None
 
     class Config:
         from_attributes = True
@@ -52,26 +53,26 @@ class StockMovementResponse(BaseModel):
 class StockTransferItem(BaseModel):
     product_id: int
     quantity: float = Field(gt=0)
-    unit_price: Optional[float] = 0
+    unit_price: float | None = 0
 
 
 class StockTransferCreate(BaseModel):
     source_deposit_id: int
     destination_deposit_id: int
     transfer_type: str  # "abastecimento" or "devolucao"
-    items: List[StockTransferItem]
+    items: list[StockTransferItem]
 
 
 class StockAvariaCreate(BaseModel):
     deposit_id: int
-    items: List[StockTransferItem]
+    items: list[StockTransferItem]
     description: str
 
 
 class StockMovementCompensate(BaseModel):
     """Estorno de uma movimentação: grava a inversa, mantém as duas no histórico."""
-    reason: Optional[str] = None
-    notes: Optional[str] = None
+    reason: str | None = None
+    notes: str | None = None
 
 
 class StockRepairRequest(BaseModel):
@@ -87,11 +88,11 @@ class StockRepairOrphanExit(BaseModel):
     product_id: int
     deposit_id: int
     quantity: float
-    reason: Optional[str] = None
+    reason: str | None = None
 
 
 class StockRepairCompensation(BaseModel):
-    compensation_id: Optional[int] = None
+    compensation_id: int | None = None
     movement_id: int
     product_id: int
     quantity: float
@@ -99,7 +100,7 @@ class StockRepairCompensation(BaseModel):
 
 class StockRepairDivergence(BaseModel):
     product_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     current_stock: float
     derived_stock: float
     delta: float
@@ -107,7 +108,7 @@ class StockRepairDivergence(BaseModel):
 
 class StockRepairResync(BaseModel):
     product_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     from_: float = Field(alias="from")
     to: float
 
@@ -118,17 +119,17 @@ class StockRepairResync(BaseModel):
 class StockRepairReport(BaseModel):
     dry_run: bool
     executed_at: str
-    executed_by_user_id: Optional[int] = None
-    orphan_requisicao_exits: List[StockRepairOrphanExit]
-    stock_divergences: List[StockRepairDivergence]
-    compensations_created: List[StockRepairCompensation]
-    products_resynced: List[StockRepairResync]
+    executed_by_user_id: int | None = None
+    orphan_requisicao_exits: list[StockRepairOrphanExit]
+    stock_divergences: list[StockRepairDivergence]
+    compensations_created: list[StockRepairCompensation]
+    products_resynced: list[StockRepairResync]
 
 
 class StockBalanceItem(BaseModel):
     product_id: int
     product_name: str
-    unit_abbr: Optional[str] = None
+    unit_abbr: str | None = None
     quantity_entries: float
     quantity_exits: float
     balance: float
@@ -143,12 +144,12 @@ class StockMovementReportItem(BaseModel):
     deposit_id: int
     deposit_name: str
     movement_type: str
-    movement_date: Optional[datetime] = None
+    movement_date: datetime | None = None
     quantity: float
     unit_price: float
     total_value: float
-    reason: Optional[str] = None
-    created_at: Optional[datetime] = None
+    reason: str | None = None
+    created_at: datetime | None = None
 
 
 class TransferReportItem(BaseModel):

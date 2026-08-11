@@ -1,20 +1,22 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.database import get_db
 from app.models.contact import Contact
-from app.schemas.contact import ContactCreate, ContactUpdate, ContactResponse
+from app.schemas.contact import ContactCreate, ContactResponse, ContactUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/contacts", tags=["Clientes/Fornecedores"])
 
 
-@router.get("/", response_model=List[ContactResponse])
+@router.get("/", response_model=list[ContactResponse])
 def list_contacts(
     skip: int = 0,
     limit: int = 100,
-    contact_type: Optional[str] = None,
-    search: Optional[str] = None,
+    contact_type: str | None = None,
+    search: str | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("contacts")),
 ):

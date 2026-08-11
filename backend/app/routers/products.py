@@ -1,18 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
-from fastapi.responses import FileResponse
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from pydantic import BaseModel
-from app.database import get_db
-from app.models.product import Product, Category
-from app.models.unit import Unit
-from app.models.user import User
-from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
-import openpyxl
 import io
 import os
 import tempfile
+from typing import Optional
+
+import openpyxl
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.models.product import Category, Product
+from app.models.unit import Unit
+from app.models.user import User
+from app.schemas.product import ProductCreate, ProductResponse, ProductUpdate
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 
 def _is_admin(db: Session, user: User) -> bool:
@@ -39,18 +41,18 @@ def sync_markup(product, explicit_markup=False, explicit_price=False):
 
 class ImportResult(BaseModel):
     imported: int
-    errors: List[str]
+    errors: list[str]
 
 router = APIRouter(prefix="/api/products", tags=["Produtos"])
 
 
-@router.get("/", response_model=List[ProductResponse])
+@router.get("/", response_model=list[ProductResponse])
 def list_products(
     skip: int = 0,
     limit: int = 100,
-    search: Optional[str] = None,
-    category_id: Optional[int] = None,
-    deposit_id: Optional[int] = None,
+    search: str | None = None,
+    category_id: int | None = None,
+    deposit_id: int | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("products")),
@@ -304,7 +306,7 @@ def import_products_excel(
     return ImportResult(imported=imported, errors=errors)
 
 
-@router.get("/low-stock/", response_model=List[ProductResponse])
+@router.get("/low-stock/", response_model=list[ProductResponse])
 def get_low_stock_products(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

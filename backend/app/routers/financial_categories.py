@@ -1,22 +1,24 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List, Optional
+
 from app.database import get_db
 from app.models.financial_category import FinancialCategory
 from app.schemas.financial_category import (
     FinancialCategoryCreate,
-    FinancialCategoryUpdate,
     FinancialCategoryResponse,
+    FinancialCategoryUpdate,
 )
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/financial-categories", tags=["Categorias Financeiras"])
 
 
-@router.get("/", response_model=List[FinancialCategoryResponse])
+@router.get("/", response_model=list[FinancialCategoryResponse])
 def list_categories(
-    type: Optional[str] = None,
-    parent_id: Optional[int] = None,
+    type: str | None = None,
+    parent_id: int | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("financial_categories")),
 ):
@@ -30,9 +32,9 @@ def list_categories(
     return query.all()
 
 
-@router.get("/all", response_model=List[FinancialCategoryResponse])
+@router.get("/all", response_model=list[FinancialCategoryResponse])
 def list_all_categories(
-    type: Optional[str] = None,
+    type: str | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("financial_categories")),
 ):

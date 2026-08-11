@@ -1,5 +1,6 @@
-from pydantic import BaseModel
 from typing import Optional
+
+from pydantic import BaseModel
 
 
 class ContactSegmentCreate(BaseModel):
@@ -7,8 +8,8 @@ class ContactSegmentCreate(BaseModel):
 
 
 class ContactSegmentUpdate(BaseModel):
-    name: Optional[str] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    is_active: bool | None = None
 
 
 class ContactSegmentResponse(BaseModel):

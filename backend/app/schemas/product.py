@@ -1,27 +1,28 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class CategoryCreate(BaseModel):
     name: str
-    description: Optional[str] = None
-    parent_id: Optional[int] = None
+    description: str | None = None
+    parent_id: int | None = None
 
 
 class CategoryUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    parent_id: Optional[int] = None
+    name: str | None = None
+    description: str | None = None
+    parent_id: int | None = None
 
 
 class CategoryResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
-    parent_id: Optional[int] = None
-    created_at: Optional[datetime] = None
-    subcategories: List["CategoryResponse"] = []
+    description: str | None = None
+    parent_id: int | None = None
+    created_at: datetime | None = None
+    subcategories: list["CategoryResponse"] = []
 
     class Config:
         from_attributes = True
@@ -38,51 +39,51 @@ class UnitResponse(BaseModel):
 
 class ProductCreate(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     sku: str
-    barcode: Optional[str] = None
-    price: Optional[float] = None
-    cost_price: Optional[float] = None
-    markup: Optional[float] = None
-    unit_id: Optional[int] = None
-    category_id: Optional[int] = None
-    deposit_id: Optional[int] = None
+    barcode: str | None = None
+    price: float | None = None
+    cost_price: float | None = None
+    markup: float | None = None
+    unit_id: int | None = None
+    category_id: int | None = None
+    deposit_id: int | None = None
 
 
 class ProductUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    sku: Optional[str] = None
-    barcode: Optional[str] = None
-    price: Optional[float] = None
-    cost_price: Optional[float] = None
-    markup: Optional[float] = None
-    unit_id: Optional[int] = None
-    category_id: Optional[int] = None
-    deposit_id: Optional[int] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    description: str | None = None
+    sku: str | None = None
+    barcode: str | None = None
+    price: float | None = None
+    cost_price: float | None = None
+    markup: float | None = None
+    unit_id: int | None = None
+    category_id: int | None = None
+    deposit_id: int | None = None
+    is_active: bool | None = None
 
 
 class ProductResponse(BaseModel):
     id: int
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     sku: str
-    barcode: Optional[str] = None
-    price: Optional[float] = None
-    cost_price: Optional[float] = None
-    markup: Optional[float] = None
+    barcode: str | None = None
+    price: float | None = None
+    cost_price: float | None = None
+    markup: float | None = None
     current_stock: float
     min_stock: float
-    unit_id: Optional[int] = None
-    category_id: Optional[int] = None
-    deposit_id: Optional[int] = None
+    unit_id: int | None = None
+    category_id: int | None = None
+    deposit_id: int | None = None
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    category: Optional[CategoryResponse] = None
-    unit: Optional[UnitResponse] = None
-    display_name: Optional[str] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    category: CategoryResponse | None = None
+    unit: UnitResponse | None = None
+    display_name: str | None = None
 
     class Config:
         from_attributes = True

@@ -1,18 +1,19 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class RecurrenceFrequencyCreate(BaseModel):
     name: str
     days_interval: int
-    is_active: Optional[bool] = True
+    is_active: bool | None = True
 
 
 class RecurrenceFrequencyUpdate(BaseModel):
-    name: Optional[str] = None
-    days_interval: Optional[int] = None
-    is_active: Optional[bool] = None
+    name: str | None = None
+    days_interval: int | None = None
+    is_active: bool | None = None
 
 
 class RecurrenceFrequencyResponse(BaseModel):
@@ -20,7 +21,7 @@ class RecurrenceFrequencyResponse(BaseModel):
     name: str
     days_interval: int
     is_active: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True

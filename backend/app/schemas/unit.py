@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class UnitCreate(BaseModel):
@@ -9,8 +10,8 @@ class UnitCreate(BaseModel):
 
 
 class UnitUpdate(BaseModel):
-    name: Optional[str] = None
-    abbreviation: Optional[str] = None
+    name: str | None = None
+    abbreviation: str | None = None
 
 
 class UnitResponse(BaseModel):
@@ -18,7 +19,7 @@ class UnitResponse(BaseModel):
     name: str
     abbreviation: str
     is_active: bool
-    created_at: Optional[datetime] = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True

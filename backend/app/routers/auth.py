@@ -1,17 +1,18 @@
-from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+
 from app.database import get_db
-from app.models.user import User
 from app.models.deposit import Deposit
 from app.models.role import Role
-from app.schemas.user import UserCreate, UserUpdate, UserResponse, Token, LoginRequest
+from app.models.user import User
+from app.schemas.user import LoginRequest, Token, UserCreate, UserResponse, UserUpdate
 from app.utils.security import (
-    verify_password,
-    get_password_hash,
     create_access_token,
     get_current_user,
+    get_password_hash,
     require_module,
+    verify_password,
 )
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticação"])
@@ -46,7 +47,7 @@ def register(user: UserCreate, db: Session = Depends(get_db), current_user: User
     return UserResponse.from_orm_with_password(new_user)
 
 
-@router.get("/users", response_model=List[UserResponse])
+@router.get("/users", response_model=list[UserResponse])
 def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
     users = db.query(User).order_by(User.name).all()
     return [UserResponse.from_orm_with_password(u) for u in users]

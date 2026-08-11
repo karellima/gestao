@@ -1,31 +1,32 @@
-from pydantic import BaseModel, Field
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, Field
 
 
 class RequisicaoItemCreate(BaseModel):
     product_id: int
     quantity_requested: float = Field(gt=0)
-    unit_price: Optional[float] = None
+    unit_price: float | None = None
 
 
 class RequisicaoItemUpdate(BaseModel):
-    product_id: Optional[int] = None
-    quantity_requested: Optional[float] = None
-    quantity_approved: Optional[float] = None
-    unit_price: Optional[float] = None
+    product_id: int | None = None
+    quantity_requested: float | None = None
+    quantity_approved: float | None = None
+    unit_price: float | None = None
 
 
 class RequisicaoItemResponse(BaseModel):
     id: int
     requisicao_id: int
     product_id: int
-    product_name: Optional[str] = None
+    product_name: str | None = None
     quantity_requested: float
-    quantity_approved: Optional[float] = None
+    quantity_approved: float | None = None
     quantity_fulfilled: float = 0
     quantity_received: float = 0
-    unit_price: Optional[float] = None
+    unit_price: float | None = None
 
     class Config:
         from_attributes = True
@@ -34,22 +35,22 @@ class RequisicaoItemResponse(BaseModel):
 class RequisicaoCreate(BaseModel):
     deposit_requesting_id: int
     deposit_fulfilling_id: int
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    items: List[RequisicaoItemCreate]
+    reason: str | None = None
+    notes: str | None = None
+    items: list[RequisicaoItemCreate]
 
 
 class RequisicaoUpdate(BaseModel):
-    deposit_requesting_id: Optional[int] = None
-    deposit_fulfilling_id: Optional[int] = None
-    status: Optional[str] = None
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    items: Optional[List[RequisicaoItemUpdate]] = None
+    deposit_requesting_id: int | None = None
+    deposit_fulfilling_id: int | None = None
+    status: str | None = None
+    reason: str | None = None
+    notes: str | None = None
+    items: list[RequisicaoItemUpdate] | None = None
 
 
 class RequisicaoApprove(BaseModel):
-    items: List[RequisicaoItemUpdate]
+    items: list[RequisicaoItemUpdate]
 
 
 class RequisicaoItemFulfill(BaseModel):
@@ -58,7 +59,7 @@ class RequisicaoItemFulfill(BaseModel):
 
 
 class RequisicaoFulfill(BaseModel):
-    items: List[RequisicaoItemFulfill]
+    items: list[RequisicaoItemFulfill]
 
 
 class RequisicaoItemReceive(BaseModel):
@@ -67,25 +68,25 @@ class RequisicaoItemReceive(BaseModel):
 
 
 class RequisicaoReceive(BaseModel):
-    items: List[RequisicaoItemReceive]
+    items: list[RequisicaoItemReceive]
 
 
 class RequisicaoResponse(BaseModel):
     id: int
     requester_id: int
-    requester_name: Optional[str] = None
-    approver_id: Optional[int] = None
-    approver_name: Optional[str] = None
+    requester_name: str | None = None
+    approver_id: int | None = None
+    approver_name: str | None = None
     deposit_requesting_id: int
-    deposit_requesting_name: Optional[str] = None
+    deposit_requesting_name: str | None = None
     deposit_fulfilling_id: int
-    deposit_fulfilling_name: Optional[str] = None
+    deposit_fulfilling_name: str | None = None
     status: str
-    reason: Optional[str] = None
-    notes: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    items: List[RequisicaoItemResponse] = []
+    reason: str | None = None
+    notes: str | None = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    items: list[RequisicaoItemResponse] = []
 
     class Config:
         from_attributes = True

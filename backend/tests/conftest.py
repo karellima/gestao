@@ -9,24 +9,23 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.database import Base, engine, get_db, SessionLocal
-from app.utils.security import get_password_hash, create_access_token
-from app.utils.security import get_current_user
-from app.models.user import User
-from app.models.role import Role, RoleModule
-from app.models.product import Category, Product
-from app.models.deposit import Deposit
-from app.models.unit import Unit
-from app.models.financial_category import FinancialCategory
-from app.models.payment_type import PaymentType
+from app.database import Base, SessionLocal, engine, get_db
 from app.models.account import Account
 from app.models.contact import Contact
-from app.models.stock import StockMovement
-from app.models.requisicao import Requisicao, RequisicaoItem
+from app.models.deposit import Deposit
 from app.models.financial import Transaction
+from app.models.financial_category import FinancialCategory
 from app.models.payment import Payment
+from app.models.payment_type import PaymentType
 from app.models.price_table import PriceTable, PriceTableItem
-from app.models.sale import SaleType, Sale, SaleItem
+from app.models.product import Category, Product
+from app.models.requisicao import Requisicao, RequisicaoItem
+from app.models.role import Role, RoleModule
+from app.models.sale import Sale, SaleItem, SaleType
+from app.models.stock import StockMovement
+from app.models.unit import Unit
+from app.models.user import User
+from app.utils.security import create_access_token, get_current_user, get_password_hash
 
 
 @pytest.fixture(scope="function")

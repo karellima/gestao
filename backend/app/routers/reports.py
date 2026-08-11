@@ -1,25 +1,25 @@
-from io import BytesIO
-
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func
-from datetime import datetime, timedelta
 from calendar import monthrange
-from app.database import get_db
-from app.models.product import Product
-from app.models.stock import StockMovement
-from app.models.financial import Transaction
-from app.models.financial_category import FinancialCategory
-from app.models.contact import Contact
-from app.models.user import User
-from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
-from fastapi import APIRouter, Depends, Body
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from datetime import datetime, timedelta
+from io import BytesIO
 from typing import Optional
 
 import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from fastapi import APIRouter, Body, Depends
+from fastapi.responses import StreamingResponse
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from pydantic import BaseModel
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
+
+from app.database import get_db
+from app.models.contact import Contact
+from app.models.financial import Transaction
+from app.models.financial_category import FinancialCategory
+from app.models.product import Product
+from app.models.stock import StockMovement
+from app.models.user import User
+from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
@@ -349,14 +349,14 @@ def get_stock_summary(
 
 class ExcelExportColumn(BaseModel):
     header: str
-    width: Optional[int] = 15
+    width: int | None = 15
 
 
 class ExcelExportRequest(BaseModel):
     title: str
     columns: list[ExcelExportColumn]
     rows: list[dict]
-    filename: Optional[str] = None
+    filename: str | None = None
 
 
 HEADER_FILL = PatternFill(start_color="14B8A6", end_color="14B8A6", fill_type="solid")

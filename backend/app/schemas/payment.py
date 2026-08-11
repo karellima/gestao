@@ -1,14 +1,15 @@
-from pydantic import BaseModel
-from typing import Optional
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
 
 
 class PaymentCreate(BaseModel):
     transaction_id: int
     amount: float
-    interest: Optional[float] = 0
+    interest: float | None = 0
     payment_date: datetime
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class PaymentResponse(BaseModel):
@@ -17,8 +18,8 @@ class PaymentResponse(BaseModel):
     amount: float
     interest: float
     payment_date: datetime
-    notes: Optional[str] = None
-    created_at: Optional[datetime] = None
+    notes: str | None = None
+    created_at: datetime | None = None
 
     class Config:
         from_attributes = True
