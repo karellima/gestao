@@ -21,7 +21,7 @@ As alterações não commitadas das Tasks 04, 09/10 e 12 foram preservadas. A á
 
 - `95bbe50` docs: define reproducible local environment
 - `9192826` feat: add reproducible local environment
-- `f36b291` sanitize: remove exposed financas-pessoais credentials from AGENTS.md, add ROTACAO.md
+- `f36b291` sanitize: remove credencial exposta do AGENTS.md
 - `5109351` feat: bootstrap admin via env vars ADMIN_EMAIL/ADMIN_PASSWORD
 - `e4be210` feat: tracer bullet de testes + CI
 - `07bd63b` testes: cobertura ponta a ponta estoque, vendas, financeiro e requisicoes
