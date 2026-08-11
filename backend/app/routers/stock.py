@@ -29,6 +29,7 @@ from app.services.stock_ledger import (
     recalculate_product_stock,
 )
 from app.services.stock_repair import repair_stock
+from app.services.transfer_report import build_transfer_report
 from app.utils.helpers import product_label
 from app.utils.security import (
     get_current_user,
@@ -597,11 +598,7 @@ def transfer_report(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
-    """
-    Relatório de abastecimento vs devolução vs avarias vs vendas por depósito.
-    Para sub-depósitos, abastecimento = o que recebeu do pai; para depósitos pai,
-    abastecimento = o que enviou aos filhos. Venda = abastecimento - devolução - avaria.
-    """
+    """Relatório de abastecimento, devolução, avarias e vendas por depósito."""
     query = db.query(Deposit).filter(Deposit.is_active.is_(True))
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)
@@ -610,113 +607,6 @@ def transfer_report(
         query = query.filter(Deposit.id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(Deposit.id == deposit_id)
-    deposits = query.all()
-
-    def apply_dates(q):
-        if start_date:
-            q = q.filter(StockMovement.movement_date >= parse_utc(start_date))
-        if end_date:
-            q = q.filter(StockMovement.movement_date <= parse_utc(end_date))
-        return q
-
-    result = []
-
-    for dep in deposits:
-        is_parent = not dep.parent_id
-        parent_name = None
-        if not is_parent:
-            parent = db.query(Deposit).filter(Deposit.id == dep.parent_id).first()
-            parent_name = parent.name if parent else "?"
-
-        if is_parent:
-            # Pai: abastecimento = o que enviou aos filhos (saídas)
-            ab_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "saida",
-                StockMovement.reason.like("%Abastecimento%"),
-            )
-            # Devolução = o que recebeu de volta dos filhos (entradas)
-            dev_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "entrada",
-                StockMovement.reason.like("%Devolução%"),
-            )
-        else:
-            # Sub-depósito: abastecimento = o que recebeu do pai (entradas)
-            ab_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "entrada",
-                StockMovement.reason.like(f"%Abastecimento%{parent_name}%"),
-            )
-            # Devolução = o que devolveu ao pai (saídas)
-            dev_query = db.query(
-                StockMovement.product_id,
-                func.sum(StockMovement.quantity).label("total_qty"),
-                func.avg(StockMovement.unit_price).label("avg_price"),
-            ).filter(
-                StockMovement.deposit_id == dep.id,
-                StockMovement.movement_type == "saida",
-                StockMovement.reason.like("%Devolução%"),
-            )
-
-        av_query = db.query(
-            StockMovement.product_id,
-            func.sum(StockMovement.quantity).label("total_qty"),
-        ).filter(
-            StockMovement.deposit_id == dep.id,
-            StockMovement.movement_type == "saida",
-            StockMovement.reason.like("Avaria:%"),
-        )
-
-        abastecimento_data = {r.product_id: r for r in apply_dates(ab_query).group_by(StockMovement.product_id).all()}
-        devolucao_data = {r.product_id: r for r in apply_dates(dev_query).group_by(StockMovement.product_id).all()}
-        avaria_data = {
-            r.product_id: r.total_qty
-            for r in apply_dates(av_query).group_by(StockMovement.product_id).all()
-        }
-
-        all_product_ids = set(abastecimento_data.keys()) | set(devolucao_data.keys()) | set(avaria_data.keys())
-
-        for pid in sorted(all_product_ids):
-            product = db.query(Product).filter(Product.id == pid).first()
-            pname = product_label(product) or f"Produto #{pid}"
-            ab_qty = abastecimento_data[pid].total_qty if pid in abastecimento_data else 0
-            dev_qty = devolucao_data[pid].total_qty if pid in devolucao_data else 0
-            av_qty = avaria_data.get(pid, 0)
-            venda_qty = ab_qty - dev_qty - av_qty
-            if pid in abastecimento_data:
-                avg_price = abastecimento_data[pid].avg_price
-            elif pid in devolucao_data:
-                avg_price = devolucao_data[pid].avg_price
-            else:
-                avg_price = 0
-
-            if ab_qty == 0 and dev_qty == 0 and av_qty == 0:
-                continue
-
-            result.append(TransferReportItem(
-                deposit_id=dep.id,
-                deposit_name=dep.name,
-                product_id=pid,
-                product_name=pname,
-                abastecimento_qty=ab_qty,
-                devolucao_qty=dev_qty,
-                avaria_qty=av_qty,
-                venda_qty=max(0, venda_qty),
-                unit_price=avg_price or 0,
-                venda_total=max(0, venda_qty) * (avg_price or 0),
-            ))
-
-    return result
+    start = parse_utc(start_date) if start_date else None
+    end = parse_utc(end_date) if end_date else None
+    return build_transfer_report(db, query.all(), start, end)
