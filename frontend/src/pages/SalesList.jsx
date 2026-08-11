@@ -84,7 +84,7 @@ export default function SalesList() {
                         try {
                           if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: `Pedido #${s.id}` }); return; }
                           if (navigator.share) { await navigator.share({ title: `Pedido #${s.id}`, text: `Pedido #${s.id} - ${s.contact_name || ''}`, url: window.location.origin + `/sales/${s.id}/print` }); return; }
-                        } catch {}
+                        } catch { /* compartilhamento nativo indisponível; salva o PDF */ }
                         doc.save(`pedido-${s.id}.pdf`);
                         if (/Mobi|Android|iPhone|iPad|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
                           setTimeout(() => alert('PDF baixado! Compartilhe pelo app de arquivos.'), 500);

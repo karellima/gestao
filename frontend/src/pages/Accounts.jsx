@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { formatCurrency } from '../services/format';
 import { currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
@@ -25,11 +25,11 @@ export default function Accounts() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = filter ? { account_type: filter } : {};
     api.get('/accounts/', { params }).then(res => setAccounts(res.data)).catch(() => {});
-  };
-  useEffect(() => { load(); }, [filter]);
+  }, [filter]);
+  useEffect(() => { load(); }, [load]);
 
   const sortedAccounts = useMemo(() =>
     [...accounts].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')),

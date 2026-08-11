@@ -135,7 +135,7 @@ export default function SaleDetail() {
       try {
         if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: `Pedido #${sale.id}` }); return; }
         if (navigator.share) { await navigator.share({ title: `Pedido #${sale.id}`, text: `Pedido #${sale.id} - ${sale.contact_name || ''}`, url: window.location.origin + `/sales/${sale.id}/print` }); return; }
-      } catch {}
+      } catch { /* compartilhamento nativo indisponível; salva o PDF */ }
       doc.save(`pedido-${sale.id}.pdf`);
       if (/Mobi|Android|iPhone|iPad|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
         setTimeout(() => alert('PDF baixado! Compartilhe pelo app de arquivos.'), 500);

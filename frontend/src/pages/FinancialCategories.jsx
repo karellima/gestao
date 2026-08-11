@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { Plus, Edit, Trash2, ChevronRight, ChevronDown } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
@@ -11,12 +11,12 @@ export default function FinancialCategories() {
   const [expanded, setExpanded] = useState({});
   const [form, setForm] = useState({ name: '', description: '', type: 'despesa', parent_id: '' });
 
-  const loadCategories = () => {
+  const loadCategories = useCallback(() => {
     const params = filter ? { type: filter } : {};
     api.get('/financial-categories/all', { params }).then(res => setAllCategories(res.data));
-  };
+  }, [filter]);
 
-  useEffect(() => { loadCategories(); }, [filter]);
+  useEffect(() => { loadCategories(); }, [loadCategories]);
 
   const sortByName = (arr) => [...arr].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const parents = useMemo(() => sortByName(allCategories.filter(c => !c.parent_id)), [allCategories]);

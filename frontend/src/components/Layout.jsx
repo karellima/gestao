@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   LayoutDashboard, Package, ArrowRightLeft, DollarSign, Users, LogOut,
-    Tag, Building, Wallet, CreditCard, Banknote, ChevronDown, ChevronRight,
+    Tag, CreditCard, Banknote, ChevronDown, ChevronRight,
     ChevronLeft, Warehouse, Ruler, BarChart3, Menu, UserCog, Clock, FileText,
      ShoppingCart, ClipboardList, Shield, X, Calculator, Settings
 } from 'lucide-react';

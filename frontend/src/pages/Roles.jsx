@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
-import { Shield, Plus, Edit, Trash2, X, Save, Check } from 'lucide-react';
+import { Shield, Plus, Edit, Trash2, X, Save } from 'lucide-react';
 import { CaseInput } from '../components/CaseInput';
 
 const ALL_MODULES = [

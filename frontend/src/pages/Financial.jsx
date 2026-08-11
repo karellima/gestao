@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { formatCurrency, getTodayLocal } from '../services/format';
 import { currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
@@ -72,23 +72,23 @@ export default function Financial() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentForm, setPaymentForm] = useState({ amount: '', interest: '', payment_date: getTodayLocal(), notes: '' });
 
-  const loadTransactions = () => {
+  const loadTransactions = useCallback(() => {
     const params = {};
     if (startDate) params.start_date = new Date(startDate).toISOString();
     if (endDate) params.end_date = new Date(endDate + 'T23:59:59').toISOString();
     api.get('/financial/transactions/', { params }).then(res => setTransactions(res.data));
-  };
+  }, [startDate, endDate]);
 
-  const loadLookups = () => {
+  const loadLookups = useCallback(() => {
     api.get('/financial-categories/all').then(res => setCategories(res.data));
     api.get('/accounts/').then(res => setAccounts(res.data));
     api.get('/payment-types/').then(res => setPaymentTypes(res.data));
     api.get('/contacts/').then(res => setContacts(res.data));
     api.get('/recurrence-frequencies/active').then(res => setFrequencies(res.data));
-  };
+  }, []);
 
-  useEffect(() => { loadTransactions(); }, [startDate, endDate]);
-  useEffect(() => { loadLookups(); }, []);
+  useEffect(() => { loadTransactions(); }, [loadTransactions]);
+  useEffect(() => { loadLookups(); }, [loadLookups]);
 
   const filteredCategories = categories.filter(c => c.type === form.type && !c.parent_id);
   const frequencyOptions = useMemo(() =>

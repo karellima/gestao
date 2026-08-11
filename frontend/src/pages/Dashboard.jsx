@@ -87,7 +87,7 @@ export default function Dashboard() {
     </div>
   );
 
-  const statusBadge = (status, type) => {
+  const statusBadge = (status) => {
     const map = {
       pendente: 'bg-yellow-100 text-yellow-800',
       pago_parcial: 'bg-brand-100 text-brand-800',

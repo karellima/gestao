@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, Fragment } from 'react';
+import { useState, useEffect, useMemo, useCallback, Fragment } from 'react';
 import api from '../services/api';
 import { formatCurrency } from '../services/format';
-import { FileText, Calendar, TrendingUp, TrendingDown, AlertTriangle, Clock, BarChart3, ArrowRightLeft, Landmark, Printer, Download } from 'lucide-react';
+import { FileText, Calendar, TrendingUp, AlertTriangle, Clock, BarChart3, ArrowRightLeft, Landmark, Printer, Download } from 'lucide-react';
 import { exportToExcel } from '../utils/reportExport';
 import PrintPreview from '../components/PrintPreview';
 
@@ -105,7 +105,7 @@ function PayableReceivableReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       due_date_start: new Date(startDate).toISOString(),
       due_date_end: new Date(endDate + 'T23:59:59').toISOString(),
@@ -115,9 +115,9 @@ function PayableReceivableReport({ contacts }) {
     api.get('/financial/transactions/', { params }).then(res => {
       setData(res.data.sort((a, b) => new Date(a.due_date) - new Date(b.due_date)));
     });
-  };
+  }, [startDate, endDate, filter, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, filter, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const totals = useMemo(() => {
     const receitas = data.filter(t => t.type === 'receita').reduce((s, t) => s + t.amount, 0);
@@ -206,7 +206,7 @@ function CashFlowReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate + 'T23:59:59').toISOString(),
@@ -222,9 +222,9 @@ function CashFlowReport({ contacts }) {
       });
       setData(Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date)));
     });
-  };
+  }, [startDate, endDate, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const totals = useMemo(() => ({
     entradas: data.reduce((s, d) => s + d.entradas, 0),
@@ -298,7 +298,7 @@ function MonthlySummaryReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const start = `${year}-01-01`;
     const end = `${year}-12-31T23:59:59`;
     const params = { start_date: new Date(start).toISOString(), end_date: new Date(end).toISOString() };
@@ -317,9 +317,9 @@ function MonthlySummaryReport({ contacts }) {
       });
       setData(months);
     });
-  };
+  }, [year, contactFilter]);
 
-  useEffect(() => { load(); }, [year, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const totals = useMemo(() => ({
     receitas: data.reduce((s, m) => s + m.receitas, 0),
@@ -405,7 +405,7 @@ function ByCategoryReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate + 'T23:59:59').toISOString(),
@@ -422,9 +422,9 @@ function ByCategoryReport({ contacts }) {
       });
       setData(Object.values(grouped).sort((a, b) => b.total - a.total));
     });
-  };
+  }, [startDate, endDate, filter, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, filter, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const grandTotal = data.reduce((s, d) => s + d.total, 0);
 
@@ -485,7 +485,7 @@ function ByAccountReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate + 'T23:59:59').toISOString(),
@@ -502,9 +502,9 @@ function ByAccountReport({ contacts }) {
       });
       setData(Object.values(grouped).sort((a, b) => (b.receitas - b.despesas) - (a.receitas - a.despesas)));
     });
-  };
+  }, [startDate, endDate, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const columns = [
     { header: 'Conta', accessor: 'name', width: 25 },
@@ -554,7 +554,7 @@ function ByAccountReport({ contacts }) {
   );
 }
 
-function ByContactReport({ contacts }) {
+function ByContactReport() {
   const [startDate, setStartDate] = useState(() => {
     const d = new Date(); d.setDate(1); return d.toISOString().split('T')[0];
   });
@@ -568,7 +568,7 @@ function ByContactReport({ contacts }) {
   const ChevronDown = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>;
   const ChevronRight = () => <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>;
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate + 'T23:59:59').toISOString(),
@@ -588,9 +588,9 @@ function ByContactReport({ contacts }) {
       });
       setData(Object.values(grouped).sort((a, b) => (b.receitas + b.despesas) - (a.receitas + a.despesas)));
     });
-  };
+  }, [startDate, endDate, statusFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, statusFilter]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => { setPrintPage(0); }, [printSelected]);
 
@@ -878,7 +878,7 @@ function OverdueReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = { due_date_end: new Date(endDate + 'T23:59:59').toISOString() };
     if (startDate) params.due_date_start = new Date(startDate).toISOString();
     if (contactFilter) params.contact_id = contactFilter;
@@ -889,9 +889,9 @@ function OverdueReport({ contacts }) {
       ).sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
       setData(overdue);
     });
-  };
+  }, [startDate, endDate, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const total = data.reduce((s, t) => s + t.amount, 0);
 
@@ -969,7 +969,7 @@ function ForecastReport({ contacts }) {
   const [contactFilter, setContactFilter] = useState('');
   const [data, setData] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {};
     if (startDate) params.due_date_start = new Date(startDate).toISOString();
     if (endDate) params.due_date_end = new Date(endDate + 'T23:59:59').toISOString();
@@ -978,9 +978,9 @@ function ForecastReport({ contacts }) {
       const future = res.data.filter(t => t.status !== 'pago' && t.status !== 'recebido');
       setData(future.sort((a, b) => new Date(a.due_date) - new Date(b.due_date)));
     });
-  };
+  }, [startDate, endDate, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const total = data.reduce((s, t) => s + t.amount, 0);
 
@@ -1065,7 +1065,7 @@ function PeriodComparisonReport({ contacts }) {
   const [p1, setP1] = useState({ receitas: 0, despesas: 0 });
   const [p2, setP2] = useState({ receitas: 0, despesas: 0 });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const params = { start_date: '2000-01-01', end_date: new Date().toISOString() };
     if (contactFilter) params.contact_id = contactFilter;
     const [rAll] = await Promise.all([
@@ -1081,9 +1081,9 @@ function PeriodComparisonReport({ contacts }) {
     });
     setP1(calc(inPeriod(rAll.data, period1Start, period1End)));
     setP2(calc(inPeriod(rAll.data, period2Start, period2End)));
-  };
+  }, [period1Start, period1End, period2Start, period2End, contactFilter]);
 
-  useEffect(() => { load(); }, [period1Start, period1End, period2Start, period2End, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const diff = (a, b) => b > 0 ? ((a - b) / b * 100).toFixed(1) : '0.0';
   const diffIcon = (a, b) => a > b ? '\u2191' : a < b ? '\u2193' : '=';
@@ -1192,7 +1192,7 @@ function DPEReport({ contacts }) {
   const [receitas, setReceitas] = useState([]);
   const [despesas, setDespesas] = useState([]);
 
-  const load = () => {
+  const load = useCallback(() => {
     const params = {
       start_date: new Date(startDate).toISOString(),
       end_date: new Date(endDate + 'T23:59:59').toISOString(),
@@ -1215,9 +1215,9 @@ function DPEReport({ contacts }) {
       setReceitas(Object.values(rcats).sort((a, b) => b.total - a.total));
       setDespesas(Object.values(dcats).sort((a, b) => b.total - a.total));
     });
-  };
+  }, [startDate, endDate, contactFilter]);
 
-  useEffect(() => { load(); }, [startDate, endDate, contactFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const totalReceitas = receitas.reduce((s, c) => s + c.total, 0);
   const totalDespesas = despesas.reduce((s, c) => s + c.total, 0);

@@ -68,6 +68,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
         className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm cursor-pointer bg-white ${
           disabled ? 'bg-gray-50 text-gray-400' : 'hover:border-gray-400'
         } ${open ? 'border-brand-500 ring-1 ring-brand-500' : 'border-gray-300'}`}
+        aria-required={required}
       >
         <span className={selected ? 'text-gray-900 flex items-center gap-2' : 'text-gray-400'}>
           {selected ? (renderSelected ? renderSelected(selected) : selected.label) : (placeholder || 'Selecione...')}

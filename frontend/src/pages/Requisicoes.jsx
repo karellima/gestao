@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '../services/api';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 import { Plus, ClipboardList, CheckCircle, XCircle, Truck, Printer, Edit, Trash2, ArrowUpCircle } from 'lucide-react';
@@ -50,13 +49,11 @@ function SearchInput({ products, onSelect, searchRef }) {
 }
 
 export default function Requisicoes() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [requisicoes, setRequisicoes] = useState([]);
   const [products, setProducts] = useState([]);
   const [deposits, setDeposits] = useState([]);
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
   const [statusFilter, setStatusFilter] = useState('');
@@ -91,24 +88,20 @@ export default function Requisicoes() {
     }
   }, [focusQtyId, form.items]);
 
-  const load = () => {
-    setLoading(true);
+  const load = useCallback(() => {
     const params = {};
     if (statusFilter) params.status = statusFilter;
     api.get('/requisicoes/', { params })
       .then(res => setRequisicoes(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  };
-
+      .catch(() => {});
+  }, [statusFilter]);
   useEffect(() => {
     api.get('/products/').then(res => setProducts(res.data)).catch(() => {});
     api.get('/deposits/mine').then(res => setDeposits(res.data)).catch(() => {});
     api.get('/auth/users').then(res => setUsers(res.data)).catch(() => {});
-    load();
   }, []);
 
-  useEffect(() => { load(); }, [statusFilter]);
+  useEffect(() => { load(); }, [load]);
 
   const prodLabel = (p) => p.unit?.abbreviation ? `${p.name} ${p.unit.abbreviation}` : p.name;
 
@@ -179,7 +172,7 @@ export default function Requisicoes() {
     try {
       const res = await api.get(`/stock/balance/?deposit_id=${r.deposit_fulfilling_id}`);
       (res.data || []).forEach(b => { bal[b.product_id] = b.balance; });
-    } catch (e) { /* saldo indisponível não bloqueia */ }
+    } catch { /* saldo indisponível não bloqueia */ }
     r.items.forEach(it => {
       const approved = it.quantity_approved || it.quantity_requested || 0;
       const b = bal[it.product_id];
