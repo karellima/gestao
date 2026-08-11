@@ -1,11 +1,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
 import { formatCurrency, getTodayLocal } from '../services/format';
-import { currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
-import { Plus, Edit, Trash2, TrendingUp, TrendingDown, Repeat, Calendar, Landmark, Wallet, CreditCard, AlertTriangle, Clock } from 'lucide-react';
-import SortableHeader from '../components/SortableHeader';
-import SearchableSelect from '../components/SearchableSelect';
-import { CaseInput, CaseTextarea } from '../components/CaseInput';
+import { parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
+import { Plus, TrendingUp, TrendingDown, Landmark, Wallet, CreditCard, AlertTriangle, Clock } from 'lucide-react';
+import FinancialTransactionTable from '../components/FinancialTransactionTable';
+import FinancialTransactionForm from '../components/FinancialTransactionForm';
+import FinancialPaymentModal from '../components/FinancialPaymentModal';
 
 function getEmptyForm() {
   return {
@@ -125,17 +125,6 @@ export default function Financial() {
   const accountTypeIcons = { banco: Landmark, caixa: Wallet, cartao_credito: CreditCard };
   const accountTypeColors = { banco: 'text-brand-600', caixa: 'text-green-600', cartao_credito: 'text-purple-600' };
 
-const dueDaysInfo = (t) => {
-  if (!t.due_date || t.status === 'pago' || t.status === 'recebido') return null;
-  const due = new Date(t.due_date);
-  due.setHours(12, 0, 0, 0);
-  const today = new Date();
-  today.setHours(12, 0, 0, 0);
-  const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-  if (diff < 0) return { days: Math.abs(diff), isOverdue: true, cls: 'text-red-700 bg-red-100', label: `${Math.abs(diff)}d atrasado` };
-  if (diff <= 3) return { days: diff, isOverdue: false, cls: 'text-orange-700 bg-orange-100', label: `${diff}d` };
-  return null;
-};
   const accountOptions = accounts.filter(a => a.is_active).map(a => ({
     value: a.id,
     label: a.name,
@@ -363,379 +352,53 @@ const dueDaysInfo = (t) => {
         </span>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <SortableHeader label="Lançamento" sortKey="date" currentSort={sortConfig} onSort={handleSort} />
-              <SortableHeader label="Vencimento" sortKey="due_date" currentSort={sortConfig} onSort={handleSort} />
-              <SortableHeader label="Descrição" sortKey="description" currentSort={sortConfig} onSort={handleSort} />
-              <th className="p-3 text-xs font-semibold text-gray-500 uppercase text-left">Contato</th>
-              <SortableHeader label="Categoria" sortKey="financial_category_id" currentSort={sortConfig} onSort={handleSort} />
-              <SortableHeader label="Pagamento" sortKey="payment_type_id" currentSort={sortConfig} onSort={handleSort} />
-              <SortableHeader label="Conta" sortKey="account_id" currentSort={sortConfig} onSort={handleSort} />
-              <SortableHeader label="Tipo" sortKey="type" currentSort={sortConfig} onSort={handleSort} align="center" />
-              <th className="text-center p-3 text-xs font-semibold text-gray-500 uppercase">Status</th>
-              <SortableHeader label="Valor" sortKey="amount" currentSort={sortConfig} onSort={handleSort} align="right" />
-              <th className="text-center p-3">Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayTransactions.map(t => (
-              <tr key={t.id} className="border-t hover:bg-gray-50">
-                <td className="p-3 whitespace-nowrap text-gray-500">{new Date(t.date).toLocaleDateString('pt-BR')}</td>
-                <td className="p-3 whitespace-nowrap">
-                  {t.due_date ? (
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{new Date(t.due_date).toLocaleDateString('pt-BR')}</span>
-                      {(() => {
-                        const info = dueDaysInfo(t);
-                        if (!info) return null;
-                        const Icon = info.isOverdue ? AlertTriangle : Clock;
-                        return (
-                          <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium ${info.cls}`}>
-                            <Icon size={11} />
-                            {info.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  ) : <span className="text-gray-300">-</span>}
-                </td>
-                <td className="p-3">
-                  <div className="font-medium">{t.description}</div>
-                  {t.installments > 1 && (
-                    <div className="text-xs text-gray-400 flex items-center gap-1.5 mt-0.5">
-                      {t.recurrence_frequency && <Repeat size={10} />}
-                      <span className="font-medium">{t.current_installment}/{t.installments}x</span>
-                      {t.recurrence_frequency && (
-                        <span className="bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded">
-                          {frequencyLabels[t.recurrence_frequency]}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </td>
-                <td className="p-3 text-gray-500">{t.contact?.name || '-'}</td>
-                <td className="p-3 text-gray-500">{t.financial_category?.name || '-'}</td>
-                <td className="p-3 text-gray-500">{t.payment_type?.name || '-'}</td>
-                <td className="p-3 text-gray-500 text-xs">
-                  {t.account ? (
-                    <div className="flex items-center gap-1.5">
-                      {(() => {
-                        const TIcon = accountTypeIcons[t.account.account_type] || Landmark;
-                        const tColor = accountTypeColors[t.account.account_type] || 'text-gray-600';
-                        return <TIcon size={14} className={tColor} />;
-                      })()}
-                      <span className="truncate max-w-[80px]">{t.account.name}</span>
-                    </div>
-                  ) : '-'}
-                </td>
-                <td className="p-3 text-center">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${t.type === 'receita' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {t.type === 'receita' ? 'Receita' : 'Despesa'}
-                  </span>
-                </td>
-                <td className="p-3 text-center">
-                  {(() => {
-                    const totalPaid = (t.payments || []).reduce((s, p) => s + p.amount, 0);
-                    const status = t.status || 'pendente';
-                    const statusConfig = {
-                      pendente: { label: 'Pendente', cls: 'bg-yellow-100 text-yellow-700' },
-                      pago_parcial: { label: `Parcial ${formatCurrency(totalPaid)}`, cls: 'bg-orange-100 text-orange-700' },
-                      pago: { label: 'Pago', cls: 'bg-green-100 text-green-700' },
-                      recebido: { label: 'Recebido', cls: 'bg-brand-100 text-brand-700' },
-                    };
-                    const cfg = statusConfig[status] || statusConfig.pendente;
-                    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${cfg.cls}`}>{cfg.label}</span>;
-                  })()}
-                </td>
-                <td className={`p-3 text-right font-medium whitespace-nowrap ${t.type === 'receita' ? 'text-green-600' : 'text-red-600'}`}>
-                  {formatCurrency(t.amount)}
-                </td>
-                <td className="p-3 text-center whitespace-nowrap">
-                  {(t.status === 'pendente' || t.status === 'pago_parcial') && (
-                    <button onClick={() => openPaymentModal(t)}
-                      className="text-green-600 hover:text-green-800 mr-2 text-xs font-medium" title="Registrar pagamento">
-                      Baixar
-                    </button>
-                  )}
-                  <button onClick={() => handleEdit(t)} className="text-brand-600 hover:text-brand-800 mr-2"><Edit size={16} /></button>
-                  <button onClick={() => handleDelete(t.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <FinancialTransactionTable
+        transactions={displayTransactions}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+        frequencyLabels={frequencyLabels}
+        accountTypeIcons={accountTypeIcons}
+        accountTypeColors={accountTypeColors}
+        onPay={openPaymentModal}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-auto">
-            <h2 className="text-lg font-bold mb-4">{editing ? 'Editar' : 'Nova'} Transação</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
+      {showModal && <FinancialTransactionForm
+        editing={editing}
+        form={form}
+        setForm={setForm}
+        onSubmit={handleSubmit}
+        onClose={() => setShowModal(false)}
+        categoryOptions={categoryOptions}
+        subcategoryOptions={subcategoryOptions}
+        paymentTypeOptions={paymentTypeOptions}
+        accountOptions={accountOptions}
+        contactOptions={contactOptions}
+        renderAccountOption={renderAccountOption}
+        renderAccountSelected={renderAccountSelected}
+        onAccountChange={handleAccountChange}
+        onDateChange={handleDateChange}
+        isCreditCard={isCreditCard}
+        selectedAccount={selectedAccount}
+        calculatedDueDate={calculatedDueDate}
+        showInstallments={showInstallments}
+        frequencyOptions={frequencyOptions}
+        installmentCount={installmentCount}
+        installmentValue={installmentValue}
+        startInstallment={startInstallment}
+        installmentDates={installmentDates}
+        effectiveDueDate={effectiveDueDate}
+        submitError={submitError}
+      />}
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo *</label>
-                  <select value={form.type} onChange={e => setForm({...form, type: e.target.value, financial_category_id: '', subcategory_id: ''})}
-                    className="w-full px-3 py-2 border rounded-lg text-sm">
-                    <option value="receita">Receita</option>
-                    <option value="despesa">Despesa</option>
-                  </select>
-                </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Data Lançamento *</label>
-                <input type="date" value={form.date} onChange={e => handleDateChange(e.target.value)}
-                  max={getTodayLocal()}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" required />
-                {isCreditCard && <p className="text-xs text-purple-500 mt-1">Data em que a compra foi realizada</p>}
-              </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Descrição *</label>
-                <CaseInput placeholder="Ex: Pagamento fornecedor, Venda produto..." value={form.description}
-                  onChange={e => setForm({...form, description: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" required />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Valor (R$) *</label>
-                <input type="text" inputMode="decimal" placeholder="0,00" value={form.amount}
-                  onChange={e => setForm({...form, amount: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" required />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Categoria</label>
-                  <SearchableSelect options={categoryOptions} value={form.financial_category_id ? parseInt(form.financial_category_id) : ''}
-                    onChange={val => setForm({...form, financial_category_id: val ? String(val) : '', subcategory_id: ''})}
-                    placeholder="Selecione..." />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Subcategoria</label>
-                  <SearchableSelect options={subcategoryOptions} value={form.subcategory_id ? parseInt(form.subcategory_id) : ''}
-                    onChange={val => setForm({...form, subcategory_id: val ? String(val) : ''})}
-                    placeholder={form.financial_category_id ? "Selecione..." : "Selecione a categoria primeiro"}
-                    disabled={!form.financial_category_id} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Pagamento</label>
-                  <SearchableSelect options={paymentTypeOptions} value={form.payment_type_id ? parseInt(form.payment_type_id) : ''}
-                    onChange={val => setForm({...form, payment_type_id: val ? String(val) : '', installments: '1', current_installment: '1', recurrence_frequency: ''})}
-                    placeholder="Selecione..." />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Conta / Cartão</label>
-                  <SearchableSelect options={accountOptions} value={form.account_id ? parseInt(form.account_id) : ''}
-                    onChange={val => handleAccountChange(val)}
-                    renderOption={renderAccountOption}
-                    renderSelected={renderAccountSelected}
-                    placeholder="Selecione..." />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Contato</label>
-                <SearchableSelect options={contactOptions} value={form.contact_id ? parseInt(form.contact_id) : ''}
-                  onChange={val => setForm({...form, contact_id: val ? String(val) : ''})}
-                  placeholder="Selecione..." />
-              </div>
-
-              {isCreditCard ? (
-                <div className="bg-purple-50 border border-purple-200 rounded-lg px-3 py-2 space-y-1">
-                  <div className="text-xs text-purple-700 flex items-center gap-2">
-                    <Calendar size={12} />
-                    <span>
-                      {selectedAccount ? (
-                        <>
-                          <strong>{selectedAccount.name}</strong>
-                          {selectedAccount.flag && ` (${selectedAccount.flag})`}
-                          {selectedAccount.closing_day && selectedAccount.due_day
-                            ? ` — fecha dia ${selectedAccount.closing_day} / vence dia ${selectedAccount.due_day}`
-                            : ''
-                          }
-                        </>
-                      ) : (
-                        'Selecione um cartão na Conta/Cartão para calcular o vencimento'
-                      )}
-                    </span>
-                  </div>
-                  {calculatedDueDate && (
-                    <div className="text-xs text-purple-600">
-                      Vencimento calculado: <strong>{new Date(calculatedDueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>
-                      <span className="text-purple-400 ml-1">(compra {form.date && new Date(form.date).getDate() > selectedAccount.closing_day ? 'após' : 'antes'} do fechamento)</span>
-                    </div>
-                  )}
-                  {!selectedAccount?.closing_day && selectedAccount && (
-                    <div className="text-xs text-amber-600">
-                      Configure fechamento e vencimento na tela de Contas
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">Data Vencimento</label>
-                  <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg text-sm" />
-                  <p className="text-xs text-gray-400 mt-1">Data em que a parcela vence</p>
-                </div>
-              )}
-
-              {showInstallments && (
-                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-                    <Calendar size={12} /> Parcelamento
-                  </p>
-
-                  <div className={`grid gap-3 ${installmentCount > 1 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Parcela Inicial</label>
-                      <input type="number" min="1" max={parseInt(form.installments) || 60} value={form.current_installment}
-                        onChange={e => setForm({...form, current_installment: e.target.value})}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" />
-                      <p className="text-xs text-gray-400 mt-0.5">Nº desta parcela</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 mb-1">Total de Parcelas</label>
-                      <input type="number" min="1" max="60" value={form.installments}
-                        onChange={e => {
-                          const val = e.target.value;
-                          const newForm = {...form, installments: val};
-                          const defaultFreq = frequencyOptions.find(f => f.value === 'mensal')?.value || frequencyOptions[0]?.value || '';
-                          if (parseInt(val) <= 1) newForm.recurrence_frequency = '';
-                          else if (isCreditCard && !newForm.recurrence_frequency) newForm.recurrence_frequency = defaultFreq;
-                          setForm(newForm);
-                        }}
-                        className="w-full px-3 py-2 border rounded-lg text-sm" />
-                    </div>
-                    {installmentCount > 1 && (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-500 mb-1">Frequência *</label>
-                        <select value={form.recurrence_frequency} onChange={e => setForm({...form, recurrence_frequency: e.target.value})}
-                          className="w-full px-3 py-2 border rounded-lg text-sm" required>
-                          <option value="">Selecione...</option>
-                          {frequencyOptions.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  {installmentValue && (
-                    <div className="bg-white rounded-lg p-3 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Valor total:</span>
-                        <span className="font-medium">{formatCurrency(parseCurrencyToNumber(form.amount, 2))}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Valor da parcela:</span>
-                        <span className="font-bold text-brand-700">{formatCurrency(installmentValue)}</span>
-                      </div>
-                      {form.recurrence_frequency && effectiveDueDate && (
-                        <div className="border-t pt-2 mt-2">
-                          <p className="text-xs font-medium text-gray-500 mb-1">
-                            Cronograma (a partir do vencimento):
-                          </p>
-                          <div className="space-y-1 max-h-40 overflow-auto">
-                            {installmentDates.map((d, i) => {
-                              const num = startInstallment + i;
-                              return (
-                                <div key={i} className={`flex justify-between text-xs px-2 py-1 rounded ${num === startInstallment ? 'bg-brand-50 text-brand-700 font-medium' : 'text-gray-600'}`}>
-                                  <span>{num}ª parcela{num === startInstallment ? ' (atual)' : ''}</span>
-                                  <span>{d.toLocaleDateString('pt-BR')}</span>
-                                  <span>{formatCurrency(installmentValue)}</span>
-                                </div>
-                              );
-                            })}
-                            {startInstallment + installmentDates.length - 1 < installmentCount && (
-                              <p className="text-xs text-gray-400 text-center">
-                                ... mais {installmentCount - startInstallment - installmentDates.length + 1} parcelas
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Observações</label>
-                <CaseTextarea placeholder="Notas adicionais..." value={form.notes} rows={2}
-                  onChange={e => setForm({...form, notes: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
-
-              {submitError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                  {submitError}
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 border rounded-lg text-sm">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm hover:bg-brand-700">Salvar</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {showPaymentModal && payingTransaction && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-sm max-h-[90vh] overflow-auto">
-            <h2 className="text-lg font-bold mb-4">Registrar Pagamento</h2>
-            <div className="mb-3 text-sm text-gray-600">
-              <p><strong>{payingTransaction.description}</strong></p>
-              <p>Valor total: {formatCurrency(payingTransaction.amount)}</p>
-              {payingTransaction.payments?.length > 0 && (
-                <p>Já pago: {formatCurrency(payingTransaction.payments.reduce((s, p) => s + p.amount, 0))}</p>
-              )}
-            </div>
-            <form onSubmit={handlePaymentSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Valor a pagar *</label>
-                <input type="text" inputMode="decimal" min="0.01"
-                  value={paymentForm.amount}
-                  onChange={e => setPaymentForm({...paymentForm, amount: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" required />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Data do pagamento *</label>
-                <input type="date" value={paymentForm.payment_date}
-                  onChange={e => setPaymentForm({...paymentForm, payment_date: e.target.value})}
-                  max={getTodayLocal()}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" required />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Juros / Multa</label>
-                <input type="text" inputMode="decimal" placeholder="0,00"
-                  value={paymentForm.interest}
-                  onChange={e => setPaymentForm({...paymentForm, interest: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Observação</label>
-                <CaseInput type="text" placeholder="Nota opcional..."
-                  value={paymentForm.notes}
-                  onChange={e => setPaymentForm({...paymentForm, notes: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm" />
-              </div>
-              <div className="flex justify-end gap-2 mt-4">
-                <button type="button" onClick={() => { setShowPaymentModal(false); setPayingTransaction(null); }}
-                  className="px-4 py-2 border rounded-lg text-sm">Cancelar</button>
-                <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">Confirmar Pagamento</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {showPaymentModal && payingTransaction && <FinancialPaymentModal
+        transaction={payingTransaction}
+        form={paymentForm}
+        setForm={setPaymentForm}
+        onSubmit={handlePaymentSubmit}
+        onClose={() => { setShowPaymentModal(false); setPayingTransaction(null); }}
+      />}
     </div>
   );
 }
