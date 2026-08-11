@@ -52,9 +52,9 @@ Resultado idêntico aos models — garantido por
 
 ## Banco que já existia (produção)
 
-Produção (Neon) já tem as tabelas. Rodar a baseline nela **falha**: as tabelas já
-existem. O banco entra na cadeia sendo *adotado* — marcado como já estando na
-baseline, sem executá-la:
+Um banco que já rodava antes das migrations existirem já tem as tabelas. Rodar a
+baseline nele **falha**: as tabelas já existem. O banco entra na cadeia sendo
+*adotado* — marcado como já estando na baseline, sem executá-la:
 
 ```bash
 cd backend
@@ -80,8 +80,9 @@ alembic -x db_url=postgresql://... upgrade head
 As migrations rodam no **start**, não no build: o build não alcança o banco e
 roda por artefato, não por release.
 
-- `backend/start.sh`: `alembic upgrade head` antes do `uvicorn`, sob `set -e`.
-- `render.yaml`: `startCommand: cd backend && alembic upgrade head && uvicorn ...`
+- `ops/entrypoint.sh`: `alembic upgrade head` antes do `uvicorn`, sob `set -e`.
+  É o `ENTRYPOINT` da imagem Docker, então vale para qualquer ambiente que suba
+  o container — inclusive o `docker-compose.ionos.yml` da produção.
 
 Migration quebrada derruba o start, e um app nunca sobe apontando para um banco
 em estado indefinido.

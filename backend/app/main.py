@@ -31,7 +31,7 @@ logger = logging.getLogger("gestao.main")
 # Agora o schema muda só por migration, e só quando alguém manda:
 #     cd backend && alembic upgrade head
 #
-# O deploy roda isso antes de subir o app (ver `start.sh` e `render.yaml`).
+# O deploy roda isso antes de subir o app (ver `ops/entrypoint.sh`).
 # Banco que já existia entra na cadeia com `alembic stamp 3f9bdb34aa4d` — ver
 # `backend/docs/migrations.md`.
 
