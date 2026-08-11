@@ -15,8 +15,7 @@ Aqui o reparo é explícito:
 """
 
 import logging
-from datetime import UTC, datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import case, func
 from sqlalchemy.orm import Session

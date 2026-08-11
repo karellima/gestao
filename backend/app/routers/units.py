@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.unit import Unit
 from app.schemas.unit import UnitCreate, UnitResponse, UnitUpdate
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/units", tags=["Unidades de Medida"])
 

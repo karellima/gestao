@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.contact import Contact
 from app.schemas.contact import ContactCreate, ContactResponse, ContactUpdate
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/contacts", tags=["Clientes/Fornecedores"])
 

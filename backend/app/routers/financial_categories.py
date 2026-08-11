@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,7 +9,7 @@ from app.schemas.financial_category import (
     FinancialCategoryResponse,
     FinancialCategoryUpdate,
 )
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/financial-categories", tags=["Categorias Financeiras"])
 

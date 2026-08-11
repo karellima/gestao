@@ -1,4 +1,3 @@
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -6,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.product import Category
 from app.schemas.product import CategoryCreate, CategoryResponse, CategoryUpdate
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/categories", tags=["Categorias de Produtos"])
 

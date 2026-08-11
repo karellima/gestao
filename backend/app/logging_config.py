@@ -10,7 +10,7 @@ def setup_logging():
 
     if fmt_env == "json":
         import json
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         class JsonFormatter(logging.Formatter):
             def format(self, record):

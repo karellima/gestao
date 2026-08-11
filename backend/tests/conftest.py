@@ -13,15 +13,11 @@ from app.database import Base, SessionLocal, engine, get_db
 from app.models.account import Account
 from app.models.contact import Contact
 from app.models.deposit import Deposit
-from app.models.financial import Transaction
 from app.models.financial_category import FinancialCategory
-from app.models.payment import Payment
 from app.models.payment_type import PaymentType
-from app.models.price_table import PriceTable, PriceTableItem
 from app.models.product import Category, Product
-from app.models.requisicao import Requisicao, RequisicaoItem
 from app.models.role import Role, RoleModule
-from app.models.sale import Sale, SaleItem, SaleType
+from app.models.sale import SaleType
 from app.models.stock import StockMovement
 from app.models.unit import Unit
 from app.models.user import User

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.payment_type import PaymentType
 from app.schemas.payment_type import PaymentTypeCreate, PaymentTypeResponse, PaymentTypeUpdate
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/payment-types", tags=["Tipos de Pagamento"])
 

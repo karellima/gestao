@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.role import Role, RoleModule
 from app.models.user import User
-from app.schemas.role import RoleCreate, RoleModuleCreate, RoleResponse, RoleUpdate
+from app.schemas.role import RoleCreate, RoleResponse, RoleUpdate
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/roles", tags=["Perfis de Acesso"])

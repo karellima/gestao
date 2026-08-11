@@ -15,8 +15,8 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-import app.models  # noqa: F401
-import app.models.price_table  # noqa: F401
+import app.models
+import app.models.price_table
 import app.models.sale  # noqa: F401
 from app.database import Base
 from app.models.deposit import Deposit

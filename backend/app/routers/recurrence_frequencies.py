@@ -9,7 +9,7 @@ from app.schemas.recurrence_frequency import (
     RecurrenceFrequencyResponse,
     RecurrenceFrequencyUpdate,
 )
-from app.utils.security import get_current_user, require_module
+from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/recurrence-frequencies", tags=["Frequências de Recorrência"])
 

@@ -15,7 +15,6 @@ Regras que este módulo existe para garantir:
 """
 
 import logging
-from typing import Optional
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session

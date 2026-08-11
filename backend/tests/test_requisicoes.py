@@ -1,6 +1,4 @@
-import pytest
 
-from app.models.stock import StockMovement
 
 
 class TestRequisicaoWorkflow:
