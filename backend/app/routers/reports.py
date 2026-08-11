@@ -1,6 +1,8 @@
+from io import BytesIO
+
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, extract
-from datetime import datetime, timedelta, date
+from sqlalchemy import func
+from datetime import datetime, timedelta
 from calendar import monthrange
 from app.database import get_db
 from app.models.product import Product
@@ -8,21 +10,42 @@ from app.models.stock import StockMovement
 from app.models.financial import Transaction
 from app.models.financial_category import FinancialCategory
 from app.models.contact import Contact
-from app.utils.security import get_current_user, require_module
-from fastapi import APIRouter, Depends
+from app.models.user import User
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
+from fastapi import APIRouter, Depends, Body
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from typing import Optional
+
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    return is_admin_user(db, user)
 
 
 @router.get("/dashboard")
 def get_dashboard(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("dashboard")),
 ):
-    total_products = db.query(Product).filter(Product.is_active == True).count()
+    product_query = db.query(Product).filter(Product.is_active == True)
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if deposit_ids:
+            product_query = product_query.filter(Product.deposit_id.in_(deposit_ids))
+        else:
+            product_query = product_query.filter(False)
+
+    total_products = product_query.count()
     low_stock = (
-        db.query(Product)
-        .filter(Product.is_active == True, Product.current_stock <= Product.min_stock)
+        product_query
+        .filter(Product.current_stock <= Product.min_stock)
         .count()
     )
     total_contacts = db.query(Contact).filter(Contact.is_active == True).count()
@@ -296,19 +319,25 @@ def get_financial_summary(
 def get_stock_summary(
     days: int = 30,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     since = datetime.utcnow() - timedelta(days=days)
 
+    mov_query = db.query(StockMovement).filter(StockMovement.created_at >= since)
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return {"periodo_dias": days, "total_entradas": 0, "total_saidas": 0}
+        mov_query = mov_query.filter(StockMovement.deposit_id.in_(deposit_ids))
+
     entradas = (
-        db.query(func.coalesce(func.sum(StockMovement.quantity), 0))
-        .filter(StockMovement.movement_type == "entrada", StockMovement.created_at >= since)
-        .scalar()
+        mov_query.filter(StockMovement.movement_type == "entrada")
+        .with_entities(func.coalesce(func.sum(StockMovement.quantity), 0)).scalar()
     )
     saidas = (
-        db.query(func.coalesce(func.sum(StockMovement.quantity), 0))
-        .filter(StockMovement.movement_type == "saida", StockMovement.created_at >= since)
-        .scalar()
+        mov_query.filter(StockMovement.movement_type == "saida")
+        .with_entities(func.coalesce(func.sum(StockMovement.quantity), 0)).scalar()
     )
 
     return {
@@ -316,3 +345,99 @@ def get_stock_summary(
         "total_entradas": entradas,
         "total_saidas": saidas,
     }
+
+
+class ExcelExportColumn(BaseModel):
+    header: str
+    width: Optional[int] = 15
+
+
+class ExcelExportRequest(BaseModel):
+    title: str
+    columns: list[ExcelExportColumn]
+    rows: list[dict]
+    filename: Optional[str] = None
+
+
+HEADER_FILL = PatternFill(start_color="14B8A6", end_color="14B8A6", fill_type="solid")
+HEADER_FONT = Font(name="Calibri", bold=True, color="FFFFFF", size=11)
+BODY_FONT = Font(name="Calibri", size=11)
+THIN_BORDER = Border(
+    left=Side(style="thin", color="D1D5DB"),
+    right=Side(style="thin", color="D1D5DB"),
+    top=Side(style="thin", color="D1D5DB"),
+    bottom=Side(style="thin", color="D1D5DB"),
+)
+HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
+BODY_ALIGNMENT = Alignment(vertical="center", wrap_text=True)
+
+
+#: Caracteres que o Excel recusa num nome de aba. Sem a troca, um título com
+#: uma barra (uma data "01/2026", por exemplo) derruba o endpoint em 500.
+_SHEET_TITLE_INVALID = str.maketrans({c: "-" for c in r"[]:*?/\\"})
+
+#: O nome de arquivo entra num header HTTP entre aspas. Aspa, barra e quebra de
+#: linha vindas do cliente sairiam do campo e reescreveriam a resposta.
+_FILENAME_ALLOWED = " .,-_()[]"
+
+
+def _safe_sheet_title(title: str) -> str:
+    limpo = (title or "").translate(_SHEET_TITLE_INVALID).strip()
+    return limpo[:31] or "Dados"
+
+
+def _safe_filename(name: str) -> str:
+    limpo = "".join(c for c in (name or "") if c.isalnum() or c in _FILENAME_ALLOWED).strip()
+    return limpo[:100] or "relatorio"
+
+
+def _apply_cell_style(cell, is_header=False):
+    if is_header:
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGNMENT
+    else:
+        cell.font = BODY_FONT
+        cell.alignment = BODY_ALIGNMENT
+    cell.border = THIN_BORDER
+
+
+@router.post("/export-excel")
+def export_excel(
+    payload: ExcelExportRequest = Body(...),
+    _=Depends(get_current_user),
+):
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = _safe_sheet_title(payload.title)
+
+    for col_idx, col in enumerate(payload.columns, 1):
+        cell = ws.cell(row=1, column=col_idx, value=col.header)
+        _apply_cell_style(cell, is_header=True)
+        ws.column_dimensions[get_column_letter(col_idx)].width = col.width or 15
+
+    for row_idx, row in enumerate(payload.rows, 2):
+        for col_idx, col in enumerate(payload.columns, 1):
+            value = row.get(col.header, "")
+            # `rows` é JSON livre: uma lista ou um objeto aninhado faria o
+            # openpyxl levantar ValueError no meio da planilha, virando 500.
+            if isinstance(value, (dict, list, tuple, set)):
+                value = str(value)
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            _apply_cell_style(cell, is_header=False)
+
+    ws.auto_filter.ref = ws.dimensions
+    ws.freeze_panes = "A2"
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    disposition_filename = f"{_safe_filename(payload.filename or payload.title)}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{disposition_filename}"'
+        },
+    )

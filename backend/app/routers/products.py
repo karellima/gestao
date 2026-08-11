@@ -6,12 +6,17 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.models.product import Product, Category
 from app.models.unit import Unit
+from app.models.user import User
 from app.schemas.product import ProductCreate, ProductUpdate, ProductResponse
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 import openpyxl
 import io
 import os
 import tempfile
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    return is_admin_user(db, user)
 
 
 def cleanup(path: str):
@@ -47,9 +52,15 @@ def list_products(
     category_id: Optional[int] = None,
     deposit_id: Optional[int] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products")),
 ):
     query = db.query(Product).filter(Product.is_active == True)
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(Product.deposit_id.in_(deposit_ids))
     if search:
         query = query.filter(Product.name.ilike(f"%{search}%"))
     if category_id:
@@ -86,11 +97,16 @@ def export_template(background_tasks: BackgroundTasks, _=Depends(require_module(
 def get_product(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products")),
 ):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if product.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=404, detail="Produto não encontrado")
     return product
 
 
@@ -98,8 +114,13 @@ def get_product(
 def create_product(
     product: ProductCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products", "edit")),
 ):
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if product.deposit_id and product.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     existing = db.query(Product).filter(Product.sku == product.sku).first()
     if existing:
         raise HTTPException(status_code=400, detail="SKU já cadastrado")
@@ -116,11 +137,18 @@ def update_product(
     product_id: int,
     product: ProductUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products", "edit")),
 ):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if db_product.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
+        if product.deposit_id is not None and product.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso ao depósito de destino")
     if product.sku:
         dup_sku = db.query(Product).filter(Product.sku == product.sku, Product.id != product_id).first()
         if dup_sku:
@@ -142,11 +170,16 @@ def update_product(
 def delete_product(
     product_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products", "edit")),
 ):
     db_product = db.query(Product).filter(Product.id == product_id).first()
     if not db_product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if db_product.deposit_id not in deposit_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     db_product.is_active = False
     db.commit()
     return {"message": "Produto removido"}
@@ -274,10 +307,16 @@ def import_products_excel(
 @router.get("/low-stock/", response_model=List[ProductResponse])
 def get_low_stock_products(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("products")),
 ):
-    return (
+    query = (
         db.query(Product)
         .filter(Product.is_active == True, Product.current_stock <= Product.min_stock)
-        .all()
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(Product.deposit_id.in_(deposit_ids))
+    return query.all()

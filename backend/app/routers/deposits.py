@@ -3,18 +3,32 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 from app.database import get_db
 from app.models.deposit import Deposit
+from app.models.user import User
 from app.schemas.deposit import DepositCreate, DepositUpdate, DepositResponse
-from app.utils.security import get_current_user, require_module
+from app.utils.security import get_current_user, require_module, is_admin_user, user_deposit_ids
 
 router = APIRouter(prefix="/api/deposits", tags=["Depósitos"])
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    return is_admin_user(db, user)
 
 
 @router.get("/", response_model=List[DepositResponse])
 def list_deposits(
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
-    return db.query(Deposit).filter(Deposit.is_active == True).order_by(Deposit.name).all()
+    if _is_admin(db, current_user):
+        return db.query(Deposit).filter(Deposit.is_active == True).order_by(Deposit.name).all()
+    deposit_ids = user_deposit_ids(current_user)
+    if not deposit_ids:
+        return []
+    return db.query(Deposit).filter(
+        Deposit.is_active == True,
+        Deposit.id.in_(deposit_ids),
+    ).order_by(Deposit.name).all()
 
 
 @router.get("/mine", response_model=List[DepositResponse])
@@ -23,7 +37,7 @@ def list_my_deposits(
     current_user=Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
-    if current_user.role == "admin":
+    if is_admin_user(db, current_user):
         return db.query(Deposit).filter(Deposit.is_active == True).order_by(Deposit.name).all()
     deposit_ids = [d.id for d in current_user.deposits]
     children = db.query(Deposit.id).filter(
@@ -43,7 +57,7 @@ def list_parent_deposits(
     current_user=Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
-    if current_user.role == "admin":
+    if is_admin_user(db, current_user):
         return db.query(Deposit).filter(
             Deposit.is_active == True,
             Deposit.parent_id.is_(None),
@@ -60,11 +74,16 @@ def list_parent_deposits(
 def get_deposit(
     deposit_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("deposits")),
 ):
     dep = db.query(Deposit).filter(Deposit.id == deposit_id).first()
     if not dep:
         raise HTTPException(status_code=404, detail="Depósito não encontrado")
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if deposit_id not in deposit_ids:
+            raise HTTPException(status_code=404, detail="Depósito não encontrado")
     return dep
 
 

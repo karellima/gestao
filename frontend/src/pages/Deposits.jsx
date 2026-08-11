@@ -435,12 +435,13 @@ function MovementsModal({ deposit, products, deposits, onClose }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover esta movimentação?')) return;
+    // O histórico é imutável: isto grava um estorno, não apaga a linha.
+    if (!confirm('Estornar esta movimentação? O lançamento original continua no histórico e um estorno será registrado ao lado dele.')) return;
     try {
       await api.delete(`/stock/movements/${id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover');
+      alert(err.response?.data?.detail || 'Erro ao estornar');
     }
   };
 
@@ -525,7 +526,7 @@ function MovementsModal({ deposit, products, deposits, onClose }) {
                             {m.source !== 'requisicao' && (
                               <>
                                 <button onClick={() => startEdit(m)} className="p-1 text-brand-600 hover:text-brand-800" title="Editar"><Edit size={14} /></button>
-                                <button onClick={() => handleDelete(m.id)} className="p-1 text-red-600 hover:text-red-800" title="Remover"><Trash2 size={14} /></button>
+                                <button onClick={() => handleDelete(m.id)} className="p-1 text-red-600 hover:text-red-800" title="Estornar"><Trash2 size={14} /></button>
                               </>
                             )}
                           </div>

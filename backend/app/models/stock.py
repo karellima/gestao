@@ -18,11 +18,16 @@ class StockMovement(Base):
     reason = Column(String(255))
     notes = Column(Text)
     source = Column(String(20))
+    # Movimentação que esta estorna. O histórico é imutável: corrigir um
+    # lançamento significa gravar o inverso apontando para o original, nunca
+    # editar ou apagar a linha errada.
+    compensates_movement_id = Column(Integer, ForeignKey("stock_movements.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.id"))
 
     product = relationship("Product", back_populates="stock_movements")
     deposit = relationship("Deposit")
+    compensates = relationship("StockMovement", remote_side=[id], uselist=False)
 
     @property
     def product_name(self):

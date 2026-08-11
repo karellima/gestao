@@ -7,15 +7,28 @@ from app.database import get_db
 from app.models.stock import StockMovement
 from app.models.product import Product
 from app.models.deposit import Deposit
+from app.models.user import User
 from app.schemas.stock import (
     StockMovementCreate, StockMovementUpdate, StockMovementResponse,
-    StockBalanceItem, StockMovementReportItem, StockTransferCreate, StockTransferItem,
-    StockAvariaCreate, TransferReportItem,
+    StockBalanceItem, StockMovementReportItem, StockTransferCreate,
+    StockAvariaCreate, TransferReportItem, StockRepairRequest, StockRepairReport,
 )
-from app.utils.security import get_current_user, require_module, require_any_module
+from app.utils.security import (
+    get_current_user, require_module, require_any_module, require_admin,
+    is_admin_user, user_deposit_ids,
+)
 from app.utils.helpers import product_label
+from app.services.stock_ledger import (
+    SOURCE_ESTORNO, SOURCE_REPARO,
+    compensate_movement, is_compensated, recalculate_product_stock,
+)
+from app.services.stock_repair import repair_stock
 
 router = APIRouter(prefix="/api/stock", tags=["Estoque"])
+
+
+def _is_admin(db: Session, user: User) -> bool:
+    return is_admin_user(db, user)
 
 
 def parse_utc(s: str) -> datetime:
@@ -25,22 +38,6 @@ def parse_utc(s: str) -> datetime:
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt
-
-
-def recalculate_product_stock(db: Session, product_id: int):
-    db.flush()
-    entrada = db.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-        StockMovement.product_id == product_id,
-        StockMovement.movement_type == "entrada",
-    ).scalar()
-    saida = db.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
-        StockMovement.product_id == product_id,
-        StockMovement.movement_type == "saida",
-    ).scalar()
-    product = db.query(Product).filter(Product.id == product_id).first()
-    if product:
-        product.current_stock = entrada - saida
-        db.commit()
 
 
 @router.get("/movements/", response_model=List[StockMovementResponse])
@@ -53,9 +50,15 @@ def list_movements(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
 ):
     query = db.query(StockMovement)
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if product_id:
@@ -75,9 +78,11 @@ def list_movements(
 def create_movement(
     movement: StockMovementCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
+    if not _is_admin(db, current_user) and movement.deposit_id not in user_deposit_ids(current_user):
+        raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     product = db.query(Product).filter(Product.id == movement.product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Produto não encontrado")
@@ -115,67 +120,150 @@ def create_movement(
     return db_movement
 
 
+def _load_correctable_movement(db: Session, movement_id: int, verbo: str) -> StockMovement:
+    """Busca a movimentação e recusa as que não podem receber correção."""
+    db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
+    if not db_movement:
+        raise HTTPException(status_code=404, detail="Movimentação não encontrada")
+    if db_movement.source == "requisicao":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Movimentação gerada por requisição não pode ser {verbo}",
+        )
+    if db_movement.source in (SOURCE_ESTORNO, SOURCE_REPARO):
+        raise HTTPException(
+            status_code=400,
+            detail="Estorno não pode ser corrigido — corrija a movimentação seguinte",
+        )
+    if is_compensated(db, db_movement.id):
+        raise HTTPException(
+            status_code=400,
+            detail="Movimentação já estornada — corrija o lançamento que a substituiu",
+        )
+    return db_movement
+
+
 @router.put("/movements/{movement_id}", response_model=StockMovementResponse)
 def update_movement(
     movement_id: int,
     movement: StockMovementUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
-    db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
-    if not db_movement:
-        raise HTTPException(status_code=404, detail="Movimentação não encontrada")
-    if db_movement.source == "requisicao":
-        raise HTTPException(status_code=400, detail="Movimentação gerada por requisição não pode ser editada")
+    """Corrige uma movimentação sem reescrevê-la.
+
+    O lançamento original fica onde está. Grava-se o estorno dele e, em
+    seguida, o lançamento corrigido — três linhas no extrato, saldo certo, e
+    dá para saber depois o que foi lançado errado, quando e por quem.
+    """
+    db_movement = _load_correctable_movement(db, movement_id, "editada")
+    if not _is_admin(db, current_user) and db_movement.deposit_id not in user_deposit_ids(current_user):
+        raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
 
     data = movement.model_dump(exclude_unset=True)
 
-    if "product_id" in data:
-        product = db.query(Product).filter(Product.id == data["product_id"]).first()
-        if not product:
+    if data.get("product_id") is not None:
+        if not db.query(Product).filter(Product.id == data["product_id"]).first():
             raise HTTPException(status_code=404, detail="Produto não encontrado")
-    if "deposit_id" in data:
-        deposit = db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first()
-        if not deposit:
+    if data.get("deposit_id") is not None:
+        if not db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first():
             raise HTTPException(status_code=404, detail="Depósito não encontrado")
 
     old_product_id = db_movement.product_id
 
-    for key, value in data.items():
-        setattr(db_movement, key, value)
+    def corrigido(campo, padrao):
+        valor = data.get(campo)
+        return padrao if valor is None else valor
 
-    if "movement_date" in data and data["movement_date"]:
-        db_movement.movement_date = datetime.fromisoformat(data["movement_date"])
+    new_product_id = corrigido("product_id", db_movement.product_id)
+    new_quantity = corrigido("quantity", db_movement.quantity)
+    new_unit_price = corrigido("unit_price", db_movement.unit_price or 0)
+    new_date = db_movement.movement_date
+    if data.get("movement_date"):
+        new_date = datetime.fromisoformat(data["movement_date"])
 
-    if "quantity" in data or "unit_price" in data:
-        qty = data.get("quantity", db_movement.quantity)
-        price = data.get("unit_price", db_movement.unit_price)
-        db_movement.total_value = qty * price
+    compensate_movement(
+        db, db_movement,
+        user_id=current_user.id,
+        notes=f"Estorno automático pela correção da movimentação #{db_movement.id}",
+    )
 
+    corrected = StockMovement(
+        product_id=new_product_id,
+        deposit_id=corrigido("deposit_id", db_movement.deposit_id),
+        movement_type=corrigido("movement_type", db_movement.movement_type),
+        movement_date=new_date,
+        quantity=new_quantity,
+        unit_price=new_unit_price,
+        total_value=new_quantity * new_unit_price,
+        reason=corrigido("reason", db_movement.reason),
+        notes=corrigido("notes", db_movement.notes),
+        user_id=current_user.id,
+    )
+    db.add(corrected)
     db.commit()
-    db.refresh(db_movement)
+    db.refresh(corrected)
+
     recalculate_product_stock(db, old_product_id)
-    if "product_id" in data and data["product_id"] != old_product_id:
-        recalculate_product_stock(db, data["product_id"])
-    return db_movement
+    if new_product_id != old_product_id:
+        recalculate_product_stock(db, new_product_id)
+    return corrected
 
 
 @router.delete("/movements/{movement_id}")
 def delete_movement(
     movement_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
-    db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
-    if not db_movement:
-        raise HTTPException(status_code=404, detail="Movimentação não encontrada")
-    if db_movement.source == "requisicao":
-        raise HTTPException(status_code=400, detail="Movimentação gerada por requisição não pode ser excluída")
+    """Anula uma movimentação por estorno — a linha original permanece.
+
+    A rota continua sendo ``DELETE`` para não quebrar o frontend, mas nada é
+    apagado: grava-se a movimentação inversa e o saldo volta ao que era.
+    """
+    db_movement = _load_correctable_movement(db, movement_id, "excluída")
+    if not _is_admin(db, current_user) and db_movement.deposit_id not in user_deposit_ids(current_user):
+        raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     product_id = db_movement.product_id
-    db.delete(db_movement)
+
+    compensation = compensate_movement(
+        db, db_movement,
+        user_id=current_user.id,
+        notes=f"Estorno solicitado da movimentação #{db_movement.id}",
+    )
     db.commit()
+    db.refresh(compensation)
+
     recalculate_product_stock(db, product_id)
-    return {"message": "Movimentação removida"}
+    return {
+        "message": "Movimentação estornada",
+        "movement_id": movement_id,
+        "compensation_id": compensation.id,
+    }
+
+
+@router.post("/repair", response_model=StockRepairReport)
+def repair(
+    data: Optional[StockRepairRequest] = None,
+    db: Session = Depends(get_db),
+    current_user=Depends(require_admin),
+):
+    """Reparo do estoque sob demanda — nunca no boot da aplicação.
+
+    Simula por padrão (``dry_run=true``): devolve o relatório do que faria sem
+    gravar nada. Com ``dry_run=false`` compensa as saídas de requisições nunca
+    recebidas e re-sincroniza o cache ``current_stock`` a partir do histórico.
+    """
+    data = data or StockRepairRequest()
+    return repair_stock(
+        db,
+        dry_run=data.dry_run,
+        user_id=current_user.id,
+        compensate_orphans=data.compensate_orphans,
+        resync_cache=data.resync_cache,
+    )
 
 
 @router.get("/balance/", response_model=List[StockBalanceItem])
@@ -184,6 +272,7 @@ def stock_balance(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_any_module(["stock_reports", "deposits"])),
 ):
     query = (
@@ -191,6 +280,11 @@ def stock_balance(
         .join(Product, Product.id == StockMovement.product_id)
     )
 
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -252,6 +346,7 @@ def stock_movement_report(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     query = (
@@ -259,6 +354,11 @@ def stock_movement_report(
         .join(Product, Product.id == StockMovement.product_id)
         .join(Deposit, Deposit.id == StockMovement.deposit_id)
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -293,9 +393,13 @@ def stock_movement_report(
 def transfer_stock(
     data: StockTransferCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
+    if not _is_admin(db, current_user):
+        allowed = user_deposit_ids(current_user)
+        if data.source_deposit_id not in allowed or data.destination_deposit_id not in allowed:
+            raise HTTPException(403, "Sem acesso a este depósito")
     if data.source_deposit_id == data.destination_deposit_id:
         raise HTTPException(400, "Depósitos de origem e destino devem ser diferentes")
     src = db.query(Deposit).filter(Deposit.id == data.source_deposit_id).first()
@@ -368,9 +472,11 @@ def transfer_stock(
 def register_avaria(
     data: StockAvariaCreate,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements", "edit")),
 ):
+    if not _is_admin(db, current_user) and data.deposit_id not in user_deposit_ids(current_user):
+        raise HTTPException(403, "Sem acesso a este depósito")
     deposit = db.query(Deposit).filter(Deposit.id == data.deposit_id).first()
     if not deposit:
         raise HTTPException(404, "Depósito não encontrado")
@@ -431,12 +537,18 @@ def list_avarias(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_movements")),
 ):
     query = db.query(StockMovement).filter(
         StockMovement.movement_type == "saida",
         StockMovement.reason.like("Avaria:%"),
     )
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(StockMovement.deposit_id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(StockMovement.deposit_id == deposit_id)
     if start_date:
@@ -454,6 +566,7 @@ def transfer_report(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
     """
@@ -462,6 +575,11 @@ def transfer_report(
     abastecimento = o que enviou aos filhos. Venda = abastecimento - devolução - avaria.
     """
     query = db.query(Deposit).filter(Deposit.is_active == True)
+    if not _is_admin(db, current_user):
+        deposit_ids = user_deposit_ids(current_user)
+        if not deposit_ids:
+            return []
+        query = query.filter(Deposit.id.in_(deposit_ids))
     if deposit_id:
         query = query.filter(Deposit.id == deposit_id)
     deposits = query.all()
