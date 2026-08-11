@@ -1,5 +1,5 @@
 from calendar import monthrange
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from io import BytesIO
 
 import openpyxl
@@ -19,7 +19,7 @@ from app.models.product import Product
 from app.models.stock import StockMovement
 from app.models.user import User
 from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
-from app.utils.time import utc_now_naive
+from app.utils.time import naive_utc, utc_now_naive
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
@@ -242,8 +242,8 @@ def get_dashboard(
             m -= 12
             y += 1
         _, last_day = monthrange(y, m)
-        m_start = datetime(y, m, 1, tzinfo=UTC).replace(tzinfo=None)
-        m_end = datetime(y, m, last_day, 23, 59, 59, tzinfo=UTC).replace(tzinfo=None)
+        m_start = naive_utc(y, m, 1)
+        m_end = naive_utc(y, m, last_day).replace(hour=23, minute=59, second=59)
         m_rec = (
             db.query(func.coalesce(func.sum(Transaction.amount), 0))
             .filter(Transaction.type == "receita", Transaction.date.between(m_start, m_end))

@@ -47,6 +47,7 @@ METRICS = {
     "complexity_over_ceiling": (f"Funções com complexidade > {CCN_CEILING}", "down"),
     "complexity_max": ("Pior complexidade ciclomática do repo", "down"),
     "coverage_backend_pct": ("Cobertura de testes — backend (%)", "up"),
+    "coverage_frontend_pct": ("Cobertura de testes — frontend (%)", "up"),
     "duplication_pct": ("Duplicação de código (%)", "down"),
     "files_over_limit": (f"Arquivos com mais de {FILE_LINE_LIMIT} linhas", "down"),
     "largest_file_lines": ("Maior arquivo (linhas)", "down"),
@@ -157,11 +158,25 @@ def collect_coverage():
 
 
 def collect_frontend_tests():
-    """The frontend suite is a gate, even though it has no ratchet metric yet."""
+    """The frontend suite is a gate and its line coverage is ratcheted below."""
     proc = run(["npm", "run", "test:run", "--", "--reporter=dot"],
                cwd=ROOT / "frontend")
     if proc.returncode != 0:
         die(f"a suíte frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
+
+
+def collect_frontend_coverage():
+    proc = run(["npm", "run", "test:coverage", "--", "--reporter=dot"],
+               cwd=ROOT / "frontend")
+    if proc.returncode != 0:
+        die(f"a cobertura frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
+    report = ROOT / "frontend" / "coverage" / "coverage-summary.json"
+    if not report.exists():
+        die("Vitest não gerou frontend/coverage/coverage-summary.json")
+    try:
+        return round(json.loads(report.read_text())['total']['lines']['pct'], 2)
+    except (KeyError, json.JSONDecodeError) as exc:
+        die(f"relatório de cobertura frontend inválido: {exc}")
 
 
 def collect_duplication():
@@ -222,6 +237,8 @@ def collect_all(with_tests=True):
     if with_tests:
         print("  vitest frontend...", file=sys.stderr)
         collect_frontend_tests()
+        print("  cobertura frontend...", file=sys.stderr)
+        metrics["coverage_frontend_pct"] = collect_frontend_coverage()
         print("  pytest + cobertura (demora ~1min)...", file=sys.stderr)
         metrics["coverage_backend_pct"] = collect_coverage()
     return metrics
