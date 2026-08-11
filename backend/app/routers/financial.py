@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.financial import Transaction
+from app.models.payment import Payment
 from app.schemas.financial import TransactionCreate, TransactionResponse, TransactionUpdate
 from app.utils.security import get_current_user, require_module
 
@@ -98,6 +99,7 @@ def delete_transaction(
     if not db_transaction:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
 
+    db.query(Payment).filter(Payment.transaction_id == transaction_id).delete(synchronize_session=False)
     db.delete(db_transaction)
     db.commit()
     return {"message": "Transação removida"}

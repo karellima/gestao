@@ -9,7 +9,7 @@ piorou. Um commit pode adicionar código; não pode piorar nenhum número.
     python3 quality/gate.py --no-tests         # pula cobertura (rodada rápida)
 
 Ferramentas usadas: ruff, lizard, grimp, pytest-cov (backend/.venv) e
-eslint, jscpd, madge (frontend/node_modules). Versões pinadas em
+eslint, jscpd, madge e Vitest (frontend/node_modules). Versões pinadas em
 backend/requirements-dev.txt e frontend/package.json — os números do baseline
 só são reprodutíveis com elas.
 """
@@ -156,6 +156,14 @@ def collect_coverage():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def collect_frontend_tests():
+    """The frontend suite is a gate, even though it has no ratchet metric yet."""
+    proc = run(["npm", "run", "test:run", "--", "--reporter=dot"],
+               cwd=ROOT / "frontend")
+    if proc.returncode != 0:
+        die(f"a suíte frontend falhou — corrija antes do gate:\n{proc.stdout[-3000:]}{proc.stderr[-3000:]}")
+
+
 def collect_duplication():
     tmp = Path(tempfile.mkdtemp(prefix="gate-jscpd-"))
     try:
@@ -212,6 +220,8 @@ def collect_all(with_tests=True):
     print("  ciclos...", file=sys.stderr)
     metrics["import_cycles"] = collect_cycles()
     if with_tests:
+        print("  vitest frontend...", file=sys.stderr)
+        collect_frontend_tests()
         print("  pytest + cobertura (demora ~1min)...", file=sys.stderr)
         metrics["coverage_backend_pct"] = collect_coverage()
     return metrics
