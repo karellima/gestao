@@ -1,7 +1,6 @@
 from calendar import monthrange
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from io import BytesIO
-from typing import Optional
 
 import openpyxl
 from fastapi import APIRouter, Body, Depends
@@ -20,6 +19,7 @@ from app.models.product import Product
 from app.models.stock import StockMovement
 from app.models.user import User
 from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
+from app.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/reports", tags=["Relatórios"])
 
@@ -34,7 +34,7 @@ def get_dashboard(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("dashboard")),
 ):
-    product_query = db.query(Product).filter(Product.is_active == True)
+    product_query = db.query(Product).filter(Product.is_active.is_(True))
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)
         if deposit_ids:
@@ -48,9 +48,9 @@ def get_dashboard(
         .filter(Product.current_stock <= Product.min_stock)
         .count()
     )
-    total_contacts = db.query(Contact).filter(Contact.is_active == True).count()
+    total_contacts = db.query(Contact).filter(Contact.is_active.is_(True)).count()
 
-    now = datetime.utcnow()
+    now = utc_now_naive()
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = today_start.replace(day=1)
     month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
@@ -67,11 +67,12 @@ def get_dashboard(
         .scalar()
     )
 
-    month_pending = lambda q: q.filter(
-        Transaction.status.in_(["pendente", "pago_parcial"]),
-        Transaction.due_date >= month_start,
-        Transaction.due_date < month_end,
-    )
+    def month_pending(query):
+        return query.filter(
+            Transaction.status.in_(["pendente", "pago_parcial"]),
+            Transaction.due_date >= month_start,
+            Transaction.due_date < month_end,
+        )
 
     a_pagar = (
         month_pending(
@@ -99,10 +100,11 @@ def get_dashboard(
             "contact": t.contact.name if t.contact else None,
         }
 
-    qry_txn = lambda q: q.options(
-        joinedload(Transaction.financial_category),
-        joinedload(Transaction.contact),
-    )
+    def qry_txn(query):
+        return query.options(
+            joinedload(Transaction.financial_category),
+            joinedload(Transaction.contact),
+        )
 
     a_pagar_list = [
         serialize_txn(t)
@@ -136,10 +138,11 @@ def get_dashboard(
     )
 
     # Contas vencidas (não pagas/recebidas) - separadas por tipo
-    base_overdue = lambda q: q.filter(
-        Transaction.due_date < today_start,
-        ~Transaction.status.in_(["pago", "recebido"]),
-    )
+    def base_overdue(query):
+        return query.filter(
+            Transaction.due_date < today_start,
+            ~Transaction.status.in_(["pago", "recebido"]),
+        )
 
     def overdue_stats(tipo):
         total = (
@@ -239,8 +242,8 @@ def get_dashboard(
             m -= 12
             y += 1
         _, last_day = monthrange(y, m)
-        m_start = datetime(y, m, 1)
-        m_end = datetime(y, m, last_day, 23, 59, 59)
+        m_start = datetime(y, m, 1, tzinfo=UTC).replace(tzinfo=None)
+        m_end = datetime(y, m, last_day, 23, 59, 59, tzinfo=UTC).replace(tzinfo=None)
         m_rec = (
             db.query(func.coalesce(func.sum(Transaction.amount), 0))
             .filter(Transaction.type == "receita", Transaction.date.between(m_start, m_end))
@@ -285,15 +288,15 @@ def get_dashboard(
 
 @router.get("/financial-summary")
 def get_financial_summary(
-    start_date: datetime = None,
-    end_date: datetime = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
     db: Session = Depends(get_db),
     _=Depends(require_module("financial_reports")),
 ):
     if not start_date:
-        start_date = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0)
+        start_date = utc_now_naive().replace(day=1, hour=0, minute=0, second=0)
     if not end_date:
-        end_date = datetime.utcnow()
+        end_date = utc_now_naive()
 
     receitas = (
         db.query(func.coalesce(func.sum(Transaction.amount), 0))
@@ -322,7 +325,7 @@ def get_stock_summary(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("stock_reports")),
 ):
-    since = datetime.utcnow() - timedelta(days=days)
+    since = utc_now_naive() - timedelta(days=days)
 
     mov_query = db.query(StockMovement).filter(StockMovement.created_at >= since)
     if not _is_admin(db, current_user):

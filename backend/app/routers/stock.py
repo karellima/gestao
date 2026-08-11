@@ -1,5 +1,4 @@
-from datetime import UTC, datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import case, func
@@ -39,6 +38,7 @@ from app.utils.security import (
     require_module,
     user_deposit_ids,
 )
+from app.utils.time import utc_now_naive
 
 router = APIRouter(prefix="/api/stock", tags=["Estoque"])
 
@@ -110,11 +110,11 @@ def create_movement(
     if movement.movement_type == "saida" and not movement.reason:
         raise HTTPException(status_code=400, detail="Requisição de saída deve informar o motivo/destino")
 
-    movement_date = None
-    if movement.movement_date:
-        movement_date = datetime.fromisoformat(movement.movement_date)
-    else:
-        movement_date = datetime.utcnow()
+    movement_date = (
+        datetime.fromisoformat(movement.movement_date)
+        if movement.movement_date
+        else utc_now_naive()
+    )
 
     total_value = movement.quantity * movement.unit_price
     db_movement = StockMovement(
@@ -179,12 +179,16 @@ def update_movement(
 
     data = movement.model_dump(exclude_unset=True)
 
-    if data.get("product_id") is not None:
-        if not db.query(Product).filter(Product.id == data["product_id"]).first():
-            raise HTTPException(status_code=404, detail="Produto não encontrado")
-    if data.get("deposit_id") is not None:
-        if not db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first():
-            raise HTTPException(status_code=404, detail="Depósito não encontrado")
+    if (
+        data.get("product_id") is not None
+        and not db.query(Product).filter(Product.id == data["product_id"]).first()
+    ):
+        raise HTTPException(status_code=404, detail="Produto não encontrado")
+    if (
+        data.get("deposit_id") is not None
+        and not db.query(Deposit).filter(Deposit.id == data["deposit_id"]).first()
+    ):
+        raise HTTPException(status_code=404, detail="Depósito não encontrado")
 
     old_product_id = db_movement.product_id
 
@@ -397,7 +401,11 @@ def stock_movement_report(
             movement_date=m.movement_date,
             quantity=m.quantity,
             unit_price=m.unit_price if (m.unit_price and m.unit_price > 0) else (cost_price or product_price or 0),
-            total_value=m.total_value if (m.unit_price and m.unit_price > 0) else (m.quantity * (cost_price or product_price or 0)),
+            total_value=(
+                m.total_value
+                if (m.unit_price and m.unit_price > 0)
+                else (m.quantity * (cost_price or product_price or 0))
+            ),
             reason=m.reason,
             created_at=m.created_at,
         )
@@ -527,7 +535,11 @@ def register_avaria(
         ).scalar()
         available = entrada - saida
         if it.quantity > available:
-            raise HTTPException(400, f"Avariado para '{product.name}' ({it.quantity} und) excede o estoque disponível ({available} und)")
+            raise HTTPException(
+                400,
+                f"Avariado para '{product.name}' ({it.quantity} und) excede o "
+                f"estoque disponível ({available} und)",
+            )
 
         unit_price = it.unit_price or product.cost_price or product.price or 0
         mov = StockMovement(
@@ -590,7 +602,7 @@ def transfer_report(
     Para sub-depósitos, abastecimento = o que recebeu do pai; para depósitos pai,
     abastecimento = o que enviou aos filhos. Venda = abastecimento - devolução - avaria.
     """
-    query = db.query(Deposit).filter(Deposit.is_active == True)
+    query = db.query(Deposit).filter(Deposit.is_active.is_(True))
     if not _is_admin(db, current_user):
         deposit_ids = user_deposit_ids(current_user)
         if not deposit_ids:
@@ -670,7 +682,10 @@ def transfer_report(
 
         abastecimento_data = {r.product_id: r for r in apply_dates(ab_query).group_by(StockMovement.product_id).all()}
         devolucao_data = {r.product_id: r for r in apply_dates(dev_query).group_by(StockMovement.product_id).all()}
-        avaria_data = {r.product_id: r.total_qty for r in apply_dates(av_query).group_by(StockMovement.product_id).all()}
+        avaria_data = {
+            r.product_id: r.total_qty
+            for r in apply_dates(av_query).group_by(StockMovement.product_id).all()
+        }
 
         all_product_ids = set(abastecimento_data.keys()) | set(devolucao_data.keys()) | set(avaria_data.keys())
 
@@ -681,7 +696,12 @@ def transfer_report(
             dev_qty = devolucao_data[pid].total_qty if pid in devolucao_data else 0
             av_qty = avaria_data.get(pid, 0)
             venda_qty = ab_qty - dev_qty - av_qty
-            avg_price = abastecimento_data[pid].avg_price if pid in abastecimento_data else (devolucao_data[pid].avg_price if pid in devolucao_data else 0)
+            if pid in abastecimento_data:
+                avg_price = abastecimento_data[pid].avg_price
+            elif pid in devolucao_data:
+                avg_price = devolucao_data[pid].avg_price
+            else:
+                avg_price = 0
 
             if ab_qty == 0 and dev_qty == 0 and av_qty == 0:
                 continue
