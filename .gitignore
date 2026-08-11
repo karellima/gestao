@@ -36,3 +36,8 @@ fix-lenovo-audio/
 # Logs
 startup.log
 
+# Quality gate: o report é gerado a cada rodada; o baseline é versionado.
+quality/report.md
+.ruff_cache/
+.coverage
+
