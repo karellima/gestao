@@ -67,7 +67,7 @@ test('cadastra e edita um produto com unidade e categoria', async ({ page }) => 
   await expect(createdRow).toContainText(`${produto.nome} un`);
   await expect(createdRow).toContainText(dadosE2E.categoria);
 
-  await createdRow.getByRole('button').first().click();
+  await createdRow.getByRole('button', { name: `Editar produto ${produto.nome}` }).click();
   const editModal = page.getByRole('heading', { name: 'Editar Produto' }).locator('..');
   await editModal.getByPlaceholder('Nome do produto *').fill(produto.nomeEditado);
   await saveProduct(page, editModal, 'PUT');

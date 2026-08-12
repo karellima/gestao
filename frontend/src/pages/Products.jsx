@@ -233,8 +233,8 @@ export default function Products() {
                 <td className="p-3 text-right">{p.markup != null ? Number(p.markup).toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 }) : '-'}</td>
                 <td className="p-3 text-right">{fmtVal(p.price, p.unit)}</td>
                 <td className="p-3 text-center">
-                  <button onClick={() => handleEdit(p)} className="text-brand-600 hover:text-brand-800 mr-2"><Edit size={16} /></button>
-                  <button onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+                  <button aria-label={`Editar produto ${p.name}`} onClick={() => handleEdit(p)} className="text-brand-600 hover:text-brand-800 mr-2"><Edit size={16} /></button>
+                  <button aria-label={`Excluir produto ${p.name}`} onClick={() => handleDelete(p.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
