@@ -235,9 +235,7 @@ def update_sale(
         locked_product_ids = {item.product_id for item in sale.items}
         locked_product_ids.update(item.product_id for item in data.items)
         lock_stock_products(db, locked_product_ids)
-        compensate_sale_stock(
-            db, sale.id, current_user.id, products_locked=True,
-        )
+        compensate_sale_stock(db, sale.id, current_user.id)
         db.query(SaleItem).filter(SaleItem.sale_id == sale.id).delete()
         total = 0
         for it_data in data.items:
@@ -285,7 +283,7 @@ def delete_sale(
         if not _product_deposit_ids_in_scope(db, current_user, product_ids):
             raise HTTPException(status_code=403, detail="Sem acesso ao depósito dos produtos")
     lock_stock_products(db, {item.product_id for item in sale.items})
-    compensate_sale_stock(db, sale.id, current_user.id, products_locked=True)
+    compensate_sale_stock(db, sale.id, current_user.id)
     db.delete(sale)
     db.commit()
     return {"message": "Lançamento removido"}

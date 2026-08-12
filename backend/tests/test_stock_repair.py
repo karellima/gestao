@@ -157,6 +157,22 @@ def test_estoque_correto_nao_gera_divergencia(db, nova_movimentacao, produto):
     assert find_stock_divergences(db) == []
 
 
+def test_buscas_do_reparo_respeitam_snapshot_de_produtos(
+    db, requisicao, produto, seed_products,
+):
+    requisicao("aprovado", produto.id)
+    requisicao("aprovado", seed_products[1].id)
+    produto.current_stock = 99
+    seed_products[1].current_stock = 99
+    db.commit()
+
+    orfas = find_orphan_requisicao_exits(db, product_ids={produto.id})
+    divergencias = find_stock_divergences(db, product_ids={produto.id})
+
+    assert {item["product_id"] for item in orfas} == {produto.id}
+    assert {item["product_id"] for item in divergencias} == {produto.id}
+
+
 def test_skip_flags_desligam_cada_reparo(db, requisicao, produto):
     requisicao("aprovado", produto.id)
     produto.current_stock = 42

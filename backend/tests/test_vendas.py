@@ -1,5 +1,8 @@
 
 
+import pytest
+
+from app.models.sale import Sale
 from app.models.stock import StockMovement
 from app.services.stock_ledger import recalculate_product_stock
 
@@ -21,6 +24,12 @@ def _seed_stock(db, products, admin):
     for product in products:
         recalculate_product_stock(db, product.id, commit=False)
     db.commit()
+
+
+@pytest.fixture()
+def stocked_products(db, seed_products, admin):
+    _seed_stock(db, seed_products, admin)
+    return seed_products
 
 
 class TestSaleTypes:
@@ -61,7 +70,10 @@ class TestSaleTypes:
 
 
 class TestSales:
-    def test_create_sale(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_create_sale(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -106,6 +118,56 @@ class TestSales:
             db.refresh(product)
         assert [product.current_stock for product in seed_products] == [98, 49]
 
+    def test_create_sale_rejeita_soma_dos_itens_acima_do_estoque(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        _seed_stock(db, seed_products, admin)
+
+        response = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 60, "unit_price": 50},
+                {"product_id": seed_products[0].id, "quantity": 41, "unit_price": 50},
+            ],
+        })
+
+        assert response.status_code == 400
+        assert "estoque insuficiente" in response.json()["detail"].lower()
+        assert db.query(Sale).count() == 0
+        assert db.query(StockMovement).filter(StockMovement.source == "venda").count() == 0
+        db.refresh(seed_products[0])
+        assert seed_products[0].current_stock == 100
+
+    def test_create_sale_aceita_saldo_fracionario_dentro_da_tolerancia(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        product = seed_products[0]
+        for movement_type, quantity in (("entrada", 0.3), ("saida", 0.1)):
+            db.add(StockMovement(
+                product_id=product.id,
+                deposit_id=product.deposit_id,
+                movement_type=movement_type,
+                quantity=quantity,
+                unit_price=product.cost_price,
+                total_value=quantity * product.cost_price,
+                source="teste",
+                user_id=admin.id,
+            ))
+        db.commit()
+
+        response = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": product.id, "quantity": 0.2, "unit_price": 50},
+            ],
+        })
+
+        assert response.status_code == 200
+        db.refresh(product)
+        assert abs(product.current_stock) <= 1e-6
+
     def test_update_sale_compensa_saidas_anteriores_sem_apagar_historico(
         self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
     ):
@@ -141,6 +203,38 @@ class TestSales:
         for product in seed_products:
             db.refresh(product)
         assert [product.current_stock for product in seed_products] == [100, 47]
+
+    def test_update_sale_sem_estoque_restaura_venda_e_ledger_originais(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        _seed_stock(db, seed_products, admin)
+        created = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 2, "unit_price": 50},
+            ],
+        }).json()
+
+        response = client.put(f"/api/sales/{created['id']}", json={
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 101, "unit_price": 50},
+            ],
+        })
+
+        assert response.status_code == 400
+        db.expire_all()
+        sale = db.get(Sale, created["id"])
+        assert [(item.product_id, item.quantity) for item in sale.items] == [
+            (seed_products[0].id, 2),
+        ]
+        sale_movements = db.query(StockMovement).filter(
+            StockMovement.source == "venda",
+        ).all()
+        assert len(sale_movements) == 1
+        assert sale_movements[0].compensates_movement_id is None
+        db.refresh(seed_products[0])
+        assert seed_products[0].current_stock == 98
 
     def test_delete_sale_compensa_saidas_sem_apagar_historico(
         self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
@@ -194,7 +288,10 @@ class TestSales:
         assert resp.status_code == 400
         assert "produto" in resp.json()["detail"].lower()
 
-    def test_list_sales(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_list_sales(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -205,7 +302,10 @@ class TestSales:
         assert resp.status_code == 200
         assert len(resp.json()) == 1
 
-    def test_get_sale(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_get_sale(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         create_resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -217,7 +317,10 @@ class TestSales:
         assert resp.status_code == 200
         assert resp.json()["total_amount"] == 100.0
 
-    def test_update_sale(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_update_sale(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         create_resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -235,7 +338,10 @@ class TestSales:
         assert len(data["items"]) == 1
         assert data["items"][0]["product_id"] == seed_products[1].id
 
-    def test_delete_sale(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_delete_sale(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         create_resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -251,7 +357,10 @@ class TestSales:
 
 
 class TestPriceTableResolution:
-    def test_price_table_used_for_client_with_table(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types, db):
+    def test_price_table_used_for_client_with_table(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
         from app.models.price_table import PriceTable, PriceTableItem
         table = PriceTable(name="Tabela VIP", is_active=True)
         db.add(table)
@@ -274,7 +383,10 @@ class TestPriceTableResolution:
         assert data["total_amount"] == 350.0
         assert data["items"][0]["unit_price"] == 35.0
 
-    def test_product_not_in_table_falls_back_to_product_price(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types, db):
+    def test_product_not_in_table_falls_back_to_product_price(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
         from app.models.price_table import PriceTable, PriceTableItem
         table = PriceTable(name="Tabela Parcial", is_active=True)
         db.add(table)
@@ -297,7 +409,10 @@ class TestPriceTableResolution:
         assert data["total_amount"] == 100.0
         assert data["items"][0]["unit_price"] == 100.0
 
-    def test_no_price_table_client_uses_sent_price(self, client, auth_headers, seed_products, seed_contacts, seed_sale_types):
+    def test_no_price_table_client_uses_sent_price(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        stocked_products,
+    ):
         resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,

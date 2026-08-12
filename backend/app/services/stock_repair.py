@@ -39,7 +39,10 @@ logger = logging.getLogger("app.stock.reparo")
 TOLERANCIA = 1e-6
 
 
-def find_orphan_requisicao_exits(db: Session) -> list[dict]:
+def find_orphan_requisicao_exits(
+    db: Session,
+    product_ids: set[int] | None = None,
+) -> list[dict]:
     """Saídas gravadas para requisições que nunca chegaram a ser recebidas.
 
     Resíduo do fluxo antigo, em que a saída era gravada no atendimento. Hoje
@@ -52,10 +55,13 @@ def find_orphan_requisicao_exits(db: Session) -> list[dict]:
     if not pendentes:
         return []
 
-    candidatas = db.query(StockMovement).filter(
+    query = db.query(StockMovement).filter(
         StockMovement.movement_type == SAIDA,
         StockMovement.source == "requisicao",
-    ).all()
+    )
+    if product_ids is not None:
+        query = query.filter(StockMovement.product_id.in_(product_ids))
+    candidatas = query.all()
 
     orfas = []
     for mov in candidatas:
@@ -90,25 +96,31 @@ def _requisicao_id_from_reason(reason: str | None) -> int | None:
         return None
 
 
-def find_stock_divergences(db: Session) -> list[dict]:
+def find_stock_divergences(
+    db: Session,
+    product_ids: set[int] | None = None,
+) -> list[dict]:
     """Produtos cujo cache ``current_stock`` não bate com o histórico.
 
     Soma o histórico inteiro numa consulta agrupada, em vez de duas por produto:
     o comando roda contra a base de produção, às vezes por HTTP.
     """
     db.flush()  # compensações recém-criadas têm de entrar na soma
-    saldos = dict(
-        db.query(
-            StockMovement.product_id,
-            func.sum(case(
-                (StockMovement.movement_type == ENTRADA, StockMovement.quantity),
-                else_=-StockMovement.quantity,
-            )),
-        ).group_by(StockMovement.product_id).all()
+    movement_query = db.query(
+        StockMovement.product_id,
+        func.sum(case(
+            (StockMovement.movement_type == ENTRADA, StockMovement.quantity),
+            else_=-StockMovement.quantity,
+        )),
     )
+    product_query = db.query(Product)
+    if product_ids is not None:
+        movement_query = movement_query.filter(StockMovement.product_id.in_(product_ids))
+        product_query = product_query.filter(Product.id.in_(product_ids))
+    saldos = dict(movement_query.group_by(StockMovement.product_id).all())
 
     divergentes = []
-    for product in db.query(Product).all():
+    for product in product_query.all():
         derivado = saldos.get(product.id) or 0
         atual = product.current_stock or 0
         if abs(derivado - atual) <= TOLERANCIA:
@@ -152,12 +164,16 @@ def repair_stock(
 
     # O reparo pode tocar qualquer produto; trava todos em ordem estável para
     # não disputar o ledger/cache com vendas, requisições ou lançamentos.
-    lock_stock_products(db, {row.id for row in db.query(Product.id).all()})
+    product_ids = {row.id for row in db.query(Product.id).all()}
+    lock_stock_products(db, product_ids)
 
     # As compensações são sempre gravadas na transação, inclusive em dry-run:
     # é o que faz a simulação prever o saldo final de verdade. O rollback no
     # fim descarta tudo se for só ensaio.
-    orfas = find_orphan_requisicao_exits(db) if compensate_orphans else []
+    orfas = (
+        find_orphan_requisicao_exits(db, product_ids=product_ids)
+        if compensate_orphans else []
+    )
     compensacoes = []
     referencia = f"Reparo de estoque em {iniciado_em.isoformat(timespec='seconds')}"
     for orfa in orfas:
@@ -178,7 +194,10 @@ def repair_stock(
         })
 
     # Calculado depois de compensar, então as compensações já entram na conta.
-    divergencias = find_stock_divergences(db) if resync_cache else []
+    divergencias = (
+        find_stock_divergences(db, product_ids=product_ids)
+        if resync_cache else []
+    )
     ressincronizados = []
 
     for divergencia in divergencias:
