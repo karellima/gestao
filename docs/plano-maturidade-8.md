@@ -154,11 +154,11 @@ asserção sobre dado que veio do backend (não só sobre a existência do botã
 
 | Tarefa | Fluxo | Arquivo | O que precisa ser provado |
 |---|---|---|---|
-| **0.3** | Login e permissão | `e2e/01-login.spec.js` | Admin entra e vê o menu completo; usuário comum entra e **não** vê os itens de administração; senha errada não entra |
-| **0.4** | Cadastro de produto | `e2e/02-produto.spec.js` | Criar produto com unidade e categoria; ele aparece na listagem; editar o nome persiste após recarregar |
+| **0.3** ☑ | Login e permissão | `e2e/01-login.spec.js` | Admin entra e vê o menu completo; usuário comum entra e **não** vê os itens de administração; senha errada não entra |
+| **0.4** ☑ | Cadastro de produto | `e2e/02-produto.spec.js` | Criar produto com unidade e categoria; ele aparece na listagem; editar o nome persiste após recarregar |
 | **0.5** ☑ | Entrada de estoque | `e2e/03-estoque.spec.js` | Lançar entrada em um depósito; o saldo do produto sobe exatamente pela quantidade lançada; a movimentação aparece no histórico |
 | **0.6** ☑ | Venda | `e2e/04-venda.spec.js` | Criar venda com 2 itens; o total bate com a soma; o estoque baixa; a venda aparece na listagem |
-| **0.7** | Lançamento financeiro | `e2e/05-financeiro.spec.js` | Criar uma despesa a pagar; marcar como paga; o saldo da conta muda no valor certo |
+| **0.7** ☑ | Lançamento financeiro | `e2e/05-financeiro.spec.js` | Criar uma despesa a pagar; marcar como paga; o saldo da conta muda no valor certo |
 | **0.8** | Requisição entre depósitos | `e2e/06-requisicao.spec.js` | Criar requisição; aprovar; atender; receber; o saldo sai do depósito de origem e entra no de destino |
 
 **Critério de aceite de cada uma:**
@@ -561,9 +561,9 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.2 | Seed determinístico de e2e | ☑ |
 | 0.3 | E2E login e permissão | ☑ |
 | 0.4 | E2E cadastro de produto | ☑ |
-| 0.5 | E2E entrada de estoque | ☐ |
-| 0.6 | E2E venda | ☐ |
-| 0.7 | E2E lançamento financeiro | ☐ |
+| 0.5 | E2E entrada de estoque | ☑ |
+| 0.6 | E2E venda | ☑ |
+| 0.7 | E2E lançamento financeiro | ☑ |
 | 0.8 | E2E requisição entre depósitos | ☐ |
 | 0.9 | E2E no CI | ☐ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☐ |
