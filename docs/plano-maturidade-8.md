@@ -558,7 +558,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | # | Tarefa | Estado |
 |---|---|---|
 | 0.1 | Playwright instalado fora do gate | ☑ |
-| 0.2 | Seed determinístico de e2e | ☐ |
+| 0.2 | Seed determinístico de e2e | ☑ |
 | 0.3 | E2E login e permissão | ☐ |
 | 0.4 | E2E cadastro de produto | ☐ |
 | 0.5 | E2E entrada de estoque | ☐ |
