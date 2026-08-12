@@ -15,6 +15,7 @@ foreach ($Command in 'docker', 'py', 'node', 'npm') {
 Push-Location "$Root/frontend"
 try {
   npm ci
+  npx playwright install chromium
 }
 finally {
   Pop-Location

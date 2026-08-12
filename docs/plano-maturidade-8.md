@@ -24,7 +24,7 @@ Quem executa é um agente (Codex). Quem aprova é o dono do sistema.
 | Cobertura frontend | 10,3% | **≥ 20%** | `quality/gate.py` |
 | Cobertura backend | 77,9% | **≥ 77,9%** | `quality/gate.py` |
 | Duplicação | 6,23% | **≤ 6,23%** | `quality/gate.py` |
-| Chamadas de `alert()` | 80 | **0** | `grep -rc "alert(" frontend/src` |
+| Chamadas de `alert()` | 80 | **0** | `rg -o 'alert\(' frontend/src | wc -l` |
 | Fluxos end-to-end cobertos | 0 | **6** | `frontend/e2e/` |
 | Receitas de manutenção escritas | 0 | **4** | `docs/receitas/` |
 
@@ -65,6 +65,9 @@ ativa no pre-commit (`core.hooksPath = quality/hooks`), backup diário.
    `.env`, `.db` ou `.xlsx` no commit.
 7. **Nada sobe para produção dentro deste plano.** A Fase 5 prepara homologação;
    publicar continua sendo passo manual com autorização explícita.
+8. **A partir da tarefa 0.9, rode também `npm run test:e2e --prefix frontend`.**
+   Os testes E2E são uma verificação separada do Vitest e do gate e precisam
+   continuar verdes em todas as tarefas seguintes.
 
 ---
 
@@ -74,7 +77,7 @@ A rede vem antes do bisturi. A Fase 1 mexe em 4.700 linhas de código que hoje
 não têm teste nenhum de fluxo — fazer isso sem os testes end-to-end da Fase 0
 seria refatorar no escuro.
 
-```
+```text
 Fase 0  Rede de proteção (E2E)           9 tarefas   ← primeiro, sem exceção
 Fase 1  Quebra e simplificação          12 tarefas
 Fase 2  Padrão único de erro             4 tarefas
@@ -87,7 +90,7 @@ Fase 5  Fechamento                       2 tarefas
 
 ---
 
-# FASE 0 — Rede de proteção
+## FASE 0 — Rede de proteção
 
 Objetivo: seis fluxos reais do sistema passam a ser verificados de ponta a ponta,
 para que a Fase 1 possa mexer no código com prova de que nada quebrou.
@@ -100,7 +103,8 @@ do gate.
 **Onde:** `frontend/e2e/`, `frontend/playwright.config.js`, `frontend/package.json`.
 
 **Passos:**
-- `npm install -D @playwright/test --prefix frontend` e `npx playwright install chromium`.
+- `npm install -D @playwright/test --prefix frontend` e
+  `cd frontend && npx playwright install chromium`.
 - Configurar `playwright.config.js` com `webServer` apontando para o Vite em
   `127.0.0.1:5173` e `baseURL` correspondente.
 - Adicionar os scripts `"test:e2e": "playwright test"` e
@@ -184,7 +188,7 @@ asserção sobre dado que veio do backend (não só sobre a existência do botã
 
 ---
 
-# FASE 1 — Quebra e simplificação
+## FASE 1 — Quebra e simplificação
 
 Objetivo: nenhum arquivo do sistema acima de 300 linhas, e nenhuma função nova
 acima de complexidade 10. Este é o bloqueio número um para o cenário de IA fraca:
@@ -398,7 +402,7 @@ antes de tocar no arquivo.
 
 ---
 
-# FASE 2 — Padrão único de erro
+## FASE 2 — Padrão único de erro
 
 Objetivo: acabar com os 80 `alert()` e fazer com que erro apareça de forma útil
 para quem está testando e rastreável para quem vai corrigir.
@@ -434,9 +438,10 @@ Total: 39 dos 80. Um PR só, porque a substituição é mecânica.
 
 Os 41 `alert()` que sobram.
 
-**Critério de aceite de 2.2 e 2.3:** `grep -rc "alert(" frontend/src` devolve
-zero na tela migrada; os specs da Fase 0 continuam verdes (ajuste os specs se
-eles dependiam do `dialog` do navegador).
+**Critério de aceite de 2.2:** `rg -n 'alert\('` devolve zero nos quatro módulos
+migrados nesta tarefa. **Critério de aceite de 2.3:**
+`rg -n 'alert\(' frontend/src` devolve zero globalmente. Em ambas, os specs da
+Fase 0 continuam verdes (ajuste os specs se dependiam do `dialog` do navegador).
 
 ### Tarefa 2.4 — Trancar a porta
 
@@ -448,7 +453,7 @@ automaticamente.** Barreira permanente, custo de uma linha.
 
 ---
 
-# FASE 3 — Receituário
+## FASE 3 — Receituário
 
 Objetivo: dar ao seu amigo (e ao modelo fraco que o ajuda) um caminho de cópia.
 `AGENTS.md` diz as regras e `quality/review.md` diz o que julgar — nenhum dos
@@ -491,7 +496,7 @@ receita da tarefa que você quer fazer."*
 
 ---
 
-# FASE 4 — Homologação e observabilidade
+## FASE 4 — Homologação e observabilidade
 
 Objetivo: a fase de teste diária acontece longe do dado bom, e o erro chega até
 você sem depender de alguém descrever.
@@ -529,7 +534,7 @@ no caminho. Se o script precisar de correção, ela faz parte desta tarefa.
 
 ---
 
-# FASE 5 — Fechamento
+## FASE 5 — Fechamento
 
 ### Tarefa 5.1 — Congelar o novo baseline
 
