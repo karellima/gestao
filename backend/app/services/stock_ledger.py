@@ -33,6 +33,15 @@ SOURCE_ESTORNO = "estorno"
 SOURCE_REPARO = "reparo"
 
 
+def lock_stock_products(db: Session, product_ids: set[int]) -> None:
+    """Serializa escritores do ledger/cache, adquirindo locks em ordem estável."""
+    if not product_ids:
+        return
+    db.query(Product.id).filter(Product.id.in_(product_ids)).order_by(
+        Product.id,
+    ).with_for_update().all()
+
+
 def inverse_type(movement_type: str) -> str:
     """Tipo oposto ao informado — é isso que faz a compensação zerar o saldo."""
     return SAIDA if movement_type == ENTRADA else ENTRADA
@@ -62,6 +71,7 @@ def recalculate_product_stock(db: Session, product_id: int, commit: bool = True)
     Só toca no produto: nenhuma movimentação é criada, alterada ou apagada.
     Devolve o novo saldo, ou ``None`` se o produto não existir.
     """
+    lock_stock_products(db, {product_id})
     db.flush()
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
@@ -98,6 +108,7 @@ def compensate_movement(
     ``log=False`` em simulações, para não registrar como feito o que vai ser
     descartado no rollback.
     """
+    lock_stock_products(db, {movement.product_id})
     original_reason = movement.reason or ""
     compensation = StockMovement(
         product_id=movement.product_id,

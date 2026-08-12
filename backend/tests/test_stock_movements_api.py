@@ -41,6 +41,20 @@ def test_delete_de_movimentacao_de_requisicao_continua_recusado(client, db, nova
     assert len(_movimentacoes(db)) == 1
 
 
+def test_movimentacao_de_venda_so_pode_ser_corrigida_pela_venda(client, db, nova_movimentacao):
+    mov = nova_movimentacao(
+        movement_type="saida", source="venda", reason="Venda #1",
+    )
+
+    put = client.put(f"/api/stock/movements/{mov.id}", json={"quantity": 3})
+    delete = client.delete(f"/api/stock/movements/{mov.id}")
+
+    assert put.status_code == 400
+    assert delete.status_code == 400
+    assert "venda" in put.json()["detail"].lower()
+    assert len(_movimentacoes(db)) == 1
+
+
 def test_delete_duas_vezes_recusa_a_segunda(client, db, nova_movimentacao):
     mov = nova_movimentacao()
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -7,6 +7,13 @@ from app.database import Base
 
 class StockMovement(Base):
     __tablename__ = "stock_movements"
+    __table_args__ = (
+        Index(
+            "uq_stock_movements_compensates_movement_id",
+            "compensates_movement_id",
+            unique=True,
+        ),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)

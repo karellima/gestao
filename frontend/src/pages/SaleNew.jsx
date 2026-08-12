@@ -125,12 +125,12 @@ export default function SaleNew() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
               <SearchableSelect options={contactOptions} value={contactId ? parseInt(contactId) : ''}
-                onChange={v => setContactId(String(v))} placeholder="Selecione o cliente..." />
+                onChange={v => setContactId(String(v))} placeholder="Selecione o cliente..." ariaLabel="Cliente" />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Lançamento</label>
               <SearchableSelect options={typeOptions} value={saleTypeId ? parseInt(saleTypeId) : ''}
-                onChange={v => setSaleTypeId(String(v))} placeholder="Selecione o tipo..." />
+                onChange={v => setSaleTypeId(String(v))} placeholder="Selecione o tipo..." ariaLabel="Tipo de Lançamento" />
             </div>
           </div>
         </div>
@@ -187,18 +187,21 @@ export default function SaleNew() {
                     <td className="p-2 font-medium">{it.productName}</td>
                     <td className="p-2">
                       <input type="number" min={qtyStep(it.unitAbbr)} step={qtyStep(it.unitAbbr)} value={it.quantity}
+                        aria-label={`Quantidade de ${it.productName}`}
                         ref={el => { qtyRefs.current[it.productId] = el; }}
                         onChange={e => updateItem(it.productId, 'quantity', roundQty(e.target.value, it.unitAbbr))}
                         className="w-16 px-2 py-1 border rounded text-sm text-center" />
                     </td>
                     <td className="p-2">
                       <input type="text" inputMode="decimal" value={it.unitPrice}
+                        aria-label={`Valor unitário de ${it.productName}`}
                         onChange={e => updateItem(it.productId, 'unitPrice', formatDigitsToCurrency(currencyToDigits(e.target.value), 2))}
                         className="w-24 px-2 py-1 border rounded text-sm text-right" />
                     </td>
                     <td className="p-2 text-right font-medium">R$ {(it.quantity * parseCurrencyToNumber(it.unitPrice, 2)).toFixed(2)}</td>
                     <td className="p-2 text-center">
                       <button type="button" onClick={() => removeItem(it.productId)}
+                        aria-label={`Remover ${it.productName}`}
                         className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                     </td>
                   </tr>

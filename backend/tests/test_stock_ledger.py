@@ -1,5 +1,8 @@
 """O histórico de estoque é imutável: nada some, correção é compensação."""
 
+import pytest
+from sqlalchemy.exc import IntegrityError
+
 from app.models.product import Product
 from app.models.stock import StockMovement
 from app.services.stock_ledger import (
@@ -51,6 +54,18 @@ def test_is_compensated_enxerga_o_estorno(db, nova_movimentacao, admin):
     db.commit()
 
     assert is_compensated(db, mov.id) is True
+
+
+def test_banco_recusa_duas_compensacoes_da_mesma_movimentacao(
+    db, nova_movimentacao, admin,
+):
+    mov = nova_movimentacao()
+    compensate_movement(db, mov, user_id=admin.id)
+    db.commit()
+
+    with pytest.raises(IntegrityError):
+        compensate_movement(db, mov, user_id=admin.id)
+        db.commit()
 
 
 def test_derived_stock_filtra_por_deposito(db, nova_movimentacao, produto, deposito):

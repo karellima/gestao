@@ -108,6 +108,28 @@ def test_banco_novo_recebe_compensates_movement_id(url_temporaria):
     assert "compensates_movement_id" in _colunas(engine, "stock_movements")
 
 
+def test_banco_novo_impede_compensacao_duplicada(url_temporaria):
+    assert _alembic(url_temporaria, "upgrade", "head").returncode == 0
+
+    engine = create_engine(url_temporaria)
+    indexes = inspect(engine).get_indexes("stock_movements")
+    migrated = next(
+        index for index in indexes
+        if index["name"] == "uq_stock_movements_compensates_movement_id"
+    )
+    modeled = next(
+        index for index in Base.metadata.tables["stock_movements"].indexes
+        if index.name == "uq_stock_movements_compensates_movement_id"
+    )
+    assert migrated["unique"] and modeled.unique
+    assert [column.name for column in modeled.columns] == migrated["column_names"]
+    assert any(
+        index["name"] == "uq_stock_movements_compensates_movement_id"
+        and index["unique"]
+        for index in indexes
+    )
+
+
 def test_upgrade_e_idempotente(url_temporaria):
     assert _alembic(url_temporaria, "upgrade", "head").returncode == 0
     segundo = _alembic(url_temporaria, "upgrade", "head")

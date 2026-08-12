@@ -1,5 +1,21 @@
 
 
+from app.models.stock import StockMovement
+
+
+def _add_stock(db, product, quantity=100):
+    db.add(StockMovement(
+        product_id=product.id,
+        deposit_id=product.deposit_id,
+        movement_type="entrada",
+        quantity=quantity,
+        unit_price=product.cost_price or 0,
+        total_value=quantity * (product.cost_price or 0),
+        source="teste",
+    ))
+    db.commit()
+
+
 class TestDepositScopeStock:
     def test_operador_only_sees_own_deposit_movements(
         self, client, operador_headers, auth_headers, seed_products, seed_deposits,
@@ -232,6 +248,8 @@ class TestDepositScopeSales:
         )
         db.add(p_filial)
         db.commit()
+        _add_stock(db, seed_products[0])
+        _add_stock(db, p_filial)
 
         client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
@@ -270,8 +288,9 @@ class TestDepositScopeSales:
         assert resp.status_code == 403
 
     def test_operador_can_create_sale_with_own_deposit_product(
-        self, client, operador_headers, seed_products, seed_contacts, seed_sale_types,
+        self, client, operador_headers, seed_products, seed_contacts, seed_sale_types, db,
     ):
+        _add_stock(db, seed_products[0])
         resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,
             "sale_type_id": seed_sale_types[0].id,
@@ -290,6 +309,7 @@ class TestDepositScopeSales:
         )
         db.add(p_filial)
         db.commit()
+        _add_stock(db, p_filial)
 
         create_resp = client.post("/api/sales/", json={
             "contact_id": seed_contacts[0].id,

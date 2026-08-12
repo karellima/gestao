@@ -22,6 +22,7 @@ from app.models import (
     Product,
     Role,
     RoleModule,
+    SaleType,
     Unit,
     User,
 )
@@ -231,6 +232,13 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
         )
         _named_record(
             db,
+            SaleType,
+            "Venda E2E",
+            description="Tipo exclusivo dos fluxos E2E",
+            is_active=True,
+        )
+        _named_record(
+            db,
             Contact,
             "Cliente E2E",
             contact_type="cliente",
@@ -256,7 +264,7 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
         )
 
         db.commit()
-        print("Seed E2E pronto: 2 usuários, 2 depósitos e 3 produtos.")
+        print("Seed E2E pronto: 2 usuários, 2 depósitos, 3 produtos e 1 tipo de venda.")
     except Exception:
         db.rollback()
         raise

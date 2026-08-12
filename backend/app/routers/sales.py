@@ -17,6 +17,12 @@ from app.schemas.sale import (
     SaleTypeUpdate,
     SaleUpdate,
 )
+from app.services.sale_stock import (
+    compensate_sale_stock,
+    lock_sale,
+    record_sale_stock,
+)
+from app.services.stock_ledger import lock_stock_products
 from app.utils.helpers import product_label
 from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
@@ -203,7 +209,7 @@ def update_sale(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales", "edit")),
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    sale = lock_sale(db, sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
     if not _is_admin(db, current_user):
@@ -226,6 +232,10 @@ def update_sale(
     if data.notes is not None:
         sale.notes = data.notes
     if data.items is not None:
+        locked_product_ids = {item.product_id for item in sale.items}
+        locked_product_ids.update(item.product_id for item in data.items)
+        lock_stock_products(db, locked_product_ids)
+        compensate_sale_stock(db, sale.id, current_user.id)
         db.query(SaleItem).filter(SaleItem.sale_id == sale.id).delete()
         total = 0
         for it_data in data.items:
@@ -239,6 +249,14 @@ def update_sale(
                            quantity=it_data.quantity, unit_price=unit_price,
                            total_price=total_price))
         sale.total_amount = total
+        db.flush()
+        try:
+            record_sale_stock(
+                db, sale.id, current_user.id, products_locked=True,
+            )
+        except ValueError as error:
+            db.rollback()
+            raise HTTPException(status_code=400, detail=str(error)) from error
     db.commit()
     db.refresh(sale)
     result = (
@@ -257,13 +275,15 @@ def delete_sale(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("sales", "edit")),
 ):
-    sale = db.query(Sale).filter(Sale.id == sale_id).first()
+    sale = lock_sale(db, sale_id)
     if not sale:
         raise HTTPException(status_code=404, detail="Lançamento não encontrado")
     if not _is_admin(db, current_user):
         product_ids = [it.product_id for it in sale.items]
         if not _product_deposit_ids_in_scope(db, current_user, product_ids):
             raise HTTPException(status_code=403, detail="Sem acesso ao depósito dos produtos")
+    lock_stock_products(db, {item.product_id for item in sale.items})
+    compensate_sale_stock(db, sale.id, current_user.id)
     db.delete(sale)
     db.commit()
     return {"message": "Lançamento removido"}
@@ -309,6 +329,13 @@ def create_sale(
         items=items,
     )
     db.add(sale)
+    db.flush()
+    lock_stock_products(db, set(product_ids))
+    try:
+        record_sale_stock(db, sale.id, current_user.id, products_locked=True)
+    except ValueError as error:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(error)) from error
     db.commit()
     db.refresh(sale)
     # Reload with relationships

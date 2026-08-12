@@ -19,7 +19,7 @@ from app.schemas.requisicao import (
     RequisicaoUpdate,
 )
 from app.services.requisition_workflow import apply_requisicao_update
-from app.services.stock_ledger import recalculate_product_stock
+from app.services.stock_ledger import lock_stock_products, recalculate_product_stock
 from app.utils.helpers import product_label
 from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 
@@ -333,6 +333,11 @@ def receive_requisicao(
     current_user: User = Depends(get_current_user),
     _=Depends(require_module("requisicoes", "edit")),
 ):
+    locked = db.query(Requisicao.id).filter(
+        Requisicao.id == requisicao_id,
+    ).with_for_update().first()
+    if not locked:
+        raise HTTPException(404, "Requisição não encontrada")
     req = db.query(Requisicao).options(
         joinedload(Requisicao.requester),
         joinedload(Requisicao.approver),
@@ -347,6 +352,7 @@ def receive_requisicao(
     if req.status != "atendido":
         raise HTTPException(400, "Requisição precisa estar atendida para ser recebida")
 
+    lock_stock_products(db, {item.product_id for item in req.items})
     rcv_map = {it.product_id: it.quantity_received for it in data.items}
     existing_saida = {m.product_id for m in db.query(StockMovement).filter(
         StockMovement.movement_type == "saida",
@@ -377,7 +383,7 @@ def receive_requisicao(
                 user_id=current_user.id,
             )
             db.add(mov)
-            recalculate_product_stock(db, it.product_id)
+            recalculate_product_stock(db, it.product_id, commit=False)
         if received <= 0:
             continue
         # create stock entry movement into deposit_requesting
@@ -394,7 +400,7 @@ def receive_requisicao(
             user_id=current_user.id,
         )
         db.add(mov)
-        recalculate_product_stock(db, it.product_id)
+        recalculate_product_stock(db, it.product_id, commit=False)
 
     req.status = "recebido"
     db.commit()

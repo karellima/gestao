@@ -24,6 +24,9 @@ def e2e_snapshot(database_path):
             "SELECT name, description, requires_installments, is_active "
             "FROM payment_types ORDER BY name"
         ),
+        "sale_types": (
+            "SELECT name, description, is_active FROM sale_types ORDER BY name"
+        ),
         "contacts": "SELECT name, contact_type, email, is_active FROM contacts ORDER BY name",
         "user_deposits": (
             "SELECT users.email, deposits.name FROM user_deposits "
@@ -71,6 +74,9 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
     assert first_snapshot["accounts"] == [("Conta E2E", "caixa", 1000.0, 1)]
     assert first_snapshot["payment_types"] == [
         ("Dinheiro E2E", "Pagamento dos fluxos E2E", 0, 1),
+    ]
+    assert first_snapshot["sale_types"] == [
+        ("Venda E2E", "Tipo exclusivo dos fluxos E2E", 1),
     ]
     assert first_snapshot["contacts"] == [
         ("Cliente E2E", "cliente", "cliente@e2e.test", 1),
