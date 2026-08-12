@@ -1,6 +1,7 @@
 import sqlite3
 
 import bcrypt
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -92,12 +93,20 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
     assert e2e_snapshot(database_path) == first_snapshot
 
 
-def test_seed_e2e_recusa_banco_sem_nome_de_e2e():
+@pytest.mark.parametrize(
+    "database_url",
+    [
+        "postgresql://e2e-runner@db/gestao",
+        "postgresql://gestao@e2e-proxy/gestao",
+        "postgresql://gestao@db/gestao?application_name=e2e",
+    ],
+)
+def test_seed_e2e_recusa_banco_sem_nome_de_e2e(database_url):
     def session_must_not_open():
         raise AssertionError("o seed não deveria abrir o banco")
 
     try:
-        seed_e2e(session_must_not_open, "postgresql://gestao@db/gestao")
+        seed_e2e(session_must_not_open, database_url)
     except RuntimeError as error:
         assert "DATABASE_URL exclusivo contendo 'e2e'" in str(error)
     else:

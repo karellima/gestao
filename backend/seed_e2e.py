@@ -8,6 +8,7 @@ configurado.
 
 import os
 
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from app.config import DATABASE_URL
@@ -54,7 +55,8 @@ def _env(name: str, default: str) -> str:
 
 
 def _ensure_e2e_database(database_url: str) -> None:
-    if "e2e" not in database_url.lower():
+    database_name = make_url(database_url).database or ""
+    if "e2e" not in database_name.lower():
         raise RuntimeError(
             "O seed E2E exige um DATABASE_URL exclusivo contendo 'e2e' no nome."
         )
