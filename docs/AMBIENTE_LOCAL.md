@@ -5,7 +5,7 @@ Este é o fluxo canônico de desenvolvimento do Sistema de Gestão em macOS e Wi
 ## Pré-requisitos
 
 - Docker Desktop em execução, com Docker Compose v2 disponível.
-- Python 3.12 — a mesma versão do CI, em que as dependências estão pinadas. Alternativamente o [uv](https://docs.astral.sh/uv/), que o `setup` usa para baixar o 3.12 quando não há nenhum no PATH. O `python3` do macOS (3.9, das Command Line Tools) não serve, e o `setup` recusa usá-lo.
+- Python 3.12 — a mesma versão do CI, em que as dependências estão pinadas. Alternativamente o [uv](https://docs.astral.sh/uv/): sem um `python3.12` no PATH, é ele que o `setup` usa para baixar o 3.12, mesmo que haja um Python mais novo instalado. Só quando não há nem um nem outro o `setup` aceita um 3.13+ do PATH, avisando. O `python3` do macOS (3.9, das Command Line Tools) não serve, e o `setup` recusa usá-lo.
 - Node.js 20 ou mais novo, com npm.
 
 O banco só é publicado em `127.0.0.1:5432`; ele não fica acessível pela rede local.
