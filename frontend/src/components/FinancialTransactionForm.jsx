@@ -38,16 +38,16 @@ export default function FinancialTransactionForm({
         <form onSubmit={onSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Tipo *</label>
-              <select value={form.type} onChange={e => setForm({...form, type: e.target.value, financial_category_id: '', subcategory_id: ''})}
+              <label htmlFor="financial-type" className="block text-xs font-medium text-gray-500 mb-1">Tipo *</label>
+              <select id="financial-type" value={form.type} onChange={e => setForm({...form, type: e.target.value, financial_category_id: '', subcategory_id: ''})}
                 className="w-full px-3 py-2 border rounded-lg text-sm">
                 <option value="receita">Receita</option>
                 <option value="despesa">Despesa</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Data Lançamento *</label>
-              <input type="date" value={form.date} onChange={e => onDateChange(e.target.value)}
+              <label htmlFor="financial-date" className="block text-xs font-medium text-gray-500 mb-1">Data Lançamento *</label>
+              <input id="financial-date" type="date" value={form.date} onChange={e => onDateChange(e.target.value)}
                 max={getTodayLocal()} className="w-full px-3 py-2 border rounded-lg text-sm" required />
               {isCreditCard && <p className="text-xs text-purple-500 mt-1">Data em que a compra foi realizada</p>}
             </div>
@@ -55,14 +55,14 @@ export default function FinancialTransactionForm({
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Descrição *</label>
-            <CaseInput placeholder="Ex: Pagamento fornecedor, Venda produto..." value={form.description}
+            <CaseInput aria-label="Descrição" placeholder="Ex: Pagamento fornecedor, Venda produto..." value={form.description}
               onChange={e => setForm({...form, description: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm" required />
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Valor (R$) *</label>
-            <input type="text" inputMode="decimal" placeholder="0,00" value={form.amount}
+            <input aria-label="Valor (R$)" type="text" inputMode="decimal" placeholder="0,00" value={form.amount}
               onChange={e => setForm({...form, amount: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
               className="w-full px-3 py-2 border rounded-lg text-sm" required />
           </div>
@@ -72,14 +72,14 @@ export default function FinancialTransactionForm({
               <label className="block text-xs font-medium text-gray-500 mb-1">Categoria</label>
               <SearchableSelect options={categoryOptions} value={form.financial_category_id ? parseInt(form.financial_category_id) : ''}
                 onChange={val => setForm({...form, financial_category_id: val ? String(val) : '', subcategory_id: ''})}
-                placeholder="Selecione..." />
+                placeholder="Selecione..." ariaLabel="Categoria" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Subcategoria</label>
               <SearchableSelect options={subcategoryOptions} value={form.subcategory_id ? parseInt(form.subcategory_id) : ''}
                 onChange={val => setForm({...form, subcategory_id: val ? String(val) : ''})}
                 placeholder={form.financial_category_id ? 'Selecione...' : 'Selecione a categoria primeiro'}
-                disabled={!form.financial_category_id} />
+                disabled={!form.financial_category_id} ariaLabel="Subcategoria" />
             </div>
           </div>
 
@@ -88,20 +88,20 @@ export default function FinancialTransactionForm({
               <label className="block text-xs font-medium text-gray-500 mb-1">Tipo de Pagamento</label>
               <SearchableSelect options={paymentTypeOptions} value={form.payment_type_id ? parseInt(form.payment_type_id) : ''}
                 onChange={val => setForm({...form, payment_type_id: val ? String(val) : '', installments: '1', current_installment: '1', recurrence_frequency: ''})}
-                placeholder="Selecione..." />
+                placeholder="Selecione..." ariaLabel="Tipo de Pagamento" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Conta / Cartão</label>
               <SearchableSelect options={accountOptions} value={form.account_id ? parseInt(form.account_id) : ''}
                 onChange={onAccountChange} renderOption={renderAccountOption} renderSelected={renderAccountSelected}
-                placeholder="Selecione..." />
+                placeholder="Selecione..." ariaLabel="Conta / Cartão" />
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Contato</label>
             <SearchableSelect options={contactOptions} value={form.contact_id ? parseInt(form.contact_id) : ''}
-              onChange={val => setForm({...form, contact_id: val ? String(val) : ''})} placeholder="Selecione..." />
+              onChange={val => setForm({...form, contact_id: val ? String(val) : ''})} placeholder="Selecione..." ariaLabel="Contato" />
           </div>
 
           {isCreditCard ? (
@@ -132,8 +132,8 @@ export default function FinancialTransactionForm({
             </div>
           ) : (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Data Vencimento</label>
-              <input type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})}
+              <label htmlFor="financial-due-date" className="block text-xs font-medium text-gray-500 mb-1">Data Vencimento</label>
+              <input id="financial-due-date" type="date" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})}
                 className="w-full px-3 py-2 border rounded-lg text-sm" />
               <p className="text-xs text-gray-400 mt-1">Data em que a parcela vence</p>
             </div>

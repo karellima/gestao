@@ -4,9 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import FinancialTransactionForm from '../components/FinancialTransactionForm'
 
 vi.mock('../components/SearchableSelect', () => ({
-  default: ({ options, value, onChange, placeholder, disabled }) => (
+  default: ({ options, value, onChange, placeholder, disabled, ariaLabel }) => (
     <select
-      aria-label={placeholder}
+      aria-label={ariaLabel || placeholder}
       value={value}
       disabled={disabled}
       onChange={event => onChange(event.target.value)}
@@ -67,7 +67,7 @@ describe('FinancialTransactionForm', () => {
     render(<FinancialTransactionForm {...testProps} />)
 
     expect(screen.getByRole('heading', { name: 'Nova Transação' })).toBeInTheDocument()
-    await user.selectOptions(screen.getAllByRole('combobox')[0], 'despesa')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Tipo *' }), 'despesa')
 
     expect(testProps.setForm).toHaveBeenCalledWith({
       ...form,
@@ -75,6 +75,16 @@ describe('FinancialTransactionForm', () => {
       financial_category_id: '',
       subcategory_id: '',
     })
+  })
+
+  it('names the controls used by the complete financial flow', () => {
+    render(<FinancialTransactionForm {...props()} />)
+
+    expect(screen.getByRole('combobox', { name: 'Categoria' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Tipo de Pagamento' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Conta / Cartão' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Descrição' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Valor (R$)' })).toBeInTheDocument()
   })
 
   it('shows credit-card due date and installment controls while editing', async () => {

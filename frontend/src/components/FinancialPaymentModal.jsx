@@ -16,26 +16,26 @@ export default function FinancialPaymentModal({ transaction, form, setForm, onSu
         </div>
         <form onSubmit={onSubmit} className="space-y-3">
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Valor a pagar *</label>
-            <input type="text" inputMode="decimal" min="0.01" value={form.amount}
+            <label htmlFor="payment-amount" className="block text-xs font-medium text-gray-500 mb-1">Valor a pagar *</label>
+            <input id="payment-amount" type="text" inputMode="decimal" min="0.01" value={form.amount}
               onChange={e => setForm({...form, amount: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
               className="w-full px-3 py-2 border rounded-lg text-sm" required />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Data do pagamento *</label>
-            <input type="date" value={form.payment_date}
+            <label htmlFor="payment-date" className="block text-xs font-medium text-gray-500 mb-1">Data do pagamento *</label>
+            <input id="payment-date" type="date" value={form.payment_date}
               onChange={e => setForm({...form, payment_date: e.target.value})}
               max={getTodayLocal()} className="w-full px-3 py-2 border rounded-lg text-sm" required />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Juros / Multa</label>
-            <input type="text" inputMode="decimal" placeholder="0,00" value={form.interest}
+            <label htmlFor="payment-interest" className="block text-xs font-medium text-gray-500 mb-1">Juros / Multa</label>
+            <input id="payment-interest" type="text" inputMode="decimal" placeholder="0,00" value={form.interest}
               onChange={e => setForm({...form, interest: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
               className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Observação</label>
-            <CaseInput type="text" placeholder="Nota opcional..." value={form.notes}
+            <CaseInput aria-label="Observação do pagamento" type="text" placeholder="Nota opcional..." value={form.notes}
               onChange={e => setForm({...form, notes: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm" />
           </div>

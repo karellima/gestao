@@ -18,6 +18,7 @@ from app.models import (
     Category,
     Contact,
     Deposit,
+    FinancialCategory,
     PaymentType,
     Product,
     Role,
@@ -197,6 +198,13 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
             description="Categoria exclusiva dos fluxos E2E",
             parent_id=None,
         )
+        _named_record(
+            db,
+            FinancialCategory,
+            "Despesa E2E",
+            type="despesa",
+            parent_id=None,
+        )
 
         for product_data in [
             ("Arroz E2E", "E2E-001", 10.0, 6.0),
@@ -264,7 +272,10 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
         )
 
         db.commit()
-        print("Seed E2E pronto: 2 usuários, 2 depósitos, 3 produtos e 1 tipo de venda.")
+        print(
+            "Seed E2E pronto: 2 usuários, 2 depósitos, 3 produtos, "
+            "1 categoria financeira e 1 tipo de venda."
+        )
     except Exception:
         db.rollback()
         raise

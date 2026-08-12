@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountResponse, AccountUpdate
+from app.services.financial_payments import lock_account
 from app.utils.security import require_module
 
 router = APIRouter(prefix="/api/accounts", tags=["Contas e Cartões"])
@@ -54,7 +55,7 @@ def update_account(
     db: Session = Depends(get_db),
     _=Depends(require_module("accounts", "edit")),
 ):
-    db_acc = db.query(Account).filter(Account.id == account_id).first()
+    db_acc = lock_account(db, account_id)
     if not db_acc:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
     for key, value in account.model_dump(exclude_unset=True).items():
@@ -70,7 +71,7 @@ def delete_account(
     db: Session = Depends(get_db),
     _=Depends(require_module("accounts", "edit")),
 ):
-    db_acc = db.query(Account).filter(Account.id == account_id).first()
+    db_acc = lock_account(db, account_id)
     if not db_acc:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
     db_acc.is_active = False
