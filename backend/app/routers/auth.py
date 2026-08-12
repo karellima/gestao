@@ -6,7 +6,14 @@ from app.database import get_db
 from app.models.deposit import Deposit
 from app.models.role import Role
 from app.models.user import User
-from app.schemas.user import LoginRequest, Token, UserCreate, UserResponse, UserUpdate
+from app.schemas.user import (
+    CurrentUserResponse,
+    LoginRequest,
+    Token,
+    UserCreate,
+    UserResponse,
+    UserUpdate,
+)
 from app.utils.security import (
     create_access_token,
     get_current_user,
@@ -104,6 +111,18 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@router.get("/me", response_model=UserResponse)
-def get_me(current_user: User = Depends(get_current_user)):
-    return UserResponse.from_orm_with_password(current_user)
+@router.get("/me", response_model=CurrentUserResponse)
+def get_me(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    role = db.query(Role).filter(Role.name == current_user.role).first()
+    permissions = {
+        module.module: module.access_level
+        for module in role.modules
+    } if role else {}
+    return CurrentUserResponse(
+        **UserResponse.from_orm_with_password(current_user).model_dump(),
+        is_admin=bool(role and role.is_admin),
+        permissions=permissions,
+    )

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class UserCreate(BaseModel):
@@ -44,6 +44,11 @@ class UserResponse(BaseModel):
             deposit_ids=[d.id for d in user.deposits] if user.deposits else [],
             created_at=user.created_at,
         )
+
+
+class CurrentUserResponse(UserResponse):
+    is_admin: bool = False
+    permissions: dict[str, str] = Field(default_factory=dict)
 
 
 class Token(BaseModel):
