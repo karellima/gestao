@@ -47,13 +47,12 @@ describe('FinancialTransactionTable', () => {
   it('requests sorting and exposes payment, edit and delete actions', async () => {
     const user = userEvent.setup()
     const testProps = tableProps()
-    const { container } = render(<FinancialTransactionTable {...testProps} />)
+    render(<FinancialTransactionTable {...testProps} />)
 
     await user.click(screen.getByRole('columnheader', { name: /Descrição/ }))
-    fireEvent.click(screen.getByTitle('Registrar pagamento'))
-    const rowButtons = container.querySelectorAll('tbody button')
-    fireEvent.click(rowButtons[1])
-    fireEvent.click(rowButtons[2])
+    fireEvent.click(screen.getByRole('button', { name: 'Baixar Compra de materiais' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Compra de materiais' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir Compra de materiais' }))
 
     expect(testProps.onSort).toHaveBeenCalledWith('description', 'asc')
     expect(testProps.onPay).toHaveBeenCalledWith(testProps.transactions[0])

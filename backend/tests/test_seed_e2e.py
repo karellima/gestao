@@ -15,6 +15,9 @@ def e2e_snapshot(database_path):
         "deposits": "SELECT name, description, is_active FROM deposits ORDER BY name",
         "units": "SELECT name, abbreviation, is_active FROM units ORDER BY name",
         "categories": "SELECT name, description, parent_id FROM categories ORDER BY name",
+        "financial_categories": (
+            "SELECT name, type, parent_id FROM financial_categories ORDER BY name"
+        ),
         "products": (
             "SELECT name, sku, price, cost_price, current_stock, unit_id, category_id, "
             "deposit_id, is_active FROM products ORDER BY sku"
@@ -65,6 +68,9 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
     assert first_snapshot["units"] == [("Unidade E2E", "un", 1)]
     assert first_snapshot["categories"] == [
         ("Categoria E2E", "Categoria exclusiva dos fluxos E2E", None),
+    ]
+    assert first_snapshot["financial_categories"] == [
+        ("Despesa E2E", "despesa", None),
     ]
     assert [row[:5] for row in first_snapshot["products"]] == [
         ("Arroz E2E", "E2E-001", 10.0, 6.0, 0.0),

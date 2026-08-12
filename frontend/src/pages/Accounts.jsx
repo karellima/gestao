@@ -99,7 +99,7 @@ export default function Accounts() {
           const cfg = typeConfig[a.account_type] || typeConfig.banco;
           const Icon = cfg.icon;
           return (
-            <div key={a.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+            <article aria-label={`Conta ${a.name}`} key={a.id} className="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow">
               <div className="bg-gray-50 px-5 py-4 flex items-center gap-3 border-b border-gray-100">
                 <div className={`p-2.5 rounded-xl ${cfg.color}`}><Icon size={22} /></div>
                 <div className="flex-1 min-w-0">
@@ -165,17 +165,17 @@ export default function Accounts() {
                   </div>
                 </div>
                 <div className="flex gap-1">
-                  <button onClick={() => handleEdit(a)}
+                  <button aria-label={`Editar ${a.name}`} onClick={() => handleEdit(a)}
                     className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
                     <Edit size={16} />
                   </button>
-                  <button onClick={() => handleDelete(a.id)}
+                  <button aria-label={`Excluir ${a.name}`} onClick={() => handleDelete(a.id)}
                     className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <Trash2 size={16} />
                   </button>
                 </div>
               </div>
-            </div>
+            </article>
           );
         })}
       </div>

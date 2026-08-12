@@ -28,7 +28,7 @@ describe('FinancialPaymentModal', () => {
     expect(screen.getByText(/Valor total: R\$ 100,00/)).toBeInTheDocument()
     expect(screen.getByText(/Já pago: R\$ 40,00/)).toBeInTheDocument()
 
-    const amount = screen.getByDisplayValue('60,00')
+    const amount = screen.getByRole('textbox', { name: 'Valor a pagar *' })
     await user.clear(amount)
     await user.type(amount, '1250')
     await user.type(screen.getByPlaceholderText('0,00'), '199')

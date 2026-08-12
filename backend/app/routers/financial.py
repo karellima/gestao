@@ -5,8 +5,12 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.financial import Transaction
-from app.models.payment import Payment
 from app.schemas.financial import TransactionCreate, TransactionResponse, TransactionUpdate
+from app.services.financial_payments import (
+    apply_transaction_updates,
+    lock_transaction,
+    remove_transaction,
+)
 from app.utils.security import get_current_user, require_module
 
 router = APIRouter(prefix="/api/financial", tags=["Financeiro"])
@@ -77,12 +81,15 @@ def update_transaction(
     db: Session = Depends(get_db),
     _=Depends(require_module("financial", "edit")),
 ):
-    db_transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    db_transaction = lock_transaction(db, transaction_id)
     if not db_transaction:
         raise HTTPException(status_code=404, detail="Transação não encontrada")
 
-    for key, value in transaction.model_dump(exclude_unset=True).items():
-        setattr(db_transaction, key, value)
+    updates = transaction.model_dump(exclude_unset=True)
+    try:
+        apply_transaction_updates(db, db_transaction, updates)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
     db.commit()
     db.refresh(db_transaction)
@@ -95,11 +102,7 @@ def delete_transaction(
     db: Session = Depends(get_db),
     _=Depends(require_module("financial", "edit")),
 ):
-    db_transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
-    if not db_transaction:
+    if not remove_transaction(db, transaction_id):
         raise HTTPException(status_code=404, detail="Transação não encontrada")
-
-    db.query(Payment).filter(Payment.transaction_id == transaction_id).delete(synchronize_session=False)
-    db.delete(db_transaction)
     db.commit()
     return {"message": "Transação removida"}
