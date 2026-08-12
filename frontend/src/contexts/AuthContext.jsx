@@ -21,26 +21,12 @@ export function AuthProvider({ children }) {
     try {
       const me = await api.get('/auth/me');
       setUser(me.data);
-      let foundRole = false;
-      try {
-        const roles = await api.get('/roles/');
-        const role = roles.data.find(r => r.name === me.data.role);
-        if (role) {
-          foundRole = true;
-          const perms = {};
-          (role.modules || []).forEach(m => { perms[m.module] = m.access_level; });
-          if (role.is_admin) {
-            const allMods = ['dashboard','contacts','deposits','deposits_manage','products','stock_reports','requisicoes','categories','units','stock_movements','accounts','financial','financial_categories','payment_types','recurrence_frequencies','financial_reports','sale_types','sales','price_tables','users','roles','precificacao','settings'];
-            allMods.forEach(mod => { perms[mod] = 'edit'; });
-          }
-          setPermissions(perms);
-        }
-      } catch {
-        /* roles table may not exist yet */
+      const perms = { ...(me.data.permissions || {}) };
+      if (me.data.is_admin) {
+        const allMods = ['dashboard','contacts','deposits','deposits_manage','products','stock_reports','requisicoes','categories','units','stock_movements','accounts','financial','financial_categories','payment_types','recurrence_frequencies','financial_reports','sale_types','sales','price_tables','users','roles','precificacao','settings'];
+        allMods.forEach(mod => { perms[mod] = 'edit'; });
       }
-      if (!foundRole) {
-        setPermissions({});
-      }
+      setPermissions(perms);
     } catch {
       localStorage.removeItem('token');
     } finally {

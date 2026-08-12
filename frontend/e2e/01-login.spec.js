@@ -59,6 +59,7 @@ test('usuário comum entra sem ver itens de administração', async ({ page }) =
   const sidebar = await openNavigation(page);
   const navigation = sidebar.getByRole('navigation');
   await expect(sidebar.getByText('Usuário E2E', { exact: true })).toBeVisible();
+  await expect(navigation.locator('a[href="/products"]')).toBeVisible();
   await expect(navigation.locator('a[href="/users"]')).toHaveCount(0);
   await expect(navigation.locator('a[href="/roles"]')).toHaveCount(0);
   await expect(navigation.locator('a[href="/settings"]')).toHaveCount(0);
