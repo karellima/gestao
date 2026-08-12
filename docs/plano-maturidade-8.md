@@ -159,7 +159,7 @@ asserção sobre dado que veio do backend (não só sobre a existência do botã
 | **0.5** ☑ | Entrada de estoque | `e2e/03-estoque.spec.js` | Lançar entrada em um depósito; o saldo do produto sobe exatamente pela quantidade lançada; a movimentação aparece no histórico |
 | **0.6** ☑ | Venda | `e2e/04-venda.spec.js` | Criar venda com 2 itens; o total bate com a soma; o estoque baixa; a venda aparece na listagem |
 | **0.7** ☑ | Lançamento financeiro | `e2e/05-financeiro.spec.js` | Criar uma despesa a pagar; marcar como paga; o saldo da conta muda no valor certo |
-| **0.8** | Requisição entre depósitos | `e2e/06-requisicao.spec.js` | Criar requisição; aprovar; atender; receber; o saldo sai do depósito de origem e entra no de destino |
+| **0.8** ☑ | Requisição entre depósitos | `e2e/06-requisicao.spec.js` | Criar requisição; aprovar; atender; receber; o saldo sai do depósito de origem e entra no de destino |
 
 **Critério de aceite de cada uma:**
 - O spec passa três vezes seguidas sem alteração (não é *flaky*).
@@ -183,8 +183,19 @@ asserção sobre dado que veio do backend (não só sobre a existência do botã
 
 **Critério de aceite:** o job aparece verde no PR e vermelho quando um spec falha.
 
-> **Marco 0 — a partir daqui a Fase 1 pode começar.** Não inicie a quebra dos
-> arquivos com qualquer spec vermelho ou faltando.
+**O que foi entregue além do texto acima** (PR #18): o job `backend-tests` passou
+a exportar `POSTGRES_TEST_DATABASE_URL`. Os cinco testes de concorrência —
+dois de pagamento financeiro (0.7) e três de venda e estoque (0.6) — eram
+pulados em silêncio por falta dessa variável e agora rodam em todo PR. O pytest
+do CI saiu de `203 passed, 5 skipped` para `208 passed, 0 skipped`.
+
+**Proteção da `main`** — passo manual concluído em 2026-08-12. São obrigatórios
+`quality-gate`, `e2e`, `backend-tests` e `frontend-build`, com `strict: true`.
+Antes só `quality-gate` barrava merge, o que deixava passar PR com teste de
+backend quebrado.
+
+> **Marco 0 — alcançado em 2026-08-12.** Os seis fluxos estão cobertos, rodam em
+> todo PR e o job fica vermelho quando um spec quebra. A Fase 1 está liberada.
 
 ---
 
@@ -564,8 +575,8 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.5 | E2E entrada de estoque | ☑ |
 | 0.6 | E2E venda | ☑ |
 | 0.7 | E2E lançamento financeiro | ☑ |
-| 0.8 | E2E requisição entre depósitos | ☐ |
-| 0.9 | E2E no CI | ☐ |
+| 0.8 | E2E requisição entre depósitos | ☑ |
+| 0.9 | E2E no CI | ☑ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☐ |
 | 1.2 | `Deposits.jsx` (796) | ☐ |
 | 1.3 | `Requisicoes.jsx` (627) | ☐ |
