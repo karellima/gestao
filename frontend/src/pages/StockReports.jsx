@@ -257,8 +257,8 @@ export default function StockReports() {
       <div className="bg-white rounded-xl shadow-sm p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Depósito</label>
-            <select value={filters.deposit_id}
+            <label htmlFor="stock-report-deposit" className="block text-xs text-gray-500 mb-1">Depósito</label>
+            <select id="stock-report-deposit" value={filters.deposit_id}
               onChange={e => setFilters({...filters, deposit_id: e.target.value})}
               className="w-full px-3 py-2 border rounded-lg text-sm">
               <option value="">Todos</option>

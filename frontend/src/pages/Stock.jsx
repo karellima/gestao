@@ -208,12 +208,12 @@ export default function Stock() {
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Depósito *</label>
                 <SearchableSelect options={depositOptions} value={form.deposit_id ? parseInt(form.deposit_id) : ''}
-                  onChange={v => setForm({...form, deposit_id: String(v)})} placeholder="Selecione o depósito" required />
+                  onChange={v => setForm({...form, deposit_id: String(v)})} placeholder="Selecione o depósito" ariaLabel="Depósito" required />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Produto *</label>
                 <SearchableSelect options={productOptions} value={form.product_id ? parseInt(form.product_id) : ''}
-                  onChange={v => setForm({...form, product_id: String(v)})} placeholder="Selecione o produto" required />
+                  onChange={v => setForm({...form, product_id: String(v)})} placeholder="Selecione o produto" ariaLabel="Produto" required />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">Data *</label>
@@ -222,16 +222,16 @@ export default function Stock() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">Quantidade *</label>
-                  <input placeholder="0" type="number" min={qtyMin(selectedUnit)} step={qtyStep(selectedUnit)} value={form.quantity}
+                  <label htmlFor="stock-quantity" className="block text-xs text-gray-500 mb-1">Quantidade *</label>
+                  <input id="stock-quantity" placeholder="0" type="number" min={qtyMin(selectedUnit)} step={qtyStep(selectedUnit)} value={form.quantity}
                     ref={qtyRef}
                     onChange={e => setForm({...form, quantity: e.target.value})}
                     className="w-full px-3 py-2 border rounded-lg text-sm" required />
                 </div>
                 {activeTab === 'entrada' && (
                   <div>
-                    <label className="block text-xs text-gray-500 mb-1">Preço Unitário</label>
-                    <input placeholder="R$ 0,00" type="text" inputMode="decimal" value={form.unit_price}
+                    <label htmlFor="stock-unit-price" className="block text-xs text-gray-500 mb-1">Preço Unitário</label>
+                    <input id="stock-unit-price" placeholder="R$ 0,00" type="text" inputMode="decimal" value={form.unit_price}
                       onChange={e => setForm({...form, unit_price: formatDigitsToCurrency(currencyToDigits(e.target.value), 2)})}
                       className="w-full px-3 py-2 border rounded-lg text-sm" />
                   </div>
