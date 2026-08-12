@@ -29,6 +29,7 @@ from app.services.stock_ledger import (
     SOURCE_REPARO,
     compensate_movement,
     is_compensated,
+    lock_stock_products,
 )
 from app.utils.helpers import product_label
 
@@ -148,6 +149,10 @@ def repair_stock(
         "estoque.reparo.inicio dry_run=%s usuario=%s compensar_orfas=%s ressincronizar=%s",
         dry_run, user_id, compensate_orphans, resync_cache,
     )
+
+    # O reparo pode tocar qualquer produto; trava todos em ordem estável para
+    # não disputar o ledger/cache com vendas, requisições ou lançamentos.
+    lock_stock_products(db, {row.id for row in db.query(Product.id).all()})
 
     # As compensações são sempre gravadas na transação, inclusive em dry-run:
     # é o que faz a simulação prever o saldo final de verdade. O rollback no

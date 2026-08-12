@@ -42,7 +42,7 @@ test('registra entrada e atualiza saldo e histórico do estoque', async ({ page 
   await expect(page.getByRole('heading', { name: 'Relatórios de Estoque' })).toBeVisible();
   await page.getByLabel('Depósito').selectOption({ label: entrada.deposito });
   await consultBalance(page);
-  await expect(page.getByText('Nenhum dado encontrado', { exact: true })).toBeVisible();
+  await expect(page.getByRole('row').filter({ hasText: entrada.produto })).toHaveCount(0);
 
   const movementsPromise = page.waitForResponse(response => (
     response.request().method() === 'GET'

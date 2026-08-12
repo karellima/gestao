@@ -16,5 +16,6 @@ export const dadosE2E = {
   produtos: ['Arroz E2E', 'Feijão E2E', 'Café E2E'],
   conta: 'Conta E2E',
   tipoPagamento: 'Dinheiro E2E',
+  tipoVenda: 'Venda E2E',
   contato: 'Cliente E2E',
 };

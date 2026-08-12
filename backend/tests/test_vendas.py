@@ -1,5 +1,28 @@
 
 
+from app.models.stock import StockMovement
+from app.services.stock_ledger import recalculate_product_stock
+
+
+def _seed_stock(db, products, admin):
+    for product, quantity in zip(products, (100, 50), strict=True):
+        db.add(StockMovement(
+            product_id=product.id,
+            deposit_id=product.deposit_id,
+            movement_type="entrada",
+            quantity=quantity,
+            unit_price=product.cost_price,
+            total_value=quantity * product.cost_price,
+            reason="Estoque inicial do teste de venda",
+            source="teste",
+            user_id=admin.id,
+        ))
+    db.flush()
+    for product in products:
+        recalculate_product_stock(db, product.id, commit=False)
+    db.commit()
+
+
 class TestSaleTypes:
     def test_list_sale_types(self, client, auth_headers, seed_sale_types):
         resp = client.get("/api/sale-types/", headers=auth_headers)
@@ -54,6 +77,102 @@ class TestSales:
         assert data["contact_id"] == seed_contacts[0].id
         assert data["total_amount"] == 200.0
         assert len(data["items"]) == 2
+
+    def test_create_sale_registra_saidas_e_baixa_estoque(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        _seed_stock(db, seed_products, admin)
+
+        response = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 2, "unit_price": 50.0},
+                {"product_id": seed_products[1].id, "quantity": 1, "unit_price": 100.0},
+            ],
+        })
+
+        assert response.status_code == 200
+        sale_id = response.json()["id"]
+        movements = db.query(StockMovement).filter(
+            StockMovement.source == "venda",
+        ).order_by(StockMovement.id).all()
+        assert [(m.product_id, m.movement_type, m.quantity) for m in movements] == [
+            (seed_products[0].id, "saida", 2),
+            (seed_products[1].id, "saida", 1),
+        ]
+        assert {m.reason for m in movements} == {f"Venda #{sale_id}"}
+        for product in seed_products:
+            db.refresh(product)
+        assert [product.current_stock for product in seed_products] == [98, 49]
+
+    def test_update_sale_compensa_saidas_anteriores_sem_apagar_historico(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        _seed_stock(db, seed_products, admin)
+        created = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 2, "unit_price": 50.0},
+                {"product_id": seed_products[1].id, "quantity": 1, "unit_price": 100.0},
+            ],
+        }).json()
+        original_ids = {
+            movement.id for movement in db.query(StockMovement).filter(
+                StockMovement.source == "venda",
+            )
+        }
+
+        response = client.put(f"/api/sales/{created['id']}", json={
+            "items": [
+                {"product_id": seed_products[1].id, "quantity": 3, "unit_price": 100.0},
+            ],
+        })
+
+        assert response.status_code == 200
+        all_movements = db.query(StockMovement).order_by(StockMovement.id).all()
+        assert original_ids <= {movement.id for movement in all_movements}
+        assert original_ids == {
+            movement.compensates_movement_id
+            for movement in all_movements
+            if movement.compensates_movement_id is not None
+        }
+        for product in seed_products:
+            db.refresh(product)
+        assert [product.current_stock for product in seed_products] == [100, 47]
+
+    def test_delete_sale_compensa_saidas_sem_apagar_historico(
+        self, client, db, admin, seed_products, seed_contacts, seed_sale_types,
+    ):
+        _seed_stock(db, seed_products, admin)
+        created = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 2, "unit_price": 50.0},
+                {"product_id": seed_products[1].id, "quantity": 1, "unit_price": 100.0},
+            ],
+        }).json()
+        original_ids = {
+            movement.id for movement in db.query(StockMovement).filter(
+                StockMovement.source == "venda",
+            )
+        }
+
+        response = client.delete(f"/api/sales/{created['id']}")
+
+        assert response.status_code == 200
+        all_movements = db.query(StockMovement).order_by(StockMovement.id).all()
+        assert original_ids <= {movement.id for movement in all_movements}
+        assert original_ids == {
+            movement.compensates_movement_id
+            for movement in all_movements
+            if movement.compensates_movement_id is not None
+        }
+        for product in seed_products:
+            db.refresh(product)
+        assert [product.current_stock for product in seed_products] == [100, 50]
 
     def test_create_sale_invalid_contact(self, client, auth_headers, seed_products, seed_sale_types):
         resp = client.post("/api/sales/", json={

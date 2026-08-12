@@ -157,7 +157,7 @@ asserção sobre dado que veio do backend (não só sobre a existência do botã
 | **0.3** | Login e permissão | `e2e/01-login.spec.js` | Admin entra e vê o menu completo; usuário comum entra e **não** vê os itens de administração; senha errada não entra |
 | **0.4** | Cadastro de produto | `e2e/02-produto.spec.js` | Criar produto com unidade e categoria; ele aparece na listagem; editar o nome persiste após recarregar |
 | **0.5** ☑ | Entrada de estoque | `e2e/03-estoque.spec.js` | Lançar entrada em um depósito; o saldo do produto sobe exatamente pela quantidade lançada; a movimentação aparece no histórico |
-| **0.6** | Venda | `e2e/04-venda.spec.js` | Criar venda com 2 itens; o total bate com a soma; o estoque baixa; a venda aparece na listagem |
+| **0.6** ☑ | Venda | `e2e/04-venda.spec.js` | Criar venda com 2 itens; o total bate com a soma; o estoque baixa; a venda aparece na listagem |
 | **0.7** | Lançamento financeiro | `e2e/05-financeiro.spec.js` | Criar uma despesa a pagar; marcar como paga; o saldo da conta muda no valor certo |
 | **0.8** | Requisição entre depósitos | `e2e/06-requisicao.spec.js` | Criar requisição; aprovar; atender; receber; o saldo sai do depósito de origem e entra no de destino |
 

@@ -26,6 +26,7 @@ from app.services.stock_ledger import (
     SOURCE_REPARO,
     compensate_movement,
     is_compensated,
+    lock_stock_products,
     recalculate_product_stock,
 )
 from app.services.stock_repair import repair_stock
@@ -111,6 +112,8 @@ def create_movement(
     if movement.movement_type == "saida" and not movement.reason:
         raise HTTPException(status_code=400, detail="Requisição de saída deve informar o motivo/destino")
 
+    lock_stock_products(db, {movement.product_id})
+
     movement_date = (
         datetime.fromisoformat(movement.movement_date)
         if movement.movement_date
@@ -131,21 +134,31 @@ def create_movement(
         user_id=current_user.id,
     )
     db.add(db_movement)
+    recalculate_product_stock(db, movement.product_id, commit=False)
     db.commit()
     db.refresh(db_movement)
-    recalculate_product_stock(db, movement.product_id)
     return db_movement
 
 
-def _load_correctable_movement(db: Session, movement_id: int, verbo: str) -> StockMovement:
+def _load_correctable_movement(
+    db: Session,
+    movement_id: int,
+    verbo: str,
+    *,
+    for_update: bool = False,
+) -> StockMovement:
     """Busca a movimentação e recusa as que não podem receber correção."""
-    db_movement = db.query(StockMovement).filter(StockMovement.id == movement_id).first()
+    query = db.query(StockMovement).filter(StockMovement.id == movement_id)
+    if for_update:
+        query = query.with_for_update()
+    db_movement = query.first()
     if not db_movement:
         raise HTTPException(status_code=404, detail="Movimentação não encontrada")
-    if db_movement.source == "requisicao":
+    if db_movement.source in ("requisicao", "venda"):
+        origem = {"requisicao": "requisição", "venda": "venda"}[db_movement.source]
         raise HTTPException(
             status_code=400,
-            detail=f"Movimentação gerada por requisição não pode ser {verbo}",
+            detail=f"Movimentação gerada por {origem} não pode ser {verbo}",
         )
     if db_movement.source in (SOURCE_ESTORNO, SOURCE_REPARO):
         raise HTTPException(
@@ -204,6 +217,11 @@ def update_movement(
     if data.get("movement_date"):
         new_date = datetime.fromisoformat(data["movement_date"])
 
+    lock_stock_products(db, {old_product_id, new_product_id})
+    db_movement = _load_correctable_movement(
+        db, movement_id, "editada", for_update=True,
+    )
+
     compensate_movement(
         db, db_movement,
         user_id=current_user.id,
@@ -223,12 +241,11 @@ def update_movement(
         user_id=current_user.id,
     )
     db.add(corrected)
+    recalculate_product_stock(db, old_product_id, commit=False)
+    if new_product_id != old_product_id:
+        recalculate_product_stock(db, new_product_id, commit=False)
     db.commit()
     db.refresh(corrected)
-
-    recalculate_product_stock(db, old_product_id)
-    if new_product_id != old_product_id:
-        recalculate_product_stock(db, new_product_id)
     return corrected
 
 
@@ -249,15 +266,19 @@ def delete_movement(
         raise HTTPException(status_code=403, detail="Sem acesso a este depósito")
     product_id = db_movement.product_id
 
+    lock_stock_products(db, {product_id})
+    db_movement = _load_correctable_movement(
+        db, movement_id, "excluída", for_update=True,
+    )
+
     compensation = compensate_movement(
         db, db_movement,
         user_id=current_user.id,
         notes=f"Estorno solicitado da movimentação #{db_movement.id}",
     )
+    recalculate_product_stock(db, product_id, commit=False)
     db.commit()
     db.refresh(compensation)
-
-    recalculate_product_stock(db, product_id)
     return {
         "message": "Movimentação estornada",
         "movement_id": movement_id,
@@ -437,6 +458,7 @@ def transfer_stock(
         raise HTTPException(400, "Tipo deve ser 'abastecimento' ou 'devolucao'")
 
     type_label = "Abastecimento" if data.transfer_type == "abastecimento" else "Devolução"
+    lock_stock_products(db, {item.product_id for item in data.items})
     for it in data.items:
         product = db.query(Product).filter(Product.id == it.product_id).first()
         if not product:
@@ -487,7 +509,7 @@ def transfer_stock(
         )
         db.add(mov_in)
 
-        recalculate_product_stock(db, it.product_id)
+        recalculate_product_stock(db, it.product_id, commit=False)
 
     db.commit()
     return {"message": f"{type_label} realizado com sucesso", "items_count": len(data.items)}
@@ -507,6 +529,8 @@ def register_avaria(
         raise HTTPException(404, "Depósito não encontrado")
     if not data.items:
         raise HTTPException(400, "Adicione pelo menos um item")
+
+    lock_stock_products(db, {item.product_id for item in data.items})
 
     # Build set of deposit IDs for stock validation (deposit + parent, or parent + children)
     validate_ids = {data.deposit_id}
@@ -554,7 +578,7 @@ def register_avaria(
             user_id=current_user.id,
         )
         db.add(mov)
-        recalculate_product_stock(db, it.product_id)
+        recalculate_product_stock(db, it.product_id, commit=False)
 
     db.commit()
     return {"message": "Avaria registrada com sucesso", "items_count": len(data.items)}
