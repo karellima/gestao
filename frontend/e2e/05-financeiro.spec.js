@@ -23,7 +23,7 @@ async function loginAsAdmin(page) {
 }
 
 async function selectSearchable(scope, name, option) {
-  const combobox = scope.getByRole('combobox', { name });
+  const combobox = scope.getByRole('combobox', { name, exact: true });
   await combobox.focus();
   await combobox.press('Enter');
   await scope.getByRole('option', { name: option, exact: true }).click();
