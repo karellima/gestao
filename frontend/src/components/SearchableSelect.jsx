@@ -1,12 +1,29 @@
-﻿import { useState, useRef, useEffect } from 'react';
+﻿import { useState, useRef, useEffect, useId } from 'react';
 import { Search, ChevronDown, X } from 'lucide-react';
 
-export default function SearchableSelect({ options, value, onChange, placeholder, required, disabled, renderOption, renderSelected }) {
+function comboboxAccessibility({ ariaLabel, placeholder, disabled, required, open, listboxId }) {
+  return {
+    role: 'combobox',
+    tabIndex: disabled ? -1 : 0,
+    'aria-label': ariaLabel || placeholder || 'Seleção',
+    'aria-controls': listboxId,
+    'aria-expanded': open,
+    'aria-haspopup': 'listbox',
+    'aria-disabled': disabled,
+    'aria-required': required,
+  };
+}
+
+export default function SearchableSelect({ options, value, onChange, placeholder, required, disabled, renderOption, renderSelected, ariaLabel }) {
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const ref = useRef(null);
   const inputRef = useRef(null);
+  const listboxId = useId();
+  const accessibility = comboboxAccessibility({
+    ariaLabel, placeholder, disabled, required, open, listboxId,
+  });
 
   const selected = options.find(o => o.value === value);
   const filtered = options.filter(o =>
@@ -51,6 +68,16 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     }
   };
 
+  const handleTriggerKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      setOpen(true);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  };
+
   const select = (val) => {
     onChange(val);
     setOpen(false);
@@ -65,10 +92,11 @@ export default function SearchableSelect({ options, value, onChange, placeholder
     <div className="relative" ref={ref}>
       <div
         onClick={() => !disabled && setOpen(!open)}
+        onKeyDown={handleTriggerKeyDown}
         className={`w-full flex items-center justify-between px-3 py-2 border rounded-lg text-sm cursor-pointer bg-white ${
           disabled ? 'bg-gray-50 text-gray-400' : 'hover:border-gray-400'
         } ${open ? 'border-brand-500 ring-1 ring-brand-500' : 'border-gray-300'}`}
-        aria-required={required}
+        {...accessibility}
       >
         <span className={selected ? 'text-gray-900 flex items-center gap-2' : 'text-gray-400'}>
           {selected ? (renderSelected ? renderSelected(selected) : selected.label) : (placeholder || 'Selecione...')}
@@ -97,7 +125,7 @@ export default function SearchableSelect({ options, value, onChange, placeholder
               />
             </div>
           </div>
-          <div className="py-1">
+          <div id={listboxId} role="listbox" className="py-1">
             {filtered.length === 0 && (
               <div className="px-3 py-2 text-sm text-gray-400">Nenhum resultado</div>
             )}
@@ -105,6 +133,8 @@ export default function SearchableSelect({ options, value, onChange, placeholder
               <div
                 key={opt.value}
                 onClick={() => select(opt.value)}
+                role="option"
+                aria-selected={opt.value === value}
                 className={`px-3 py-2 text-sm cursor-pointer flex items-center gap-2 ${
                   opt.value === value ? 'bg-brand-50 text-brand-700 font-medium' :
                   i === highlighted ? 'bg-gray-100' : 'hover:bg-gray-50'
