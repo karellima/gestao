@@ -83,7 +83,7 @@ else
   exit 1
 fi
 
-(cd "$root_dir/frontend" && npm ci)
+(cd "$root_dir/frontend" && npm ci && npx playwright install chromium)
 
 if [[ ! -f "$root_dir/backend/.env" ]]; then
   cp "$root_dir/backend/.env.example" "$root_dir/backend/.env"
