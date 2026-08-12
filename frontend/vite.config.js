@@ -70,7 +70,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
-      exclude: [...coverageConfigDefaults.exclude, 'playwright.config.js'],
+      exclude: [...coverageConfigDefaults.exclude, 'playwright.config.js', 'e2e/**'],
     },
   },
 })
