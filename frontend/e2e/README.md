@@ -6,6 +6,12 @@ do desenvolvimento diário: cada rodada pode apagar e recriar `gestao_e2e`.
 Como proteção adicional, `seed_e2e.py` recusa qualquer `DATABASE_URL` cujo nome
 não contenha `e2e`.
 
+Ao executar `npm run test:e2e --prefix frontend`, o `globalSetup` do Playwright
+recria automaticamente esse banco, aplica as migrations e executa o seed antes
+da suíte. O PostgreSQL precisa estar disponível, e o backend deve usar a mesma
+`DATABASE_URL` E2E. O procedimento manual abaixo é útil apenas para preparar o
+banco fora da suíte ou diagnosticar o ambiente.
+
 ## Recriar no macOS ou Linux
 
 Na raiz do repositório, com o PostgreSQL local já configurado:
