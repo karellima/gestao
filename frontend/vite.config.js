@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite'
+import { coverageConfigDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
@@ -65,9 +66,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.js',
+    include: ['src/**/*.{test,spec}.{js,jsx}'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
+      exclude: [...coverageConfigDefaults.exclude, 'playwright.config.js'],
     },
   },
 })
