@@ -1,7 +1,21 @@
+import hashlib
 import os
 import tempfile
 
-TEST_DB = os.path.join(tempfile.gettempdir(), "onda3_test_financas.db")
+#: O banco de teste mora no temp do sistema, que é compartilhado por todo mundo
+#: na máquina. Com nome fixo, dois pytest ao mesmo tempo — dois worktrees, duas
+#: sessões de agente, ou você e o CI local — apagam o banco um do outro no meio
+#: da rodada, porque a fixture `db` faz drop_all a cada teste. O erro sai como
+#: OperationalError sem nenhuma relação com o teste que falhou, e some quando
+#: você roda de novo sozinho. O caminho leva o hash do checkout e o PID para que
+#: cada processo tenha o seu.
+_CHECKOUT_ID = hashlib.sha256(
+    os.path.dirname(os.path.abspath(__file__)).encode(),
+).hexdigest()[:8]
+TEST_DB = os.path.join(
+    tempfile.gettempdir(),
+    f"onda3_test_financas_{_CHECKOUT_ID}_{os.getpid()}.db",
+)
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB}"
 os.environ["SECRET_KEY"] = "test-secret-key"
 
