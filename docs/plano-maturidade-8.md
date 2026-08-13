@@ -78,14 +78,14 @@ não têm teste nenhum de fluxo — fazer isso sem os testes end-to-end da Fase 
 seria refatorar no escuro.
 
 ```text
-Fase 0  Rede de proteção (E2E)          11 tarefas   ← primeiro, sem exceção
+Fase 0  Rede de proteção (E2E)          12 tarefas   ← primeiro, sem exceção
 Fase 1  Quebra e simplificação          12 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        39 tarefas
+                                        40 tarefas
 ```
 
 ---
@@ -227,7 +227,7 @@ conexões invalidadas pelo reset.
 
 ---
 
-### Tarefa 0.11 — E2E de movimentação entre depósitos
+### Tarefa 0.11 ☑ — E2E de movimentação entre depósitos
 
 Tarefa criada durante a execução, depois que a 1.2 revelou o buraco. **Ela não
 reabre o Marco 0**: o Marco cobria os seis fluxos escolhidos no desenho original,
@@ -269,6 +269,60 @@ tela continua conversando com eles. **Faça a 0.11 antes da 1.4.**
 **Critério de aceite:** o spec passa três vezes seguidas; quebrar de propósito uma
 linha de `frontend/src/pages/depositos/` deixa o job `e2e` vermelho — anexe a
 evidência no PR, como foi feito na 0.9.
+
+**Concluída no PR #26 — e ela achou um defeito maior que ela mesma.**
+
+Com o sétimo spec somado, a suíte passou a falhar de forma intermitente. Medido
+três vezes em cada configuração: com 5 workers, 1 de 3 rodadas verde; com 1
+worker, 3 de 3. A falha típica era de saldo, não de infraestrutura:
+
+```text
+06-requisicao.spec.js:152
+expect(await readBalance(...)).toBe(initialSourceBalance)
+Expected: 7   Received: 6
+```
+
+**Causa:** três specs disputam `Arroz E2E` no `Depósito Central E2E` ao mesmo
+tempo, contra o banco único que a tarefa 0.2 estabeleceu — o 03 dá entrada de 7 e
+assere o delta exato, o 06 move 5 entre os depósitos, e o 07 transfere 1 e dá
+baixa de 1 por avaria. Cada um lê um saldo inicial e compara no fim; concorrentes,
+um altera o que o outro já mediu.
+
+Isso **já era frágil entre o 03 e o 06** desde a tarefa 0.8. O 07 foi o terceiro
+concorrente e estourou a conta. O CI nunca viu porque o runner do GitHub tem 2
+núcleos e o Playwright usa metade — 1 worker; uma máquina de 10 núcleos usa 5.
+
+**Solução:** `workers: 1` no `playwright.config.js`, com o motivo comentado na
+linha de cima. A suíte compartilha um banco por desenho — rodar arquivos em
+paralelo contra ele é defeito de correção, não escolha de performance. Custa ir
+de ~6s para ~12s. **Não "otimize" isso de volta** sem antes dar a cada spec o seu
+próprio banco.
+
+---
+
+### Tarefa 0.12 — `05-financeiro` lê corpo de resposta depois de recarregar
+
+Encontrada durante a 0.11 e não corrigida lá, porque aquela tarefa proibia alterar
+os seis specs existentes.
+
+**O que está errado:** `frontend/e2e/05-financeiro.spec.js:127` guarda o objeto
+`Response` do `GET /api/accounts/`, executa `page.reload()`, e só então chama
+`response.json()`. O Chromium pode descartar o corpo da resposta depois que a
+navegação associada a ela termina, e aí a leitura falha sem que exista erro de
+HTTP, de saldo ou de banco.
+
+É o único spec que faz isso. O `02` e o `04` recarregam e conferem pelo DOM.
+
+**Por que ainda não quebra:** com `workers: 1` a pressão de memória sumiu e o spec
+passa. O padrão continua sendo uma bomba-relógio — ele já falhou duas vezes
+seguidas quando a suíte rodava com 5 workers.
+
+**Solução:** seguir o padrão do `04` — esperar a resposta, conferir só o
+`.ok()`, e fazer a asserção de saldo pelo DOM. Alternativa aceitável: ler o corpo
+antes de disparar o `reload`.
+
+**Critério de aceite:** o `05` não segura mais nenhum `Response` através de uma
+navegação; a suíte passa três vezes seguidas em série **e** com `--workers=5`.
 
 ---
 
@@ -441,11 +495,11 @@ cobrindo admin, requisitante e usuário de depósito.
 
 ### Tarefa 1.4 — `backend/app/routers/stock.py`: 636 linhas
 
-> **Faça a tarefa 0.11 antes desta.** Quatro dos endpoints movidos aqui —
-> `transfer_stock`, `register_avaria`, `stock_balance` e `stock_movement_report` —
-> são os que a tela de depósitos consome, e hoje nenhum spec E2E passa por essa
-> tela. O pytest cobre os endpoints; o que falta é prova de que a tela continua
-> conversando com eles depois que as URLs mudarem de arquivo.
+> **Pré-requisito satisfeito.** Esta tarefa exigia a 0.11 antes, porque quatro dos
+> endpoints movidos aqui — `transfer_stock`, `register_avaria`, `stock_balance` e
+> `stock_movement_report` — são os que a tela de depósitos consome, e nenhum spec
+> E2E passava por essa tela. Desde o PR #26 o `07-deposito.spec.js` cobre os
+> quatro pela interface. **A 1.4 está liberada.**
 
 O corte aqui é em **pacote de router**, não em arquivos soltos que se importam.
 
@@ -727,10 +781,11 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.8 | E2E requisição entre depósitos | ☑ |
 | 0.9 | E2E no CI | ☑ |
 | 0.10 | Suíte E2E repetível | ☑ |
-| 0.11 | E2E movimentação entre depósitos — **antes da 1.4** | ☐ |
+| 0.11 | E2E movimentação entre depósitos | ☑ |
+| 0.12 | `05-financeiro` lê corpo de resposta após reload | ☐ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
-| 1.3 | `Requisicoes.jsx` (627) | ☐ |
+| 1.3 | `Requisicoes.jsx` (627) | ☑ |
 | 1.4 | `routers/stock.py` (612) | ☐ |
 | 1.5 | `StockReports.jsx` (471) | ☐ |
 | 1.6 | `routers/reports.py` (446) | ☐ |
