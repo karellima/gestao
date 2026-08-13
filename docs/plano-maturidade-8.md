@@ -78,22 +78,27 @@ não têm teste nenhum de fluxo — fazer isso sem os testes end-to-end da Fase 
 seria refatorar no escuro.
 
 ```text
-Fase 0  Rede de proteção (E2E)          10 tarefas   ← primeiro, sem exceção
+Fase 0  Rede de proteção (E2E)          11 tarefas   ← primeiro, sem exceção
 Fase 1  Quebra e simplificação          12 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        38 tarefas
+                                        39 tarefas
 ```
 
 ---
 
 ## FASE 0 — Rede de proteção
 
-Objetivo: seis fluxos reais do sistema passam a ser verificados de ponta a ponta,
+Objetivo: os fluxos reais do sistema passam a ser verificados de ponta a ponta,
 para que a Fase 1 possa mexer no código com prova de que nada quebrou.
+
+O desenho original elegeu seis fluxos, e são eles que definem o Marco 0. O sétimo
+— movimentação entre depósitos, tarefa 0.11 — foi acrescentado durante a Fase 1,
+quando a falta dele apareceu na prática. Se a Fase 1 revelar outro buraco desses,
+o lugar de registrá-lo é aqui, não num comentário de PR.
 
 ### Tarefa 0.1 — Instalar o Playwright fora do alcance do gate
 
@@ -222,6 +227,51 @@ conexões invalidadas pelo reset.
 
 ---
 
+### Tarefa 0.11 — E2E de movimentação entre depósitos
+
+Tarefa criada durante a execução, depois que a 1.2 revelou o buraco. **Ela não
+reabre o Marco 0**: o Marco cobria os seis fluxos escolhidos no desenho original,
+e todos os seis continuam cobertos e verdes. Este é um sétimo fluxo, que só ficou
+visível quando alguém precisou da rede para refatorar a tela de depósitos e ela
+não estava lá.
+
+**O que está descoberto:** nenhum dos seis specs navega para `/depositos`. Os
+specs de estoque e de venda usam o nome do depósito como dado de fixture, mas
+ninguém abre a tela nem aciona os cinco botões dela — Abastecer, Devolver, Avaria,
+Saldo e Movimentações. A tarefa 1.2 refatorou 796 linhas dessa tela sem prova de
+fluxo, apoiada só em fidelidade textual verificada à mão.
+
+**Por que isso é urgente e não pode esperar a Fase 2:** a tarefa **1.4 quebra
+`backend/app/routers/stock.py`**, e quatro dos endpoints que ela move são
+exatamente os que essa tela consome — `transfer_stock`, `register_avaria`,
+`stock_balance` e `stock_movement_report`. Do lado do backend existe cobertura de
+pytest para eles, então a 1.4 não está cega; o que não existe é prova de que a
+tela continua conversando com eles. **Faça a 0.11 antes da 1.4.**
+
+**Escopo do spec — `frontend/e2e/07-deposito.spec.js`:**
+
+| Etapa | Verificação |
+|---|---|
+| Abrir `/depositos` | os depósitos do seed aparecem, o sub-depósito vem indentado |
+| Abastecer | saldo sai do pai e entra no filho, nas duas leituras de `/stock/balance/` |
+| Devolver | o saldo volta, e o total dos dois depósitos fecha igual ao inicial |
+| Avaria | o saldo diminui e não reaparece em lugar nenhum |
+| Saldo | o modal mostra o mesmo número que a API devolve |
+| Movimentações | a lista traz os lançamentos criados acima, na ordem certa |
+
+**Regras que valem, herdadas da Fase 0:**
+- Ler o saldo pela API antes e depois, e comparar números — não conferir texto de
+  tela, que muda de formatação.
+- Nada de `waitForTimeout`: espere a resposta HTTP, como fazem os specs 04 e 06.
+- Idempotente. A suíte tem que passar três vezes seguidas (tarefa 0.10).
+- O spec entra no job `e2e` do CI automaticamente; nada a mudar no `ci.yml`.
+
+**Critério de aceite:** o spec passa três vezes seguidas; quebrar de propósito uma
+linha de `frontend/src/pages/depositos/` deixa o job `e2e` vermelho — anexe a
+evidência no PR, como foi feito na 0.9.
+
+---
+
 ## FASE 1 — Quebra e simplificação
 
 Objetivo: nenhum arquivo do sistema acima de 300 linhas, e nenhuma função nova
@@ -301,9 +351,9 @@ relatórios financeiros funciona idêntica em navegação manual.
 
 ---
 
-### Tarefa 1.2 — `Deposits.jsx`: 796 linhas
+### Tarefa 1.2 ☑ — `Deposits.jsx`: 796 linhas
 
-São quatro modais e uma página.
+Concluída no PR #23. São quatro modais e uma página.
 
 **Estrutura alvo — `frontend/src/pages/depositos/`:**
 
@@ -337,6 +387,27 @@ comportamento, não duas coisas parecidas. Ele deve ganhar teste Vitest próprio
 **Critério de aceite:** os specs 0.5 e 0.8 verdes; `complexity_max` cai de 27;
 transferência e avaria funcionam idênticas em navegação manual.
 
+**Correção registrada na execução — duas coisas que este critério errava.**
+
+O `complexity_max` **não caiu**, e está certo que não tenha caído. Havia dois CCN
+27 no repositório, não um: o do `addItem` daqui, que sumiu com a separação, e o
+comparador anônimo de `frontend/src/pages/Financial.jsx:177-191`, que segue
+intocado e agora é o pior número do repo sozinho. Ele é alvo da tarefa 1.8a.
+No recorte de `depositos/`, nenhuma função ficou acima de CCN 10 — a tabela acima
+foi cumprida, e mais uma vez sem ninguém simplificar função nenhuma: os três
+números eram o lizard atribuindo a uma função as funções aninhadas dela.
+
+Os specs 0.5 e 0.8 **não provam** o que este critério diz que provam. Nenhum spec
+E2E navega para `/depositos`: os fluxos de estoque e venda usam o nome do depósito
+como dado, mas ninguém abre a tela, clica em Abastecer, Devolver, Avaria, Saldo ou
+Movimentações. A suíte verde provou que nada mais quebrou, não que os quatro
+modais continuam funcionando. A evidência aceita no lugar foi a fidelidade textual
+verificada — os 11 endpoints e todas as strings visíveis idênticos antes e depois
+— mais build e eslint limpos. Daí nasceu a tarefa 0.11.
+
+**Lição, e vale para as dez tarefas restantes da Fase 1: antes de escrever
+"o spec X é a prova", abra o spec e confirme que ele passa pela tela.**
+
 ---
 
 ### Tarefa 1.3 — `Requisicoes.jsx`: 627 linhas
@@ -368,9 +439,22 @@ cobrindo admin, requisitante e usuário de depósito.
 
 ---
 
-### Tarefa 1.4 — `backend/app/routers/stock.py`: 612 linhas
+### Tarefa 1.4 — `backend/app/routers/stock.py`: 636 linhas
+
+> **Faça a tarefa 0.11 antes desta.** Quatro dos endpoints movidos aqui —
+> `transfer_stock`, `register_avaria`, `stock_balance` e `stock_movement_report` —
+> são os que a tela de depósitos consome, e hoje nenhum spec E2E passa por essa
+> tela. O pytest cobre os endpoints; o que falta é prova de que a tela continua
+> conversando com eles depois que as URLs mudarem de arquivo.
 
 O corte aqui é em **pacote de router**, não em arquivos soltos que se importam.
+
+**Números remedidos em 2026-08-13:** o arquivo cresceu de 612 para 636 linhas com
+o trabalho de concorrência das tarefas 0.6 e 0.7, e as quatro funções acima do
+teto se deslocaram — `transfer_stock` (439–515, CCN 17), `stock_balance`
+(312–382, CCN 16), `stock_movement_report` (386–435, CCN 15) e `register_avaria`
+(519–584, CCN 15). Confira contra o arquivo antes de cortar; os números abaixo são
+os do desenho original.
 
 **Estrutura alvo — `backend/app/routers/stock/`:**
 
@@ -643,8 +727,9 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.8 | E2E requisição entre depósitos | ☑ |
 | 0.9 | E2E no CI | ☑ |
 | 0.10 | Suíte E2E repetível | ☑ |
+| 0.11 | E2E movimentação entre depósitos — **antes da 1.4** | ☐ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
-| 1.2 | `Deposits.jsx` (796) | ☐ |
+| 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☐ |
 | 1.4 | `routers/stock.py` (612) | ☐ |
 | 1.5 | `StockReports.jsx` (471) | ☐ |
