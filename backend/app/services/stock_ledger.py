@@ -16,11 +16,14 @@ Regras que este módulo existe para garantir:
 
 import logging
 
-from sqlalchemy import func
+from fastapi import HTTPException
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
+from app.models.deposit import Deposit
 from app.models.product import Product
 from app.models.stock import StockMovement
+from app.schemas.stock import StockAvariaCreate, StockTransferCreate
 
 logger = logging.getLogger("app.stock")
 
@@ -135,3 +138,163 @@ def compensate_movement(
         movement.quantity, source, user_id,
     )
     return compensation
+
+
+def transfer_stock(db: Session, data: StockTransferCreate, user_id: int) -> dict:
+    """Registra a saída e a entrada que formam uma transferência."""
+    source, destination = _transfer_deposits(db, data)
+    type_label = "Abastecimento" if data.transfer_type == "abastecimento" else "Devolução"
+    lock_stock_products(db, {item.product_id for item in data.items})
+    for item in data.items:
+        _transfer_item(db, data, item, source, destination, type_label, user_id)
+    db.commit()
+    return {"message": f"{type_label} realizado com sucesso", "items_count": len(data.items)}
+
+
+def _transfer_deposits(db: Session, data: StockTransferCreate) -> tuple[Deposit, Deposit]:
+    if data.source_deposit_id == data.destination_deposit_id:
+        raise HTTPException(400, "Depósitos de origem e destino devem ser diferentes")
+    source = db.query(Deposit).filter(Deposit.id == data.source_deposit_id).first()
+    if not source:
+        raise HTTPException(404, "Depósito de origem não encontrado")
+    destination = db.query(Deposit).filter(Deposit.id == data.destination_deposit_id).first()
+    if not destination:
+        raise HTTPException(404, "Depósito de destino não encontrado")
+    if data.transfer_type not in ("abastecimento", "devolucao"):
+        raise HTTPException(400, "Tipo deve ser 'abastecimento' ou 'devolucao'")
+    return source, destination
+
+
+def _transfer_item(
+    db: Session,
+    data: StockTransferCreate,
+    item,
+    source: Deposit,
+    destination: Deposit,
+    type_label: str,
+    user_id: int,
+) -> None:
+    product = db.query(Product).filter(Product.id == item.product_id).first()
+    if not product:
+        raise HTTPException(404, f"Produto {item.product_id} não encontrado")
+    if item.quantity <= 0:
+        raise HTTPException(400, f"Quantidade inválida para produto {item.product_id}")
+    available = _transfer_stock_at(db, item.product_id, data.source_deposit_id)
+    if item.quantity > available:
+        raise HTTPException(
+            400,
+            f"Saldo insuficiente de {product.name} no depósito {source.name}: disponível {available}",
+        )
+    unit_price = item.unit_price or product.cost_price or product.price or 0
+    db.add(_transfer_movement(
+        item, data.source_deposit_id, "saida",
+        f"Transferência: {type_label} → {destination.name}", user_id, unit_price,
+    ))
+    db.add(_transfer_movement(
+        item, data.destination_deposit_id, "entrada",
+        f"Transferência: {type_label} ← {source.name}", user_id, unit_price,
+    ))
+    recalculate_product_stock(db, item.product_id, commit=False)
+
+
+def _transfer_stock_at(db: Session, product_id: int, deposit_id: int):
+    return db.query(func.coalesce(func.sum(
+        case(
+            (StockMovement.movement_type == "entrada", StockMovement.quantity),
+            else_=-StockMovement.quantity,
+        )
+    ), 0)).filter(
+        StockMovement.product_id == product_id,
+        StockMovement.deposit_id == deposit_id,
+    ).scalar()
+
+
+def _transfer_movement(
+    item,
+    deposit_id: int,
+    movement_type: str,
+    reason: str,
+    user_id: int,
+    unit_price: float,
+) -> StockMovement:
+    return StockMovement(
+        product_id=item.product_id,
+        deposit_id=deposit_id,
+        movement_type=movement_type,
+        quantity=item.quantity,
+        unit_price=unit_price,
+        total_value=item.quantity * unit_price,
+        reason=reason,
+        user_id=user_id,
+    )
+
+
+def register_avaria(db: Session, data: StockAvariaCreate, user_id: int) -> dict:
+    """Registra saídas de avaria sem apagar o histórico de estoque."""
+    deposit = db.query(Deposit).filter(Deposit.id == data.deposit_id).first()
+    if not deposit:
+        raise HTTPException(404, "Depósito não encontrado")
+    if not data.items:
+        raise HTTPException(400, "Adicione pelo menos um item")
+    lock_stock_products(db, {item.product_id for item in data.items})
+    validate_ids = _avaria_deposit_ids(deposit)
+    for item in data.items:
+        _avaria_item(db, data, item, validate_ids, user_id)
+    db.commit()
+    return {"message": "Avaria registrada com sucesso", "items_count": len(data.items)}
+
+
+def _avaria_deposit_ids(deposit: Deposit) -> set[int]:
+    ids = {deposit.id}
+    if deposit.parent_id:
+        ids.add(deposit.parent_id)
+    else:
+        ids.update(child.id for child in deposit.children)
+    return ids
+
+
+def _avaria_item(
+    db: Session,
+    data: StockAvariaCreate,
+    item,
+    validate_ids: set[int],
+    user_id: int,
+) -> None:
+    product = db.query(Product).filter(Product.id == item.product_id).first()
+    if not product:
+        raise HTTPException(404, f"Produto {item.product_id} não encontrado")
+    if item.quantity <= 0:
+        raise HTTPException(400, f"Quantidade inválida para produto {item.product_id}")
+    available = _avaria_stock_at(db, item.product_id, validate_ids)
+    if item.quantity > available:
+        raise HTTPException(
+            400,
+            f"Avariado para '{product.name}' ({item.quantity} und) excede o "
+            f"estoque disponível ({available} und)",
+        )
+    unit_price = item.unit_price or product.cost_price or product.price or 0
+    db.add(StockMovement(
+        product_id=item.product_id,
+        deposit_id=data.deposit_id,
+        movement_type="saida",
+        quantity=item.quantity,
+        unit_price=unit_price,
+        total_value=item.quantity * unit_price,
+        reason=f"Avaria: {data.description}",
+        user_id=user_id,
+    ))
+    recalculate_product_stock(db, item.product_id, commit=False)
+
+
+def _avaria_stock_at(db: Session, product_id: int, deposit_ids: set[int]):
+    entrada = db.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
+        StockMovement.product_id == product_id,
+        StockMovement.deposit_id.in_(deposit_ids),
+        StockMovement.movement_type == "entrada",
+    ).scalar()
+    saida = db.query(func.coalesce(func.sum(StockMovement.quantity), 0)).filter(
+        StockMovement.product_id == product_id,
+        StockMovement.deposit_id.in_(deposit_ids),
+        StockMovement.movement_type == "saida",
+    ).scalar()
+    return entrada - saida
