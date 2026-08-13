@@ -80,17 +80,19 @@ async function readMovements(page, depositId) {
   return getApiJson(page, `/stock/movements/?deposit_id=${depositId}`);
 }
 
+// Nunca leia o corpo de uma resposta produzida por uma navegação: o Chromium
+// descarta esse corpo quando a navegação termina, e `response.json()` falha sem
+// existir erro de HTTP. Da resposta da navegação só se confere o `.ok()`; o dado
+// vem do `getApiJson`, que faz um fetch próprio de dentro da página.
 async function openDeposits(page) {
   const depositsPromise = waitForApi(page, 'GET', '/api/deposits/mine');
   const productsPromise = waitForApi(page, 'GET', '/api/products/');
   await page.goto('/deposits');
-  const depositsResponse = await depositsPromise;
-  const productsResponse = await productsPromise;
-  expect(depositsResponse.ok()).toBeTruthy();
-  expect(productsResponse.ok()).toBeTruthy();
+  expect((await depositsPromise).ok()).toBeTruthy();
+  expect((await productsPromise).ok()).toBeTruthy();
   return {
-    deposits: await depositsResponse.json(),
-    products: await productsResponse.json(),
+    deposits: await getApiJson(page, '/deposits/mine'),
+    products: await getApiJson(page, '/products/'),
   };
 }
 

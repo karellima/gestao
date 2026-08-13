@@ -29,15 +29,34 @@ async function selectSearchable(scope, name, option) {
   await scope.getByRole('option', { name: option, exact: true }).click();
 }
 
-async function openAccounts(page) {
-  const accountsPromise = page.waitForResponse(response => (
+function waitForAccounts(page) {
+  return page.waitForResponse(response => (
     response.request().method() === 'GET'
     && new URL(response.url()).pathname === '/api/accounts/'
   ));
+}
+
+// Nunca leia o corpo de uma resposta produzida por uma navegação: o Chromium
+// descarta esse corpo quando a navegação termina, e `response.json()` falha sem
+// existir erro de HTTP. Da resposta da navegação só se confere o `.ok()`; o dado
+// vem de um fetch próprio, feito de dentro da página.
+async function fetchAccounts(page) {
+  const body = await page.evaluate(async () => {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/accounts/', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return { ok: response.ok, data: await response.json() };
+  });
+  expect(body.ok).toBeTruthy();
+  return body.data;
+}
+
+async function openAccounts(page) {
+  const accountsPromise = waitForAccounts(page);
   await page.goto('/accounts');
-  const response = await accountsPromise;
-  expect(response.ok()).toBeTruthy();
-  return response.json();
+  expect((await accountsPromise).ok()).toBeTruthy();
+  return fetchAccounts(page);
 }
 
 async function expectAccountBalance(page, accounts, expected) {
@@ -117,12 +136,8 @@ test('cria despesa, registra pagamento e debita o saldo da conta', async ({ page
   const updatedAccounts = await openAccounts(page);
   await expectAccountBalance(page, updatedAccounts, despesa.saldoFinal);
 
-  const persistedAccountsPromise = page.waitForResponse(response => (
-    response.request().method() === 'GET'
-    && new URL(response.url()).pathname === '/api/accounts/'
-  ));
+  const persistedAccountsPromise = waitForAccounts(page);
   await page.reload();
-  const persistedResponse = await persistedAccountsPromise;
-  expect(persistedResponse.ok()).toBeTruthy();
-  await expectAccountBalance(page, await persistedResponse.json(), despesa.saldoFinal);
+  expect((await persistedAccountsPromise).ok()).toBeTruthy();
+  await expectAccountBalance(page, await fetchAccounts(page), despesa.saldoFinal);
 });

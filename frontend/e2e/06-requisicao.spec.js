@@ -26,6 +26,29 @@ async function selectSearchable(scope, product) {
   await scope.getByRole('button', { name: new RegExp(product) }).click();
 }
 
+function waitForGet(page, pathname) {
+  return page.waitForResponse(response => (
+    response.request().method() === 'GET'
+    && new URL(response.url()).pathname === pathname
+  ));
+}
+
+// Nunca leia o corpo de uma resposta produzida por uma navegação: o Chromium
+// descarta esse corpo quando a navegação termina, e `response.json()` falha sem
+// existir erro de HTTP. Da resposta da navegação só se confere o `.ok()`; o dado
+// vem de um fetch próprio, feito de dentro da página.
+async function fetchJson(page, path) {
+  const body = await page.evaluate(async requestPath => {
+    const token = localStorage.getItem('token');
+    const response = await fetch(requestPath, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return { ok: response.ok, data: await response.json() };
+  }, path);
+  expect(body.ok).toBeTruthy();
+  return body.data;
+}
+
 function waitForRequisicoes(page) {
   return page.waitForResponse(response => (
     response.request().method() === 'GET'
@@ -65,22 +88,14 @@ test('cria, aprova, atende e recebe uma requisicao entre depositos', async ({ pa
   await loginAsAdmin(page);
 
   const requisicoesPromise = waitForRequisicoes(page);
-  const depositsPromise = page.waitForResponse(response => (
-    response.request().method() === 'GET'
-    && new URL(response.url()).pathname === '/api/deposits/mine'
-  ));
-  const productsPromise = page.waitForResponse(response => (
-    response.request().method() === 'GET'
-    && new URL(response.url()).pathname === '/api/products/'
-  ));
+  const depositsPromise = waitForGet(page, '/api/deposits/mine');
+  const productsPromise = waitForGet(page, '/api/products/');
   await page.goto('/requisicoes');
   expect((await requisicoesPromise).ok()).toBeTruthy();
-  const depositsResponse = await depositsPromise;
-  const productsResponse = await productsPromise;
-  expect(depositsResponse.ok()).toBeTruthy();
-  expect(productsResponse.ok()).toBeTruthy();
-  const deposits = await depositsResponse.json();
-  const products = await productsResponse.json();
+  expect((await depositsPromise).ok()).toBeTruthy();
+  expect((await productsPromise).ok()).toBeTruthy();
+  const deposits = await fetchJson(page, '/api/deposits/mine');
+  const products = await fetchJson(page, '/api/products/');
   const source = deposits.find(deposit => deposit.name === dadosE2E.depositos[0]);
   const destination = deposits.find(deposit => deposit.name === dadosE2E.depositos[1]);
   const product = products.find(item => item.name === requisicao.produto);

@@ -300,10 +300,10 @@ próprio banco.
 
 ---
 
-### Tarefa 0.12 — `05-financeiro` lê corpo de resposta depois de recarregar
+### Tarefa 0.12 ☑ — Corpo de resposta lido depois de uma navegação
 
 Encontrada durante a 0.11 e não corrigida lá, porque aquela tarefa proibia alterar
-os seis specs existentes.
+os seis specs existentes. Concluída no PR #28.
 
 **O que está errado:** `frontend/e2e/05-financeiro.spec.js:127` guarda o objeto
 `Response` do `GET /api/accounts/`, executa `page.reload()`, e só então chama
@@ -311,18 +311,42 @@ os seis specs existentes.
 navegação associada a ela termina, e aí a leitura falha sem que exista erro de
 HTTP, de saldo ou de banco.
 
-É o único spec que faz isso. O `02` e o `04` recarregam e conferem pelo DOM.
+**Não era só o `05`.** A varredura na execução achou o mesmo padrão em mais dois
+lugares, e consertar um terço de um defeito não é consertar: o `06` lia
+`/api/deposits/mine` e `/api/products/` depois do `goto('/requisicoes')`, e o `07`
+fazia o mesmo em `openDeposits`. O `02` e o `04` já estavam corretos — recarregam
+e conferem pelo DOM.
 
-**Por que ainda não quebra:** com `workers: 1` a pressão de memória sumiu e o spec
-passa. O padrão continua sendo uma bomba-relógio — ele já falhou duas vezes
-seguidas quando a suíte rodava com 5 workers.
+**Duas soluções foram tentadas, e a primeira estava errada.** Ler o corpo mais
+cedo, encadeando `.then(r => r.json())` na promessa antes da navegação, **não
+resolve** — a leitura continua sendo assíncrona, e se a navegação disparar durante
+o round-trip do CDP o corpo já foi descartado. O Playwright diz isso com todas as
+letras:
 
-**Solução:** seguir o padrão do `04` — esperar a resposta, conferir só o
-`.ok()`, e fazer a asserção de saldo pelo DOM. Alternativa aceitável: ler o corpo
-antes de disparar o `reload`.
+```text
+Response body is not available for a response that was navigated away from.
+Read response.body() before triggering any navigation.
+```
 
-**Critério de aceite:** o `05` não segura mais nenhum `Response` através de uma
-navegação; a suíte passa três vezes seguidas em série **e** com `--workers=5`.
+**Solução que vale:** da resposta produzida por uma navegação, confira **apenas o
+`.ok()`**; o dado vem de um `fetch` próprio disparado de dentro da página via
+`page.evaluate`, que não depende do cache de rede do Chromium. O `06` e o `07` já
+usavam exatamente esse padrão para ler saldo — agora usam para tudo.
+
+**Regra para os próximos specs: nunca chame `.json()` num `Response` que veio de
+um `goto` ou de um `reload`.**
+
+**Critério de aceite:** nenhum spec lê corpo de resposta de navegação; a suíte
+passa três vezes seguidas em série.
+
+**Correção de critério.** A versão original desta tarefa exigia que a suíte
+passasse também com `--workers=5`. **Isso é inalcançável e o critério estava
+errado** — a disputa de banco entre o `03`, o `06` e o `07`, registrada na tarefa
+0.11, é justamente o que o `workers: 1` existe para evitar. Medido depois do
+conserto, em cinco rodadas com 5 workers: o `05` **não falhou nenhuma vez**, e as
+falhas restantes foram todas do `06` e do `07`, por saldo e por movimentação
+alheia. Foi assim que se provou que este defeito morreu — não pela suíte inteira
+ficar verde em paralelo, o que depende de dar um banco a cada spec.
 
 ---
 
@@ -782,7 +806,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.9 | E2E no CI | ☑ |
 | 0.10 | Suíte E2E repetível | ☑ |
 | 0.11 | E2E movimentação entre depósitos | ☑ |
-| 0.12 | `05-financeiro` lê corpo de resposta após reload | ☐ |
+| 0.12 | Corpo de resposta lido depois de uma navegação | ☑ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☑ |
