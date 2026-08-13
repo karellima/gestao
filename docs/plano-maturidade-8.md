@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          12 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          12 tarefas
+Fase 1  Quebra e simplificação          13 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        40 tarefas
+                                        41 tarefas
 ```
 
 ---
@@ -488,7 +488,7 @@ verificada — os 11 endpoints e todas as strings visíveis idênticos antes e d
 
 ---
 
-### Tarefa 1.3 — `Requisicoes.jsx`: 627 linhas
+### Tarefa 1.3 ☑ — `Requisicoes.jsx`: 627 linhas
 
 Mais difícil que as anteriores: é um único componente com ~20 handlers, não
 sub-componentes já separados. Corte por **etapa do fluxo**, não por tipo de função.
@@ -517,7 +517,7 @@ cobrindo admin, requisitante e usuário de depósito.
 
 ---
 
-### Tarefa 1.4 — `backend/app/routers/stock.py`: 636 linhas
+### Tarefa 1.4 ☑ — `backend/app/routers/stock.py`: 636 linhas
 
 > **Pré-requisito satisfeito.** Esta tarefa exigia a 0.11 antes, porque quatro dos
 > endpoints movidos aqui — `transfer_stock`, `register_avaria`, `stock_balance` e
@@ -568,9 +568,9 @@ Mesmas regras. Uma tarefa por linha da tabela.
 
 | Tarefa | Arquivo | Linhas | Corte sugerido | Funções acima do teto |
 |---|---|---:|---|---|
-| **1.5** | `frontend/src/pages/StockReports.jsx` | 471 | um arquivo por relatório, espelhando a 1.1 | nenhuma |
-| **1.6** | `backend/app/routers/reports.py` | 446 | pacote `routers/reports/` por assunto; cálculo desce para `services/` | `get_dashboard` (32–286, CCN 12) — 162 linhas num handler |
-| **1.7** | `backend/app/routers/requisicoes.py` | 435 | handlers finos; o fluxo de estado vai para `services/requisition_workflow.py`, que já existe | `receive_requisicao` (329–409, CCN 20) |
+| **1.5** ☑ | `frontend/src/pages/StockReports.jsx` | 471 | ~~um arquivo por relatório, espelhando a 1.1~~ — **descrição errada**, ver nota | nenhuma |
+| **1.6** ☑ | `backend/app/routers/reports.py` | 446 | pacote `routers/reports/` por assunto; cálculo desce para `services/` | `get_dashboard` (32–286, CCN 12) — ~~162~~ **254** linhas num handler |
+| **1.7** | `backend/app/routers/requisicoes.py` | **441** | handlers finos; o fluxo de estado vai para `services/requisition_workflow.py`, que já existe | `receive_requisicao` (329–415, CCN **22**) |
 | **1.8a** | `frontend/src/pages/Financial.jsx` | 404 | a tela financeira inteira, incluindo os dois componentes irmãos abaixo | `(anônima)` 177–191 **CCN 27**; `Financial` 55–395 CCN 25; `handleSubmit` 204–232 CCN 19; `handleEdit` 265–283 CCN 15 |
 | **1.8b** | `frontend/src/pages/Pricing.jsx` | 380 | separar o cálculo de preço da tela — o cálculo ganha teste Vitest | `Pricing` (76–347, CCN 19) |
 | **1.8c** | `frontend/src/pages/Contacts.jsx` | 364 | corte por seção do cadastro | nenhuma |
@@ -580,6 +580,26 @@ Mesmas regras. Uma tarefa por linha da tabela.
 quatro funções acima do teto, incluindo uma de CCN **27** em apenas 15 linhas —
 que é o padrão mais difícil de todos para um modelo fraco, porque parece pequena
 e não é.
+
+**Correções registradas na execução — leia antes de usar as linhas restantes.**
+
+A **1.5** dizia "um arquivo por relatório, espelhando a 1.1". Não espelhava: a
+1.1 eram dez componentes independentes no mesmo arquivo, e o `StockReports.jsx`
+era **um** componente com três abas dividindo filtro, busca, exportação e
+impressão — o estado `balance` alimentava duas delas. Seguir a descrição teria
+cortado no meio do fluxo. O corte que funcionou foi por peça da tela, não por
+relatório.
+
+A **1.6** dizia "162 linhas num handler". Eram **254**. As linhas e o CCN do
+`get_dashboard` estavam certos; o tamanho, não.
+
+A **1.7** ainda diz 435 linhas e CCN 20. Os números atuais são **441** linhas e
+`receive_requisicao` em **329–415, CCN 22** — o arquivo cresceu depois do plano
+ser escrito.
+
+Isso já são quatro tabelas da Fase 1 com número ou descrição errados. **Confira
+cada linha restante contra o arquivo antes de cortar** — é a mesma lição que a
+1.1 deixou, e ela continua valendo para a 1.7, a 1.8 e a 1.9.
 
 ---
 
@@ -606,6 +626,39 @@ Os dois primeiros são da mesma tela do `Financial.jsx` — faça-os junto com a
 Nenhuma alteração ali pode apagar ou reescrever linha de `stock_movements` —
 leia [`backend/docs/estoque-historico-imutavel.md`](../backend/docs/estoque-historico-imutavel.md)
 antes de tocar no arquivo.
+
+### Tarefa 1.11 — SKU duplicado devolve 500
+
+Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
+misturar tarefas. Estava registrado como tarefa 2.5 e foi **antecipado para a
+Fase 1 por decisão do dono em 2026-08-13**: é a única falha de comportamento
+conhecida e ativa do sistema, e esperar a Fase 2 inteira não se justificava.
+
+`sku` tem constraint `unique` em `backend/app/models/product.py`. Cadastrar
+produto com SKU já existente estoura a constraint e a API responde **500**, em
+vez de erro de validação com mensagem clara. Quem está cadastrando vê "erro no
+servidor" e não descobre que o problema é SKU repetido.
+
+**Onde:** o router de produtos.
+
+> **O que a antecipação custa, dito de frente.** A versão original desta tarefa
+> vivia na Fase 2 porque dependia do padrão de erro da tarefa 2.1, que ainda não
+> existe. Antecipando, o conserto sai **sem** esse padrão: o backend passa a
+> devolver 4xx com mensagem clara, e a tela mostra o que já sabe mostrar hoje.
+> Quando a 2.2 e a 2.3 migrarem as telas, esta mensagem entra na migração como
+> qualquer outra. **É retrabalho pequeno e consciente**, aceito em troca de não
+> deixar um 500 conhecido de pé até a Fase 2.
+
+**Critério de aceite:** cadastrar produto com SKU repetido devolve 4xx com
+mensagem que nomeia o campo em conflito; teste de backend cobrindo o caso;
+nenhum outro caminho de erro do router de produtos muda de status.
+
+> **Nota:** desde a tarefa 0.10 os specs E2E deixaram de alcançar este 500,
+> porque o banco é recriado antes de cada rodada. O defeito continua existindo —
+> só parou de ser exercitado por acidente. Por isso o teste de backend é
+> obrigatório aqui: sem ele, nada exercita o caso.
+
+---
 
 > **Marco 1 — a catraca fecha a porta para sempre.** Terminada a Fase 1,
 > `files_over_limit` chega a **0**. Como o gate é catraca, a partir desse momento
@@ -666,28 +719,52 @@ automaticamente.** Barreira permanente, custo de uma linha.
 
 ---
 
-### Tarefa 2.5 — SKU duplicado devolve 500
+### Tarefa 2.5 — movida para a Fase 1, como tarefa 1.11
 
-Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
-misturar tarefas.
+Por decisão do dono em 2026-08-13: era a única falha de comportamento conhecida e
+ativa do sistema, e esperar a Fase 2 inteira para consertá-la não se justificava.
+**O número 2.5 não será reaproveitado**, para não confundir quem procurar o
+histórico. Veja a [tarefa 1.11](#tarefa-111--sku-duplicado-devolve-500).
 
-`sku` tem constraint `unique` em `backend/app/models/product.py`. Cadastrar
-produto com SKU já existente estoura a constraint e a API responde **500**, em
-vez de erro de validação com mensagem clara. Quem está cadastrando vê "erro no
-servidor" e não descobre que o problema é SKU repetido.
+---
 
-Encaixa nesta fase porque é exatamente o caso que o padrão da tarefa 2.1 existe
-para tratar: 4xx com mensagem do servidor, não 5xx genérico.
+### Tarefa 2.6 — Contrato verificável nos endpoints de relatório
 
-**Onde:** o router de produtos, mais o padrão de erro criado na 2.1.
+Dívida técnica encontrada durante a tarefa 1.6 e registrada por decisão do dono
+em 2026-08-13, para tratar com calma no próximo ciclo.
 
-**Critério de aceite:** cadastrar produto com SKU repetido devolve 4xx com
-mensagem que nomeia o campo em conflito; teste de backend cobrindo o caso; a tela
-mostra a mensagem no padrão da Fase 2.
+**O que está errado:** os três endpoints GET de `app/routers/reports/` devolvem
+`dict` cru, sem `response_model`:
 
-> **Nota:** desde a tarefa 0.10 os specs E2E deixaram de alcançar este 500,
-> porque o banco é recriado antes de cada rodada. O defeito continua existindo —
-> só parou de ser exercitado por acidente.
+| Endpoint | Chaves na resposta | Testes que conferem |
+|---|---:|---|
+| `/api/reports/dashboard` | 22 | 2, e ambos só olham `total_products` |
+| `/api/reports/financial-summary` | 5 | nenhum |
+| `/api/reports/stock-movements-summary` | 3 | nenhum |
+
+Sem `response_model`, o schema da resposta **não existe no OpenAPI**. Dá para
+renomear, trocar de tipo ou perder uma chave e o OpenAPI continuar idêntico — o
+frontend quebra em produção e nada no caminho acusa.
+
+**Por que isso importa mais do que parece:** foi exatamente essa lacuna que
+obrigou a tarefa 1.6 a inventar a prova dela do zero, capturando as respostas
+antes e depois. Numa refatoração isso é caro; num descuido, é invisível. Com
+`response_model`, a comparação de OpenAPI passa a proteger estes endpoints
+sozinha, como já protege os de `/api/stock`.
+
+**Onde:** `backend/app/schemas/` ganha os modelos; `app/routers/reports/`
+declara `response_model` nos três.
+
+**Cuidado que define a tarefa:** o `/dashboard` devolve estruturas aninhadas —
+`overdue_pagar`, `next_receber` e afins são dicionários com `total`, `count` e
+`list`, e `next_due_total`, `next_due_count` e `next_due_list` são derivadas por
+soma e concatenação. O schema precisa descrever isso como está hoje. **Declarar
+o modelo é registrar o contrato existente, não redesenhá-lo** — se algo parecer
+errado no formato, anote e não conserte junto.
+
+**Critério de aceite:** os três endpoints com `response_model`; a resposta de
+cada um idêntica antes e depois, provada por captura como na 1.6; os caminhos do
+OpenAPI inalterados e os schemas agora presentes; nenhum teste alterado.
 
 ---
 
@@ -810,20 +887,22 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☑ |
-| 1.4 | `routers/stock.py` (612) | ☐ |
-| 1.5 | `StockReports.jsx` (471) | ☐ |
-| 1.6 | `routers/reports.py` (446) | ☐ |
-| 1.7 | `routers/requisicoes.py` (435) | ☐ |
+| 1.4 | `routers/stock.py` (636) | ☑ |
+| 1.5 | `StockReports.jsx` (471) | ☑ |
+| 1.6 | `routers/reports.py` (446) | ☑ |
+| 1.7 | `routers/requisicoes.py` (441) | ☐ |
 | 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☐ |
 | 1.8b | `Pricing.jsx` (380) | ☐ |
 | 1.8c | `Contacts.jsx` (364) | ☐ |
 | 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
+| 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
 | 2.4 | `no-alert` no eslint | ☐ |
-| 2.5 | SKU duplicado devolve 500 | ☐ |
+| 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |
+| 2.6 | Contrato verificável nos relatórios (`response_model`) | ☐ |
 | 3.1 | Receita: adicionar campo | ☐ |
 | 3.2 | Receita: adicionar endpoint | ☐ |
 | 3.3 | Receita: adicionar tela | ☐ |
