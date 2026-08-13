@@ -78,14 +78,14 @@ não têm teste nenhum de fluxo — fazer isso sem os testes end-to-end da Fase 
 seria refatorar no escuro.
 
 ```text
-Fase 0  Rede de proteção (E2E)           9 tarefas   ← primeiro, sem exceção
+Fase 0  Rede de proteção (E2E)          10 tarefas   ← primeiro, sem exceção
 Fase 1  Quebra e simplificação          12 tarefas
-Fase 2  Padrão único de erro             4 tarefas
+Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        36 tarefas
+                                        38 tarefas
 ```
 
 ---
@@ -194,8 +194,31 @@ do CI saiu de `203 passed, 5 skipped` para `208 passed, 0 skipped`.
 Antes só `quality-gate` barrava merge, o que deixava passar PR com teste de
 backend quebrado.
 
+---
+
+### Tarefa 0.10 ☑ — Suíte E2E repetível
+
+Tarefa criada durante a execução, depois que a 1.1 revelou o problema. Concluída
+no PR #21.
+
+**O que estava errado:** rodar a suíte duas vezes seguidas contra o mesmo banco
+degradava o resultado de 9/9 para 5/9. O CI não enxergava porque cria banco novo
+a cada execução. Isso contrariava o critério da tarefa 0.2 — "todo spec começa do
+mesmo estado conhecido" — e esvaziava o critério de aceite dos seis fluxos, que
+exige passar três vezes seguidas.
+
+**Causa:** o spec `02-produto` cria produto com SKU fixo, e `sku` tem constraint
+`unique`. Na segunda rodada o POST colidia. Os demais specs acumulavam registros
+e o `06-requisicao` movia estoque a cada execução.
+
+**Solução:** `globalSetup` do Playwright recria o banco antes de toda rodada
+(`backend/reset_e2e.py`, protegido por exigir `e2e` no nome do banco), roda as
+migrations e o seed. `pool_pre_ping` no `database.py` faz o backend descartar
+conexões invalidadas pelo reset.
+
 > **Marco 0 — alcançado em 2026-08-12.** Os seis fluxos estão cobertos, rodam em
-> todo PR e o job fica vermelho quando um spec quebra. A Fase 1 está liberada.
+> todo PR, o job fica vermelho quando um spec quebra e a suíte é repetível sem
+> preparação manual. A Fase 1 está liberada.
 
 ---
 
@@ -226,9 +249,26 @@ entendeu, e quebra o resto.
 
 ---
 
-### Tarefa 1.1 — `FinancialReports.jsx`: 1380 linhas
+### Tarefa 1.1 ☑ — `FinancialReports.jsx`: 1380 linhas
 
-O arquivo já é seis relatórios independentes morando juntos. O corte é natural.
+Concluída no PR #20. **A tabela abaixo estava errada quando foi escrita** e fica
+registrada como foi corrigida na execução, porque o erro é instrutivo.
+
+O arquivo não tinha seis relatórios: tinha **dez**. A tabela omitia
+`OverdueReport`, `ForecastReport`, `PeriodComparisonReport` e `DPEReport` —
+cerca de 474 linhas. E a linha "`ByContactReport.jsx` | linhas 557 em diante",
+seguida ao pé da letra, produziria um arquivo de 792 linhas: o próprio
+`ByContactReport` tinha 318 e precisou de um segundo corte, em
+`ByContactPrintView` e `ByContactTransactionTable`.
+
+O `diffIcon` de CCN 16 citado adiante **era artefato de medição**, não
+complexidade real: `diffIcon` é um ternário de uma linha, e o lizard erra o
+parse de JSX atribuindo a ele um bloco que atravessa dois componentes. Separar
+os arquivos resolveu o número sozinho.
+
+**Lição para as tarefas seguintes da Fase 1: confira o mapa contra o arquivo
+antes de cortar.** As contagens desta seção foram feitas na leitura do plano, não
+na medição do código.
 
 **Estrutura alvo — `frontend/src/pages/relatorios-financeiros/`:**
 
@@ -464,6 +504,31 @@ automaticamente.** Barreira permanente, custo de uma linha.
 
 ---
 
+### Tarefa 2.5 — SKU duplicado devolve 500
+
+Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
+misturar tarefas.
+
+`sku` tem constraint `unique` em `backend/app/models/product.py`. Cadastrar
+produto com SKU já existente estoura a constraint e a API responde **500**, em
+vez de erro de validação com mensagem clara. Quem está cadastrando vê "erro no
+servidor" e não descobre que o problema é SKU repetido.
+
+Encaixa nesta fase porque é exatamente o caso que o padrão da tarefa 2.1 existe
+para tratar: 4xx com mensagem do servidor, não 5xx genérico.
+
+**Onde:** o router de produtos, mais o padrão de erro criado na 2.1.
+
+**Critério de aceite:** cadastrar produto com SKU repetido devolve 4xx com
+mensagem que nomeia o campo em conflito; teste de backend cobrindo o caso; a tela
+mostra a mensagem no padrão da Fase 2.
+
+> **Nota:** desde a tarefa 0.10 os specs E2E deixaram de alcançar este 500,
+> porque o banco é recriado antes de cada rodada. O defeito continua existindo —
+> só parou de ser exercitado por acidente.
+
+---
+
 ## FASE 3 — Receituário
 
 Objetivo: dar ao seu amigo (e ao modelo fraco que o ajuda) um caminho de cópia.
@@ -577,7 +642,8 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.7 | E2E lançamento financeiro | ☑ |
 | 0.8 | E2E requisição entre depósitos | ☑ |
 | 0.9 | E2E no CI | ☑ |
-| 1.1 | `FinancialReports.jsx` (1380) | ☐ |
+| 0.10 | Suíte E2E repetível | ☑ |
+| 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☐ |
 | 1.3 | `Requisicoes.jsx` (627) | ☐ |
 | 1.4 | `routers/stock.py` (612) | ☐ |
@@ -593,6 +659,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
 | 2.4 | `no-alert` no eslint | ☐ |
+| 2.5 | SKU duplicado devolve 500 | ☐ |
 | 3.1 | Receita: adicionar campo | ☐ |
 | 3.2 | Receita: adicionar endpoint | ☐ |
 | 3.3 | Receita: adicionar tela | ☐ |
