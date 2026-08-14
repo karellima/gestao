@@ -666,6 +666,15 @@ nenhum outro caminho de erro do router de produtos muda de status.
 > só parou de ser exercitado por acidente. Por isso o teste de backend é
 > obrigatório aqui: sem ele, nada exercita o caso.
 
+### Tarefa 1.12 — Idempotência da entrada de requisição
+
+Dívida registrada durante a tarefa 1.7. O recebimento protege a saída com
+`existing_saida`, mas não tem guarda equivalente para a entrada. O endpoint
+normal não reprocessa uma requisição já recebida, então a assimetria é
+pré-existente e não foi alterada na refatoração. A correção futura deve manter
+o histórico de estoque imutável e tratar a idempotência da entrada
+separadamente.
+
 ---
 
 > **Marco 1 — a catraca fecha a porta para sempre.** Terminada a Fase 1,
@@ -905,6 +914,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
+| 1.12 | Idempotência da entrada de requisição | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
