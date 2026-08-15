@@ -1,7 +1,9 @@
 from sqlalchemy.orm import Session
 
 from app.models.requisicao import Requisicao, RequisicaoItem
+from app.models.stock import StockMovement
 from app.schemas.requisicao import RequisicaoItemUpdate, RequisicaoUpdate
+from app.services.stock_ledger import lock_stock_products, recalculate_product_stock
 
 
 def apply_requisicao_update(
@@ -51,3 +53,81 @@ def _update_item(item: RequisicaoItem, data: RequisicaoItemUpdate) -> None:
         value = getattr(data, field)
         if value is not None:
             setattr(item, field, value)
+
+
+def record_requisition_movements(
+    db: Session,
+    requisicao: Requisicao,
+    quantidades: dict[int, tuple[float, float]],
+    user_id: int,
+) -> None:
+    """Grava a saída e a entrada depois que o router valida o recebimento."""
+    lock_stock_products(db, {item.product_id for item in requisicao.items})
+    existing_saida = {m.product_id for m in db.query(StockMovement).filter(
+        StockMovement.movement_type == "saida",
+        StockMovement.reason.like(f"Requisição #{requisicao.id}:%"),
+    ).all()}
+    for item in requisicao.items:
+        _record_requisition_item(
+            db, requisicao, item, quantidades, existing_saida, user_id,
+        )
+
+
+def _record_requisition_item(
+    db: Session,
+    requisicao: Requisicao,
+    item: RequisicaoItem,
+    quantidades: dict[int, tuple[float, float]],
+    existing_saida: set[int],
+    user_id: int,
+) -> None:
+    sent, received = quantidades[item.id]
+    if sent > 0 and item.product_id not in existing_saida:
+        _record_requisition_exit(db, requisicao, item, sent, user_id)
+    if received <= 0:
+        return
+    _record_requisition_entry(db, requisicao, item, received, user_id)
+
+
+def _record_requisition_exit(
+    db: Session,
+    requisicao: Requisicao,
+    item: RequisicaoItem,
+    quantity: float,
+    user_id: int,
+) -> None:
+    unit_price = item.unit_price or 0
+    db.add(StockMovement(
+        product_id=item.product_id,
+        deposit_id=requisicao.deposit_fulfilling_id,
+        movement_type="saida",
+        quantity=quantity,
+        unit_price=unit_price,
+        total_value=quantity * unit_price,
+        reason=f"Requisição #{requisicao.id}: {requisicao.reason or ''}",
+        source="requisicao",
+        user_id=user_id,
+    ))
+    recalculate_product_stock(db, item.product_id, commit=False)
+
+
+def _record_requisition_entry(
+    db: Session,
+    requisicao: Requisicao,
+    item: RequisicaoItem,
+    quantity: float,
+    user_id: int,
+) -> None:
+    unit_price = item.unit_price or 0
+    db.add(StockMovement(
+        product_id=item.product_id,
+        deposit_id=requisicao.deposit_requesting_id,
+        movement_type="entrada",
+        quantity=quantity,
+        unit_price=unit_price,
+        total_value=quantity * unit_price,
+        reason=f"Recebimento Requisição #{requisicao.id}: {requisicao.reason or ''}",
+        source="requisicao",
+        user_id=user_id,
+    ))
+    recalculate_product_stock(db, item.product_id, commit=False)
