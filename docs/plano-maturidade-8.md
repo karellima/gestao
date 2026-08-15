@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          12 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          13 tarefas
+Fase 1  Quebra e simplificação          14 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        41 tarefas
+                                        42 tarefas
 ```
 
 ---
@@ -908,7 +908,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.5 | `StockReports.jsx` (471) | ☑ |
 | 1.6 | `routers/reports.py` (446) | ☑ |
 | 1.7 | `routers/requisicoes.py` (441) | ☑ |
-| 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☐ |
+| 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☑ |
 | 1.8b | `Pricing.jsx` (380) | ☐ |
 | 1.8c | `Contacts.jsx` (364) | ☐ |
 | 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
