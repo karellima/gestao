@@ -609,6 +609,14 @@ ocorrência do recebimento estava fora da lista do mapa. O Lizard instalado não
 aceita `-T ccn=10`; a medição equivalente usa
 `-T cyclomatic_complexity=10`.
 
+**Correção registrada na execução da 1.8b.** A descrição "separar o cálculo de preço da tela —
+o cálculo ganha teste Vitest" estava errada: não há cálculo de preço no frontend. A tela chama
+`POST /pricing/calculate` e exibe o resultado; a conta vive em `backend/app/routers/pricing.py`.
+O que existia para extrair e testar eram as conversões entre o formato da tela e o da API
+(`toPayload`, `fromConfig`, `maskInt`, `fmtMoney`, `fmtPct`) e a persistência de percentuais em
+`localStorage`. Seguir a descrição ao pé da letra levaria a duplicar no frontend uma conta que
+já existe no backend. É a quinta tabela da Fase 1 com número ou descrição errados.
+
 ---
 
 ### Tarefa 1.10 — Os complexos que não são grandes
@@ -909,7 +917,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.6 | `routers/reports.py` (446) | ☑ |
 | 1.7 | `routers/requisicoes.py` (441) | ☑ |
 | 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☑ |
-| 1.8b | `Pricing.jsx` (380) | ☐ |
+| 1.8b | `Pricing.jsx` (380) | ☑ |
 | 1.8c | `Contacts.jsx` (364) | ☐ |
 | 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
