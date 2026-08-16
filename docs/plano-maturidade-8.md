@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          24 tarefas
+Fase 1  Quebra e simplificação          25 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        53 tarefas
+                                        54 tarefas
 ```
 
 ---
@@ -752,6 +752,22 @@ ambos passam a ser a 1.10f.
 componentes foi extraída, `dueDaysInfo` ganhou os cinco cenários pedidos e os
 demais alvos permanecem pendentes nas subtarefas 1.10b–1.10f.
 
+**Correções registradas antes da execução da 1.10b.** A medição isolada pedida
+para `frontend/src/pages/Dashboard.jsx`, em `e496b25`, confirmou 270 linhas, a
+função anônima das linhas 55–228 com CCN 20 e a segunda pior função nas linhas
+209–218 com CCN 5; não houve divergência em relação à tabela original. A
+extração também preserva dois detalhes a corrigir somente depois: a tela do
+Dashboard calcula atraso com `Math.floor` e sem normalizar horário, enquanto
+`dueDaysInfo` usa `Math.ceil` e normaliza ambas as datas; e a chamada original
+`statusBadge(t.status, t.type)` passa um segundo argumento que a função ignora.
+Fica criada a tarefa **1.16** para decidir uma regra única de atraso, aplicá-la
+nas duas telas e cobrir as bordas com teste.
+
+**Estado da divisão.** A 1.10b foi concluída: os componentes do Dashboard agora
+vivem em `pages/dashboard/`, `atraso.js` tem os cinco cenários pedidos e o
+`Dashboard.jsx` permanece como shim de uma linha. As tarefas 1.10c–1.10f
+continuam pendentes.
+
 ### Tarefa 1.11 — SKU duplicado devolve 500
 
 Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
@@ -812,6 +828,17 @@ configurações já escondem os botões de escrita conforme as permissões.
 
 Não consertar junto com a 1.9c: a autorização do backend e a interface devem ser
 avaliadas como uma mudança própria, sem misturar controle de acesso ao refactor.
+
+### Tarefa 1.16 — Unificar o cálculo de atraso
+
+Dívida registrada durante a tarefa 1.10b. O Dashboard calcula a diferença com
+`Math.floor` sobre datas sem normalização, enquanto `components/financeiro/dueDaysInfo.js`
+normaliza as duas pontas ao meio-dia e usa `Math.ceil`. Nas bordas do dia, a
+mesma conta pode aparecer como **hoje** numa tela e **1d atraso** na outra.
+
+Decidir qual regra representa o domínio, aplicar a regra escolhida nas duas
+telas e cobrir as bordas de horário com teste. Não alterar junto com a 1.10b:
+esta tarefa muda o que a interface mostra.
 
 ---
 
@@ -1054,7 +1081,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.9b | `frontend/src/pages/Products.jsx` | ☑ |
 | 1.9c | `frontend/src/pages/Accounts.jsx` | ☑ |
 | 1.10a | `FinancialTransactionTable.jsx` + `FinancialTransactionForm.jsx` | ☑ |
-| 1.10b | `Dashboard.jsx` | ☐ |
+| 1.10b | `Dashboard.jsx` | ☑ |
 | 1.10c | `NavigationSidebar.jsx` | ☐ |
 | 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
 | 1.10e | `services/stock_repair.py` | ☐ |
@@ -1064,6 +1091,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
 | 1.15 | Permissão ausente na tela de contas | ☐ |
+| 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
