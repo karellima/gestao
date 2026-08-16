@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          15 tarefas
+Fase 1  Quebra e simplificação          17 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        44 tarefas
+                                        46 tarefas
 ```
 
 ---
@@ -596,7 +596,9 @@ Mesmas regras. Uma tarefa por linha da tabela.
 | **1.8a** | `frontend/src/pages/Financial.jsx` | 404 | a tela financeira inteira, incluindo os dois componentes irmãos abaixo | `(anônima)` 177–191 **CCN 27**; `Financial` 55–395 CCN 25; `handleSubmit` 204–232 CCN 19; `handleEdit` 265–283 CCN 15 |
 | **1.8b** | `frontend/src/pages/Pricing.jsx` | 380 | separar o cálculo de preço da tela — o cálculo ganha teste Vitest | `Pricing` (76–347, CCN 19) |
 | **1.8c** | `frontend/src/pages/Contacts.jsx` | 364 | corte por seção do cadastro | nenhuma |
-| **1.9** | `Products.jsx` (334) + `sales.py` (321) + `Accounts.jsx` (307) | — | os três já estão perto do limite; corte pequeno resolve | `Products` 13–310 CCN 15; `update_sale` 199–250 CCN 16; `handleEdit` (Accounts) 59–68 CCN 13 |
+| **1.9a** | `backend/app/routers/sales.py` (348) | 348 | pacote `routers/sales/`; acesso e precificação descem para `services/` | `update_sale` 205–268 CCN 19 |
+| **1.9b** | `frontend/src/pages/Products.jsx` (334) | 334 | corte por responsabilidade da tela | `Products` 13–310 CCN 15; `handleSubmit` CCN 14; `handleEdit` CCN 14 |
+| **1.9c** | `frontend/src/pages/Accounts.jsx` (307) | 307 | corte por responsabilidade da tela | `handleEdit` 59–68 CCN 13; `(anonymous)` 97–176 CCN 12; `handleSubmit` CCN 11 |
 
 `Financial.jsx` é a tarefa mais pesada de toda a Fase 1: sozinha, concentra
 quatro funções acima do teto, incluindo uma de CCN **27** em apenas 15 linhas —
@@ -643,6 +645,19 @@ já existe no backend. É a quinta tabela da Fase 1 com número ou descrição e
 eram duas: `Contacts` (8–337, CCN 12) e `handleEdit` (103–112, CCN **11 em 10 linhas** — a
 cadeia de nove `|| ''`). Havia ainda um bloco anônimo em 140–149 exatamente no teto (CCN 10).
 É a sexta tabela da Fase 1 com número ou descrição errados.
+
+**Correção registrada na execução da 1.9a.** A linha original juntava três tarefas e dizia que
+`sales.py` tinha 321 linhas; a medição confirmou **348**. O `update_sale` está em **205–268,
+CCN 19**, não em 199–250 com CCN 16. A tabela também omitia quatro funções acima do teto: além
+de `Products` (13–311, CCN 15), há `handleSubmit` (125–143, CCN 14) e `handleEdit` (145–159,
+CCN 14) em Products; e, em Accounts, `handleEdit` (59–68, CCN 13), o bloco `(anonymous)`
+(97–176, CCN 12) e `handleSubmit` (39–57, CCN 11). São **sete funções** acima do teto nas três
+subtarefas, não três.
+
+**Tarefa futura aberta — N+1 da 1.9a.** `_resolve_price` chama `_client_table_prices` uma vez
+por item, e essa função consulta `Contact` e `PriceTable` repetidamente. Uma venda de 20 itens
+faz até 40 consultas para buscar a mesma tabela. A extração do cache por venda fica registrada
+para uma tarefa posterior; não faz parte da 1.9a.
 
 ---
 
@@ -958,7 +973,9 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☑ |
 | 1.8b | `Pricing.jsx` (380) | ☑ |
 | 1.8c | `Contacts.jsx` (364) | ☑ |
-| 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
+| 1.9a | `backend/app/routers/sales.py` — pacote de router e serviços de acesso/preço | ☑ |
+| 1.9b | `frontend/src/pages/Products.jsx` | ☐ |
+| 1.9c | `frontend/src/pages/Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
