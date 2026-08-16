@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          26 tarefas
+Fase 1  Quebra e simplificação          27 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        55 tarefas
+                                        56 tarefas
 ```
 
 ---
@@ -792,7 +792,39 @@ alinhamento.
 repositório passou a ter `complexity_max = 15`, atingindo a meta da Fase 1
 (`complexity_max ≤ 15`).
 
-### Tarefa 1.11 — SKU duplicado devolve 500
+### Tarefa 1.11 — SKU duplicado devolve 500 — ☑ verificada em 2026-08-16: **o defeito não existe**
+
+> **Resultado da verificação.** O defeito descrito abaixo **não reproduz**. Contra
+> `f26dc33`, com o banco de teste, a API devolve **400 com mensagem clara** nos
+> três caminhos:
+>
+> | Caso | Resposta |
+> |---|---|
+> | `POST /api/products/` com SKU já cadastrado | `400 — SKU já cadastrado` |
+> | `POST /api/products/` duas vezes com SKU vazio | `400 — SKU já cadastrado` |
+> | `PUT /api/products/{id}` mudando para um SKU já usado | `400 — SKU já cadastrado` |
+>
+> A checagem está em `backend/app/routers/products.py:126` (criação) e `:155`
+> (edição), e `git log -S "SKU já cadastrado"` mostra que ela existe **desde o
+> commit inicial do projeto**, de 2026-07-30. Nunca houve janela sem ela nesse
+> caminho.
+>
+> Foram testados também os outros campos `unique` do schema, que não têm
+> pré-checagem óbvia — unidades, seguimentos, frequências de recorrência e perfis
+> de acesso. Todos devolvem 4xx com mensagem própria. `POST /api/pricing/`
+> repetido devolve 201 nas duas vezes, porque é upsert.
+>
+> **O que sobra.** Nenhum teste automatizado cobre esse 400: o comportamento está
+> certo e desprotegido, que é exatamente o risco previsto na Nota do fim desta
+> seção. Virou a **tarefa 1.18**, que é só o teste.
+>
+> **Sobre a antecipação de fase.** A promoção da Fase 2 para a Fase 1, decidida em
+> 2026-08-13, apoiava-se em "é a única falha de comportamento conhecida e ativa do
+> sistema". A premissa caiu. **Nada precisa ser revertido** — o conserto nunca
+> chegou a ser feito, então a antecipação não custou retrabalho, só espaço na fila.
+>
+> O texto original segue abaixo sem edição, como registro do que se acreditava e do
+> que a verificação desmentiu.
 
 Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
 misturar tarefas. Estava registrado como tarefa 2.5 e foi **antecipado para a
@@ -822,6 +854,16 @@ nenhum outro caminho de erro do router de produtos muda de status.
 > porque o banco é recriado antes de cada rodada. O defeito continua existindo —
 > só parou de ser exercitado por acidente. Por isso o teste de backend é
 > obrigatório aqui: sem ele, nada exercita o caso.
+
+### Tarefa 1.18 — Teste de regressão para SKU duplicado
+
+Resíduo da verificação da 1.11. A API já devolve 400 com mensagem clara para SKU
+repetido, mas **nenhum teste cobre esse caminho** — a checagem pode sumir num
+refactor sem que nada acuse.
+
+**Critério de aceite:** teste de backend cobrindo criação com SKU repetido,
+edição para um SKU já usado e a mensagem devolvida; nenhum outro caminho de erro
+do router de produtos muda de status.
 
 ### Tarefa 1.12 — Idempotência da entrada de requisição
 
@@ -1119,13 +1161,14 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
 | 1.10e | `services/stock_repair.py` | ☐ |
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
-| 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
+| 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
 | 1.15 | Permissão ausente na tela de contas | ☐ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
+| 1.18 | Teste de regressão para SKU duplicado | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
