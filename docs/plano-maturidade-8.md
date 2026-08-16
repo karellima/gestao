@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          23 tarefas
+Fase 1  Quebra e simplificação          24 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        52 tarefas
+                                        53 tarefas
 ```
 
 ---
@@ -359,6 +359,11 @@ apenas em fidelidade textual verificada — 11 endpoints e 45 strings visíveis
 idênticos —, que prova que nada mudou de texto, não que os fluxos continuam
 funcionando.
 
+A tela de contas também não é aberta por nenhum spec E2E. Esta lacuna fica
+registrada junto desta dívida, sem criar uma tarefa separada na Fase 0: a
+refatoração da 1.9c teve a mesma prova textual, mas ainda não há CRUD de contas
+exercitado de ponta a ponta.
+
 **O que precisa ser coberto em `frontend/e2e/08-contato.spec.js`:** cadastrar um
 contato; editar e conferir que persiste; remover; o CRUD de seguimentos (adicionar,
 renomear, remover); e as buscas por CNPJ e por CEP.
@@ -598,7 +603,7 @@ Mesmas regras. Uma tarefa por linha da tabela.
 | **1.8c** | `frontend/src/pages/Contacts.jsx` | 364 | corte por seção do cadastro | nenhuma |
 | **1.9a** | `backend/app/routers/sales.py` (348) | 348 | pacote `routers/sales/`; acesso e precificação descem para `services/` | `update_sale` 205–268 CCN 19 |
 | **1.9b** ☑ | `frontend/src/pages/Products.jsx` (334) | 334 | corte por responsabilidade da tela | `Products` 13–311 CCN 15; `handleSubmit` 125–143 CCN 14; `handleEdit` 145–159 CCN 14 |
-| **1.9c** | `frontend/src/pages/Accounts.jsx` (307) | 307 | corte por responsabilidade da tela | `handleEdit` 59–68 CCN 13; `(anonymous)` 97–176 CCN 12; `handleSubmit` CCN 11 |
+| **1.9c** | `frontend/src/pages/Accounts.jsx` (307) | 307 | corte por responsabilidade da tela | `handleEdit` 59–68 CCN 13; `(anonymous)` 97–176 CCN 12; `handleSubmit` 39–57 CCN 11 |
 
 `Financial.jsx` é a tarefa mais pesada de toda a Fase 1: sozinha, concentra
 quatro funções acima do teto, incluindo uma de CCN **27** em apenas 15 linhas —
@@ -670,6 +675,39 @@ conhecidas fora do escopo do refactor: `fmtVal` recebe `unit` a mais nas duas ch
 tabela; `handleUnitChange` fixa duas casas em vez de consultar `formDecimals`; e SKU duplicado
 continua devolvendo 500, cuja correção pertence à 1.11. A ordenação genérica foi promovida para
 `pages/ordenacao.js` e reutilizada por Financeiro, evitando uma segunda implementação.
+
+**Correção registrada na execução da 1.9c (2026-08-16).** A medição obrigatória em
+`f54c198` confirmou todas as linhas e CCNs informados: `Accounts` 21–284, CCN 7;
+`handleEdit` 59–68, CCN 13; `(anonymous)` 97–176, CCN 12; e `handleSubmit`
+39–57, CCN 11. A única informação ausente na tabela era a faixa de linhas de
+`handleSubmit`; ela foi completada acima. A medição equivalente usa
+`-T cyclomatic_complexity=10`, porque o Lizard instalado não aceita `-T ccn=10`.
+
+**Registro de comportamento preservado na execução da 1.9c.** A tela mantém a
+ordenação local por `a.name.localeCompare(b.name, 'pt-BR')`; ela não foi forçada
+para `sortItems`, porque a chave e a direção são fixas e o caso não é equivalente
+ao helper compartilhado. A agência continua aparecendo apenas para tipos que não
+são cartão; os rótulos, endpoints, verbos, `aria-label` e a seção condicional
+`Dados do Cartão` foram mantidos.
+
+**Mudança de comportamento deliberada na 1.9c — não é acidente, não reverta sem
+ler isto.** O `handleSubmit` original convertia os campos de cartão (`flag`,
+`closing_day`, `due_day`, `best_purchase_day`, `credit_limit`) **sem olhar o tipo
+da conta**: espalhava o formulário inteiro com `...form` e convertia o que
+estivesse preenchido. O `toPayload` extraído passa a anular esses campos quando
+`account_type !== 'cartao_credito'`.
+
+O caminho afetado é um só: abrir o formulário, escolher "Cartão de Crédito",
+preencher os dados do cartão e então voltar o Tipo para "Banco" ou "Caixa". O
+bloco some da tela, mas o estado do formulário continua com os valores. Antes,
+isso gravava bandeira e limite numa conta bancária; agora grava `null`.
+
+A mudança foi mantida porque o dado antigo era invisível e inútil — o `ContaCard`
+só mostra esses campos quando o tipo é cartão — e porque preservá-lo significaria
+escrever de propósito uma função pior. Nenhum registro já gravado muda: contas
+com lixo continuam como estão até serem editadas e salvas de novo. A regra está
+fixada em `frontend/src/test/contas-form.test.js`, no caso "envia campos de cartão
+como null para conta bancária".
 
 ---
 
@@ -765,13 +803,23 @@ Não consertar junto com a 1.8c: o backend ainda valida a permissão, e o risco
 registrado aqui é de interface. A tarefa futura deve decidir a intenção e cobrir o
 comportamento correspondente.
 
+### Tarefa 1.15 — Permissão na tela de contas
+
+Dívida registrada durante a tarefa 1.9c. `Accounts` não deriva `canManage` das
+permissões do usuário e mostra **Nova Conta**, **Editar** e **Excluir** para
+qualquer pessoa que abra a tela. As telas de contatos, depósitos, requisições e
+configurações já escondem os botões de escrita conforme as permissões.
+
+Não consertar junto com a 1.9c: a autorização do backend e a interface devem ser
+avaliadas como uma mudança própria, sem misturar controle de acesso ao refactor.
+
 ---
 
-> **Marco 1 — a catraca fecha a porta para sempre.** Terminada a Fase 1,
-> `files_over_limit` chega a **0**. Como o gate é catraca, a partir desse momento
-> **nenhum commit futuro consegue criar um arquivo acima de 300 linhas** — nem o
-> seu amigo, nem a IA fraca, nem você num dia ruim. Essa é a barreira mais
-> valiosa do plano inteiro, e ela só existe depois que o número chega a zero.
+> **Marco 1 — atingido em 2026-08-16.** A execução da tarefa 1.9c levou
+> `files_over_limit` a **0**; o maior arquivo agora tem **300 linhas**.
+> Como o gate é catraca, a partir desse momento **nenhum commit futuro consegue
+> criar um arquivo acima de 300 linhas** — nem o seu amigo, nem a IA fraca, nem
+> você num dia ruim. Essa é a barreira mais valiosa do plano inteiro.
 
 ---
 
@@ -991,7 +1039,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.10 | Suíte E2E repetível | ☑ |
 | 0.11 | E2E movimentação entre depósitos | ☑ |
 | 0.12 | Corpo de resposta lido depois de uma navegação | ☑ |
-| 0.13 | E2E da tela de contatos | ☐ |
+| 0.13 | E2E das telas de contatos e contas | ☐ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☑ |
@@ -1004,7 +1052,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.8c | `Contacts.jsx` (364) | ☑ |
 | 1.9a | `backend/app/routers/sales.py` — pacote de router e serviços de acesso/preço | ☑ |
 | 1.9b | `frontend/src/pages/Products.jsx` | ☑ |
-| 1.9c | `frontend/src/pages/Accounts.jsx` | ☐ |
+| 1.9c | `frontend/src/pages/Accounts.jsx` | ☑ |
 | 1.10a | `FinancialTransactionTable.jsx` + `FinancialTransactionForm.jsx` | ☑ |
 | 1.10b | `Dashboard.jsx` | ☐ |
 | 1.10c | `NavigationSidebar.jsx` | ☐ |
@@ -1015,6 +1063,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
+| 1.15 | Permissão ausente na tela de contas | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
