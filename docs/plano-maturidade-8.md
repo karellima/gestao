@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          18 tarefas
+Fase 1  Quebra e simplificação          23 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        47 tarefas
+                                        52 tarefas
 ```
 
 ---
@@ -679,23 +679,40 @@ Estes arquivos estão abaixo de 300 linhas, então a Fase 1 passaria por cima
 deles — mas carregam funções acima do teto de complexidade. Sem esta tarefa, a
 meta de `complexity_max ≤ 15` não é atingida.
 
-| Arquivo | Função | Linhas | CCN |
-|---|---|---|---:|
-| `components/FinancialTransactionForm.jsx` | `FinancialTransactionForm` | 7–133 | **24** |
-| `components/FinancialTransactionTable.jsx` | `(anônima)` | 53–108 | 21 |
-| `pages/Dashboard.jsx` | `(anônima)` | 55–228 | 20 |
-| `components/NavigationSidebar.jsx` | `NavigationSidebar` | 115–211 | 18 |
-| `pages/Stock.jsx` | `Stock` | 10–247 | 14 |
-| `pages/Users.jsx` | `Users` | 12–253 | 14 |
-| `services/stock_repair.py` | `repair_stock` | 126–219 | 14 |
+| Subtarefa | Alvo | Pior CCN |
+|---|---|---:|
+| **1.10a** | `components/FinancialTransactionTable.jsx` + `components/FinancialTransactionForm.jsx` | **21** |
+| 1.10b | `pages/Dashboard.jsx` | 20 |
+| 1.10c | `components/NavigationSidebar.jsx` | 18 |
+| 1.10d | `pages/Stock.jsx` (4 funções) + `pages/Users.jsx` | 14 |
+| 1.10e | `backend/app/services/stock_repair.py` | 15 |
+| 1.10f | `components/ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | 12 |
 
-Os dois primeiros são da mesma tela do `Financial.jsx` — faça-os junto com a
-1.8a, ou logo depois, para não reabrir o mesmo contexto duas vezes.
+`1.10a` corta a tabela por linha e célula (`TransacaoLinha`, vencimento,
+descrição, conta e ações) e o formulário por bloco (campos básicos,
+classificação, cartão e parcelas). `dueDaysInfo` fica em módulo próprio com
+teste Vitest. As props públicas dos dois componentes permanecem inalteradas;
+o agrupamento em objetos fica para uma tarefa posterior.
 
 `services/stock_repair.py` merece cuidado extra: mexe no histórico de estoque.
 Nenhuma alteração ali pode apagar ou reescrever linha de `stock_movements` —
 leia [`backend/docs/estoque-historico-imutavel.md`](../backend/docs/estoque-historico-imutavel.md)
 antes de tocar no arquivo.
+
+**Correções registradas antes da execução da 1.10a.** A medição foi refeita
+com `backend/.venv/bin/python -m lizard backend/app frontend/src -T
+cyclomatic_complexity=10`. A linha do formulário dizia 7–133/CCN 24, mas o
+código media 7–121/CCN 13; `repair_stock` dizia 126–219/CCN 14, mas media
+139–243/CCN 15. A tabela dizia que `Stock.jsx` tinha apenas a função `Stock`
+em CCN 14; o scan também encontrou três funções acima do teto no arquivo:
+`(anônima)` 49–61/CCN 11, `handleSubmit` 98–118/CCN 11 e `(anônima)`
+147–165/CCN 13. A tabela original ainda omitia `ImportExcelModal.jsx`
+(CCN 12) e `SaleDetail.jsx`, com `handleShare` e `updateItem` em CCN 12;
+ambos passam a ser a 1.10f.
+
+**Estado da divisão.** A 1.10a foi concluída: a pior função dos dois
+componentes foi extraída, `dueDaysInfo` ganhou os cinco cenários pedidos e os
+demais alvos permanecem pendentes nas subtarefas 1.10b–1.10f.
 
 ### Tarefa 1.11 — SKU duplicado devolve 500
 
@@ -988,7 +1005,12 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.9a | `backend/app/routers/sales.py` — pacote de router e serviços de acesso/preço | ☑ |
 | 1.9b | `frontend/src/pages/Products.jsx` | ☑ |
 | 1.9c | `frontend/src/pages/Accounts.jsx` | ☐ |
-| 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
+| 1.10a | `FinancialTransactionTable.jsx` + `FinancialTransactionForm.jsx` | ☑ |
+| 1.10b | `Dashboard.jsx` | ☐ |
+| 1.10c | `NavigationSidebar.jsx` | ☐ |
+| 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
+| 1.10e | `services/stock_repair.py` | ☐ |
+| 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
