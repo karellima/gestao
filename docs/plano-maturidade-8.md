@@ -78,14 +78,14 @@ não têm teste nenhum de fluxo — fazer isso sem os testes end-to-end da Fase 
 seria refatorar no escuro.
 
 ```text
-Fase 0  Rede de proteção (E2E)          12 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          14 tarefas
+Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
+Fase 1  Quebra e simplificação          15 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        42 tarefas
+                                        44 tarefas
 ```
 
 ---
@@ -347,6 +347,28 @@ conserto, em cinco rodadas com 5 workers: o `05` **não falhou nenhuma vez**, e 
 falhas restantes foram todas do `06` e do `07`, por saldo e por movimentação
 alheia. Foi assim que se provou que este defeito morreu — não pela suíte inteira
 ficar verde em paralelo, o que depende de dar um banco a cada spec.
+
+---
+
+### Tarefa 0.13 — E2E da tela de contatos
+
+Registrada durante a tarefa 1.8c. **Nenhum spec abre `/contacts`**: o `01-login`
+cita o caminho só dentro da lista de itens de menu, e o `04-venda` usa um contato
+como dado ao escolher o cliente. A 1.8c refatorou 364 linhas dessa tela apoiada
+apenas em fidelidade textual verificada — 11 endpoints e 45 strings visíveis
+idênticos —, que prova que nada mudou de texto, não que os fluxos continuam
+funcionando.
+
+**O que precisa ser coberto em `frontend/e2e/08-contato.spec.js`:** cadastrar um
+contato; editar e conferir que persiste; remover; o CRUD de seguimentos (adicionar,
+renomear, remover); e as buscas por CNPJ e por CEP.
+
+**Regra específica:** as duas buscas chamam a API externa `brasilapi.com.br`. O
+spec **tem que interceptar a rota** (`page.route`) e devolver resposta fixa — não
+pode bater na internet, senão o CI fica dependente de terceiro e de rede.
+
+Valem as regras herdadas da Fase 0: nada de `waitForTimeout`, idempotente, e a
+suíte precisa passar três vezes seguidas.
 
 ---
 
@@ -617,6 +639,11 @@ O que existia para extrair e testar eram as conversões entre o formato da tela 
 `localStorage`. Seguir a descrição ao pé da letra levaria a duplicar no frontend uma conta que
 já existe no backend. É a quinta tabela da Fase 1 com número ou descrição errados.
 
+**Correção registrada na execução da 1.8c.** A coluna "funções acima do teto" dizia "nenhuma";
+eram duas: `Contacts` (8–337, CCN 12) e `handleEdit` (103–112, CCN **11 em 10 linhas** — a
+cadeia de nove `|| ''`). Havia ainda um bloco anônimo em 140–149 exatamente no teto (CCN 10).
+É a sexta tabela da Fase 1 com número ou descrição errados.
+
 ---
 
 ### Tarefa 1.10 — Os complexos que não são grandes
@@ -682,6 +709,17 @@ normal não reprocessa uma requisição já recebida, então a assimetria é
 pré-existente e não foi alterada na refatoração. A correção futura deve manter
 o histórico de estoque imutável e tratar a idempotência da entrada
 separadamente.
+
+### Tarefa 1.13 — Decidir a proteção do botão Novo Contato
+
+Dívida registrada durante a tarefa 1.8c, pela regra 4 do plano. Em `Contacts.jsx`
+original (linha 186, agora em `frontend/src/pages/contatos/index.jsx`), `canManage`
+protege o botão **Seguimentos**, mas não protege o botão **Novo Contato**. Pode ser
+intencional ou pode ser uma falha de autorização na interface.
+
+Não consertar junto com a 1.8c: o backend ainda valida a permissão, e o risco
+registrado aqui é de interface. A tarefa futura deve decidir a intenção e cobrir o
+comportamento correspondente.
 
 ---
 
@@ -909,6 +947,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.10 | Suíte E2E repetível | ☑ |
 | 0.11 | E2E movimentação entre depósitos | ☑ |
 | 0.12 | Corpo de resposta lido depois de uma navegação | ☑ |
+| 0.13 | E2E da tela de contatos | ☐ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☑ |
@@ -918,11 +957,12 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.7 | `routers/requisicoes.py` (441) | ☑ |
 | 1.8a | `Financial.jsx` (404) — 4 funções acima do teto | ☑ |
 | 1.8b | `Pricing.jsx` (380) | ☑ |
-| 1.8c | `Contacts.jsx` (364) | ☐ |
+| 1.8c | `Contacts.jsx` (364) | ☑ |
 | 1.9 | `Products.jsx` + `sales.py` + `Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
+| 1.13 | `canManage` no botão Novo Contato | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
