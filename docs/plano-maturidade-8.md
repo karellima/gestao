@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          25 tarefas
+Fase 1  Quebra e simplificação          26 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        54 tarefas
+                                        55 tarefas
 ```
 
 ---
@@ -768,6 +768,30 @@ vivem em `pages/dashboard/`, `atraso.js` tem os cinco cenários pedidos e o
 `Dashboard.jsx` permanece como shim de uma linha. As tarefas 1.10c–1.10f
 continuam pendentes.
 
+**Correções registradas antes da execução da 1.10c.** A medição isolada pedida
+para `frontend/src/components/NavigationSidebar.jsx`, em 2026-08-16, confirmou
+215 linhas e `NavigationSidebar` nas linhas 115–211 com CCN 18, exatamente como
+descrito na fila da tarefa. Não houve divergência de complexidade; a contagem de
+linhas não tinha valor planejado para comparar. A extração preservou os 22
+caminhos, rótulos, seis seções, `MODULE_MAP` e `DEFAULT_ROUTE_ORDER` na mesma
+ordem. O estado interno foi renomeado de `expandedSections` para
+`collapsedSections`: o valor `true` continua significando seção recolhida, como
+antes.
+
+**Estado da divisão.** A 1.10c foi concluída: o menu agora é composto por
+`navegacao/index.jsx`, componentes de cabeçalho, seção, item e rodapé, com dados
+em `menu-secoes.js` e a regra pura de visibilidade em
+`permissoes-do-menu.js`. O shim `NavigationSidebar.jsx` continua fornecendo o
+default e os dois exports nomeados. A regra ganhou cinco cenários Vitest e a
+suíte existente de `NavigationSidebar` passou sem alteração. A duplicação dos
+dois `NavLink` foi unificada em `ItemDoMenu`, mantendo explicitamente as quatro
+diferenças entre o modo aberto e o recolhido: ícone 16/18, `title`, rótulo e
+alinhamento.
+
+**Meta registrada em 2026-08-16.** Com a conclusão da 1.10c, a medição do
+repositório passou a ter `complexity_max = 15`, atingindo a meta da Fase 1
+(`complexity_max ≤ 15`).
+
 ### Tarefa 1.11 — SKU duplicado devolve 500
 
 Bug encontrado durante a tarefa 0.10 e deliberadamente não corrigido lá, para não
@@ -839,6 +863,15 @@ mesma conta pode aparecer como **hoje** numa tela e **1d atraso** na outra.
 Decidir qual regra representa o domínio, aplicar a regra escolhida nas duas
 telas e cobrir as bordas de horário com teste. Não alterar junto com a 1.10b:
 esta tarefa muda o que a interface mostra.
+
+### Tarefa 1.17 — Decidir a visibilidade da seção Geral sem dashboard
+
+Dívida registrada durante a tarefa 1.10c. A regra atual preserva o cabeçalho da
+seção `Geral` mesmo quando o usuário não tem a permissão `dashboard`; nesse caso
+a lista pode ficar vazia. Decidir se a seção deve desaparecer junto ou se o
+dashboard é sempre acessível e cobrir a decisão com teste. Não alterar junto com
+a 1.10c: trata-se de uma decisão de autorização e navegação, não de uma quebra
+estrutural.
 
 ---
 
@@ -1082,7 +1115,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.9c | `frontend/src/pages/Accounts.jsx` | ☑ |
 | 1.10a | `FinancialTransactionTable.jsx` + `FinancialTransactionForm.jsx` | ☑ |
 | 1.10b | `Dashboard.jsx` | ☑ |
-| 1.10c | `NavigationSidebar.jsx` | ☐ |
+| 1.10c | `NavigationSidebar.jsx` | ☑ |
 | 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
 | 1.10e | `services/stock_repair.py` | ☐ |
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
@@ -1092,6 +1125,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
 | 1.15 | Permissão ausente na tela de contas | ☐ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
+| 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
