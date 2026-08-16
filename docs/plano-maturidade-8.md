@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          27 tarefas
+Fase 1  Quebra e simplificação          28 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        56 tarefas
+                                        57 tarefas
 ```
 
 ---
@@ -722,9 +722,10 @@ meta de `complexity_max ≤ 15` não é atingida.
 | **1.10a** | `components/FinancialTransactionTable.jsx` + `components/FinancialTransactionForm.jsx` | **21** |
 | 1.10b | `pages/Dashboard.jsx` | 20 |
 | 1.10c | `components/NavigationSidebar.jsx` | 18 |
-| 1.10d | `pages/Stock.jsx` (4 funções) + `pages/Users.jsx` | 14 |
+| **1.10d** | `pages/Stock.jsx` (4 funções) | 14 |
 | 1.10e | `backend/app/services/stock_repair.py` | 15 |
 | 1.10f | `components/ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | 12 |
+| 1.10g | `pages/Users.jsx` (1 função) | 14 |
 
 `1.10a` corta a tabela por linha e célula (`TransacaoLinha`, vencimento,
 descrição, conta e ações) e o formulário por bloco (campos básicos,
@@ -748,6 +749,21 @@ em CCN 14; o scan também encontrou três funções acima do teto no arquivo:
 (CCN 12) e `SaleDetail.jsx`, com `handleShare` e `updateItem` em CCN 12;
 ambos passam a ser a 1.10f.
 
+**Correções registradas antes da execução da 1.10d.** A medição isolada de
+`frontend/src/pages/Stock.jsx`, em `e48a995`, confirmou a função `Stock` nas
+linhas 10–247/CCN 14 e encontrou três funções omitidas na tabela: o comparador
+anônimo nas linhas 49–61/CCN 11, `handleSubmit` nas linhas 98–118/CCN 11 e a
+linha anônima da tabela nas linhas 147–165/CCN 13. A 1.10d foi dividida: esta
+tarefa trata somente de `Stock.jsx`; `Users.jsx` passa a ser a nova subtarefa
+1.10g.
+
+**Estado da 1.10d.** `Stock.jsx` agora é um shim; a tela vive em
+`pages/estoque/`, com `toPayload` testado e a ordenação reutilizando
+`pages/ordenacao.js`. O payload preserva deliberadamente a assimetria de
+`reason`: na saída, motivo vazio continua `''`; na entrada, vira `null`. A
+quantidade vazia ou zero continua usando o mínimo da unidade, o preço da saída
+continua `0` e observações vazias continuam `null`.
+
 **Estado da divisão.** A 1.10a foi concluída: a pior função dos dois
 componentes foi extraída, `dueDaysInfo` ganhou os cinco cenários pedidos e os
 demais alvos permanecem pendentes nas subtarefas 1.10b–1.10f.
@@ -765,8 +781,8 @@ nas duas telas e cobrir as bordas com teste.
 
 **Estado da divisão.** A 1.10b foi concluída: os componentes do Dashboard agora
 vivem em `pages/dashboard/`, `atraso.js` tem os cinco cenários pedidos e o
-`Dashboard.jsx` permanece como shim de uma linha. As tarefas 1.10c–1.10f
-continuam pendentes.
+`Dashboard.jsx` permanece como shim de uma linha. Naquele ponto, as tarefas
+1.10d–1.10g ainda estavam pendentes.
 
 **Correções registradas antes da execução da 1.10c.** A medição isolada pedida
 para `frontend/src/components/NavigationSidebar.jsx`, em 2026-08-16, confirmou
@@ -1170,9 +1186,10 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10a | `FinancialTransactionTable.jsx` + `FinancialTransactionForm.jsx` | ☑ |
 | 1.10b | `Dashboard.jsx` | ☑ |
 | 1.10c | `NavigationSidebar.jsx` | ☑ |
-| 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
+| 1.10d | `Stock.jsx` | ☑ |
 | 1.10e | `services/stock_repair.py` | ☑ |
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
+| 1.10g | `Users.jsx` | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
