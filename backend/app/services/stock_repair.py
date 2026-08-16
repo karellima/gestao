@@ -136,6 +136,86 @@ def find_stock_divergences(
     return divergentes
 
 
+def _compensar_saidas_orfas(
+    db: Session,
+    orfas: list[dict],
+    *,
+    user_id: int | None,
+    referencia: str,
+    dry_run: bool,
+) -> list[dict]:
+    """Grava as compensações das saídas órfãs na transação atual."""
+    compensacoes = []
+    for orfa in orfas:
+        mov = orfa["_movement"]
+        compensacao = compensate_movement(
+            db, mov,
+            user_id=user_id,
+            reason=f"Estorno mov. #{mov.id}: requisição #{orfa['requisicao_id']} não recebida",
+            source=SOURCE_REPARO,
+            notes=referencia,
+            log=not dry_run,
+        )
+        compensacoes.append({
+            "compensation_id": compensacao.id,
+            "movement_id": mov.id,
+            "product_id": mov.product_id,
+            "quantity": mov.quantity,
+        })
+    return compensacoes
+
+
+def _ressincronizar_cache(
+    db: Session,
+    divergencias: list[dict],
+    *,
+    dry_run: bool,
+) -> list[dict]:
+    """Atualiza o cache derivado dos produtos na transação atual."""
+    ressincronizados = []
+    for divergencia in divergencias:
+        product = divergencia["_product"]
+        product.current_stock = divergencia["derived_stock"]
+        ressincronizados.append({
+            "product_id": product.id,
+            "product_name": divergencia["product_name"],
+            "from": divergencia["current_stock"],
+            "to": divergencia["derived_stock"],
+        })
+        if not dry_run:
+            logger.info(
+                "estoque.reparo.ressincronizacao produto=%s de=%s para=%s",
+                product.id, divergencia["current_stock"], divergencia["derived_stock"],
+            )
+    return ressincronizados
+
+
+def _montar_relatorio(
+    *,
+    dry_run: bool,
+    iniciado_em: datetime,
+    user_id: int | None,
+    orfas: list[dict],
+    divergencias: list[dict],
+    compensacoes: list[dict],
+    ressincronizados: list[dict],
+) -> dict:
+    """Monta somente a parte serializável do resultado do reparo."""
+    return {
+        "dry_run": dry_run,
+        "executed_at": iniciado_em.isoformat(),
+        "executed_by_user_id": user_id,
+        "orphan_requisicao_exits": [
+            {k: v for k, v in o.items() if not k.startswith("_")} for o in orfas
+        ],
+        "stock_divergences": [
+            {k: v for k, v in d.items() if not k.startswith("_")} for d in divergencias
+        ],
+        "compensations_created": compensacoes,
+        "products_resynced": ressincronizados,
+    }
+
+
 def repair_stock(
     db: Session,
     *,
@@ -174,46 +254,17 @@ def repair_stock(
         find_orphan_requisicao_exits(db, product_ids=product_ids)
         if compensate_orphans else []
     )
-    compensacoes = []
     referencia = f"Reparo de estoque em {iniciado_em.isoformat(timespec='seconds')}"
-    for orfa in orfas:
-        mov = orfa["_movement"]
-        compensacao = compensate_movement(
-            db, mov,
-            user_id=user_id,
-            reason=f"Estorno mov. #{mov.id}: requisição #{orfa['requisicao_id']} não recebida",
-            source=SOURCE_REPARO,
-            notes=referencia,
-            log=not dry_run,
-        )
-        compensacoes.append({
-            "compensation_id": compensacao.id,
-            "movement_id": mov.id,
-            "product_id": mov.product_id,
-            "quantity": mov.quantity,
-        })
+    compensacoes = _compensar_saidas_orfas(
+        db, orfas, user_id=user_id, referencia=referencia, dry_run=dry_run,
+    )
 
     # Calculado depois de compensar, então as compensações já entram na conta.
     divergencias = (
         find_stock_divergences(db, product_ids=product_ids)
         if resync_cache else []
     )
-    ressincronizados = []
-
-    for divergencia in divergencias:
-        product = divergencia["_product"]
-        product.current_stock = divergencia["derived_stock"]
-        ressincronizados.append({
-            "product_id": product.id,
-            "product_name": divergencia["product_name"],
-            "from": divergencia["current_stock"],
-            "to": divergencia["derived_stock"],
-        })
-        if not dry_run:
-            logger.info(
-                "estoque.reparo.ressincronizacao produto=%s de=%s para=%s",
-                product.id, divergencia["current_stock"], divergencia["derived_stock"],
-            )
+    ressincronizados = _ressincronizar_cache(db, divergencias, dry_run=dry_run)
 
     if dry_run:
         db.rollback()
@@ -221,19 +272,15 @@ def repair_stock(
     else:
         db.commit()
 
-    relatorio = {
-        "dry_run": dry_run,
-        "executed_at": iniciado_em.isoformat(),
-        "executed_by_user_id": user_id,
-        "orphan_requisicao_exits": [
-            {k: v for k, v in o.items() if not k.startswith("_")} for o in orfas
-        ],
-        "stock_divergences": [
-            {k: v for k, v in d.items() if not k.startswith("_")} for d in divergencias
-        ],
-        "compensations_created": compensacoes,
-        "products_resynced": ressincronizados,
-    }
+    relatorio = _montar_relatorio(
+        dry_run=dry_run,
+        iniciado_em=iniciado_em,
+        user_id=user_id,
+        orfas=orfas,
+        divergencias=divergencias,
+        compensacoes=compensacoes,
+        ressincronizados=ressincronizados,
+    )
 
     logger.info(
         "estoque.reparo.fim dry_run=%s saidas_orfas=%s divergencias=%s "

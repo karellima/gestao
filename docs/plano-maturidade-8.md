@@ -792,6 +792,18 @@ alinhamento.
 repositório passou a ter `complexity_max = 15`, atingindo a meta da Fase 1
 (`complexity_max ≤ 15`).
 
+**Correção registrada na execução da 1.10e (2026-08-16).** A medição obrigatória
+de `backend/app/services/stock_repair.py` confirmou 243 linhas e
+`repair_stock` nas linhas **139–243, CCN 15**. A tabela original dizia
+126–219 e CCN 14. A faixa e o número estavam desatualizados; a segunda função
+mais complexa, `find_orphan_requisicao_exits`, ficou em CCN 8.
+
+**Estado da divisão.** A 1.10e foi concluída: as fases de compensação, de
+ressincronização do cache e de montagem do relatório foram extraídas sem
+alterar o contrato da API nem a ordem do reparo. A medição posterior passou a
+ter `complexity_max = 14`, preservando a margem criada pela 1.10c, que havia
+registrado a meta (`complexity_max ≤ 15`) como atingida.
+
 ### Tarefa 1.11 — SKU duplicado devolve 500 — ☑ verificada em 2026-08-16: **o defeito não existe**
 
 > **Resultado da verificação.** O defeito descrito abaixo **não reproduz**. Contra
@@ -1159,7 +1171,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10b | `Dashboard.jsx` | ☑ |
 | 1.10c | `NavigationSidebar.jsx` | ☑ |
 | 1.10d | `Stock.jsx` + `Users.jsx` | ☐ |
-| 1.10e | `services/stock_repair.py` | ☐ |
+| 1.10e | `services/stock_repair.py` | ☑ |
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
