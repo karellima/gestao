@@ -690,6 +690,25 @@ ao helper compartilhado. A agência continua aparecendo apenas para tipos que n�
 são cartão; os rótulos, endpoints, verbos, `aria-label` e a seção condicional
 `Dados do Cartão` foram mantidos.
 
+**Mudança de comportamento deliberada na 1.9c — não é acidente, não reverta sem
+ler isto.** O `handleSubmit` original convertia os campos de cartão (`flag`,
+`closing_day`, `due_day`, `best_purchase_day`, `credit_limit`) **sem olhar o tipo
+da conta**: espalhava o formulário inteiro com `...form` e convertia o que
+estivesse preenchido. O `toPayload` extraído passa a anular esses campos quando
+`account_type !== 'cartao_credito'`.
+
+O caminho afetado é um só: abrir o formulário, escolher "Cartão de Crédito",
+preencher os dados do cartão e então voltar o Tipo para "Banco" ou "Caixa". O
+bloco some da tela, mas o estado do formulário continua com os valores. Antes,
+isso gravava bandeira e limite numa conta bancária; agora grava `null`.
+
+A mudança foi mantida porque o dado antigo era invisível e inútil — o `ContaCard`
+só mostra esses campos quando o tipo é cartão — e porque preservá-lo significaria
+escrever de propósito uma função pior. Nenhum registro já gravado muda: contas
+com lixo continuam como estão até serem editadas e salvas de novo. A regra está
+fixada em `frontend/src/test/contas-form.test.js`, no caso "envia campos de cartão
+como null para conta bancária".
+
 ---
 
 ### Tarefa 1.10 — Os complexos que não são grandes
