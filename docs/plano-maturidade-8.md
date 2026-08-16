@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          28 tarefas
+Fase 1  Quebra e simplificação          29 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        57 tarefas
+                                        58 tarefas
 ```
 
 ---
@@ -820,6 +820,41 @@ alterar o contrato da API nem a ordem do reparo. A medição posterior passou a
 ter `complexity_max = 14`, preservando a margem criada pela 1.10c, que havia
 registrado a meta (`complexity_max ≤ 15`) como atingida.
 
+**Correções registradas antes da execução da 1.10g.** A medição isolada de
+`frontend/src/pages/Users.jsx`, em 2026-08-16, confirmou 277 linhas, `Users`
+nas linhas 12–253 com CCN 14, `handleSubmit` nas linhas 58–77 com CCN 9 e a
+função anônima da tabela nas linhas 136–162 com CCN 6. Não houve divergência em
+relação ao enunciado. O corte deixou `Users.jsx` como shim e todos os arquivos
+de `pages/usuarios/` abaixo de CCN 10 e 300 linhas.
+
+**Estado da divisão.** A 1.10g foi concluída: a tela agora é composta por
+`usuarios/index.jsx`, `usuario-form.js`, `senha.js`, `TabelaDeUsuarios.jsx`,
+`UsuarioForm.jsx`, `SelecaoDeDepositos.jsx` e os blocos de senha/perfil. O
+payload ganhou seis cenários Vitest, incluindo a ausência de `password` na
+edição com senha vazia. A pré-seleção do perfil padrão foi preservada sem
+mutação de objeto de módulo: o perfil é guardado em `defaultRole` e aplicado
+por `getEmptyForm(defaultRole)`. `randPass` foi movida e, na revisão, **corrigida
+dentro desta tarefa** — ver a 1.19 abaixo.
+
+### Tarefa 1.19 — Gerador seguro da senha inicial — ☑ resolvida dentro da 1.10g
+
+Tarefa criada durante a execução da 1.10g: `senha.js` usava `Math.random()` para
+gerar a senha inicial, que não é um gerador criptograficamente seguro.
+
+**Por que não virou PR separado, contrariando a regra de "registra, não
+conserta".** Ao mover a função para o arquivo novo, o CodeQL passou a tratá-la
+como código novo e reprovou o PR com um alerta **alto** de
+`js/insecure-randomness` — o mesmo alerta que já existia na `main` em
+`Users.jsx:93`, apenas nunca bloqueante por ser pré-existente. Com o merge
+travado, as alternativas eram dispensar um achado legítimo de segurança ou abrir
+um PR anterior mexendo num arquivo que esta tarefa apaga. Consertar aqui foi o
+caminho mais curto e honesto.
+
+**O que mudou:** `crypto.getRandomValues` no lugar de `Math.random()`, senha de
+**12** caracteres (eram 6) sobre um alfabeto declarado que exclui os pares que se
+confundem quando a senha é ditada (`l`/`I`/`1`, `o`/`O`/`0`). Coberto por
+`frontend/src/test/senha.test.js`: comprimento, alfabeto e ausência de repetição.
+
 ### Tarefa 1.11 — SKU duplicado devolve 500 — ☑ verificada em 2026-08-16: **o defeito não existe**
 
 > **Resultado da verificação.** O defeito descrito abaixo **não reproduz**. Contra
@@ -1189,7 +1224,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10d | `Stock.jsx` | ☑ |
 | 1.10e | `services/stock_repair.py` | ☑ |
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
-| 1.10g | `Users.jsx` | ☐ |
+| 1.10g | `Users.jsx` | ☑ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
@@ -1198,6 +1233,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
 | 1.18 | Teste de regressão para SKU duplicado | ☐ |
+| 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
