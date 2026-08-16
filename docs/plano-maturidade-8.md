@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          17 tarefas
+Fase 1  Quebra e simplificação          18 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        46 tarefas
+                                        47 tarefas
 ```
 
 ---
@@ -597,7 +597,7 @@ Mesmas regras. Uma tarefa por linha da tabela.
 | **1.8b** | `frontend/src/pages/Pricing.jsx` | 380 | separar o cálculo de preço da tela — o cálculo ganha teste Vitest | `Pricing` (76–347, CCN 19) |
 | **1.8c** | `frontend/src/pages/Contacts.jsx` | 364 | corte por seção do cadastro | nenhuma |
 | **1.9a** | `backend/app/routers/sales.py` (348) | 348 | pacote `routers/sales/`; acesso e precificação descem para `services/` | `update_sale` 205–268 CCN 19 |
-| **1.9b** | `frontend/src/pages/Products.jsx` (334) | 334 | corte por responsabilidade da tela | `Products` 13–310 CCN 15; `handleSubmit` CCN 14; `handleEdit` CCN 14 |
+| **1.9b** ☑ | `frontend/src/pages/Products.jsx` (334) | 334 | corte por responsabilidade da tela | `Products` 13–311 CCN 15; `handleSubmit` 125–143 CCN 14; `handleEdit` 145–159 CCN 14 |
 | **1.9c** | `frontend/src/pages/Accounts.jsx` (307) | 307 | corte por responsabilidade da tela | `handleEdit` 59–68 CCN 13; `(anonymous)` 97–176 CCN 12; `handleSubmit` CCN 11 |
 
 `Financial.jsx` é a tarefa mais pesada de toda a Fase 1: sozinha, concentra
@@ -654,10 +654,22 @@ CCN 14) em Products; e, em Accounts, `handleEdit` (59–68, CCN 13), o bloco `(a
 (97–176, CCN 12) e `handleSubmit` (39–57, CCN 11). São **sete funções** acima do teto nas três
 subtarefas, não três.
 
-**Tarefa futura aberta — N+1 da 1.9a.** `_resolve_price` chama `_client_table_prices` uma vez
+**Correção registrada na execução da 1.9b — tarefa 1.14 promovida.** `_resolve_price` chama `_client_table_prices` uma vez
 por item, e essa função consulta `Contact` e `PriceTable` repetidamente. Uma venda de 20 itens
 faz até 40 consultas para buscar a mesma tabela. A extração do cache por venda fica registrada
-para uma tarefa posterior; não faz parte da 1.9a.
+como a tarefa **1.14** na tabela de acompanhamento; não faz parte da 1.9a nem da 1.9b.
+
+**Correção registrada na execução da 1.9b.** A medição obrigatória confirmou 334 linhas no
+arquivo, em acordo com o plano. `Products` está em **13–311, CCN 15**, e não termina na linha
+310 como dizia o plano. O plano não informava as faixas dos dois handlers: `handleSubmit` está
+em **125–143, CCN 14**, e `handleEdit` em **145–159, CCN 14**. A tabela foi corrigida para
+registrar as três faixas e os CCNs medidos.
+
+**Registro de comportamento preservado na execução da 1.9b.** A tela mantém três pendências
+conhecidas fora do escopo do refactor: `fmtVal` recebe `unit` a mais nas duas chamadas da
+tabela; `handleUnitChange` fixa duas casas em vez de consultar `formDecimals`; e SKU duplicado
+continua devolvendo 500, cuja correção pertence à 1.11. A ordenação genérica foi promovida para
+`pages/ordenacao.js` e reutilizada por Financeiro, evitando uma segunda implementação.
 
 ---
 
@@ -974,12 +986,13 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.8b | `Pricing.jsx` (380) | ☑ |
 | 1.8c | `Contacts.jsx` (364) | ☑ |
 | 1.9a | `backend/app/routers/sales.py` — pacote de router e serviços de acesso/preço | ☑ |
-| 1.9b | `frontend/src/pages/Products.jsx` | ☐ |
+| 1.9b | `frontend/src/pages/Products.jsx` | ☑ |
 | 1.9c | `frontend/src/pages/Accounts.jsx` | ☐ |
 | 1.10 | Complexos que não são grandes (7 arquivos) | ☐ |
 | 1.11 | SKU duplicado devolve 500 — **antecipada da 2.5** | ☐ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
+| 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
