@@ -79,13 +79,13 @@ seria refatorar no escuro.
 
 ```text
 Fase 0  Rede de proteção (E2E)          13 tarefas   ← primeiro, sem exceção
-Fase 1  Quebra e simplificação          29 tarefas
+Fase 1  Quebra e simplificação          30 tarefas
 Fase 2  Padrão único de erro             5 tarefas
 Fase 3  Receituário                      6 tarefas
 Fase 4  Homologação e observabilidade    3 tarefas
 Fase 5  Fechamento                       2 tarefas
                                         ─────────
-                                        58 tarefas
+                                        59 tarefas
 ```
 
 ---
@@ -820,6 +820,29 @@ alterar o contrato da API nem a ordem do reparo. A medição posterior passou a
 ter `complexity_max = 14`, preservando a margem criada pela 1.10c, que havia
 registrado a meta (`complexity_max ≤ 15`) como atingida.
 
+**Correção registrada antes da execução da 1.10f (2026-08-17).** A medição
+obrigatória dos dois alvos confirmou `ImportExcelModal` e `handleShare` em CCN
+12. O `updateItem` foi reportado pelo Lizard como linhas 88–235/CCN 12, mas a
+função real termina na própria linha 88 e tem apenas o ternário de atualização
+(CCN 2, no máximo). Como a arrow function não usa chaves e é seguida por JSX,
+o Lizard atribui a ela a complexidade do JSX da tela. Portanto, o alvo desta
+subtarefa é quebrar os blocos da tela em componentes, e não simplificar
+artificialmente o `updateItem`. Este é um aviso para medições futuras: o número
+estava mal atribuído, não incorreto na lógica.
+
+**Estado da divisão.** A 1.10f foi concluída: `SaleDetail.jsx` virou shim e a
+tela passou a ser composta pelos blocos de cabeçalho, seleção, busca, tabela e
+rodapé em `pages/venda/`. A montagem dos dados do PDF (`pedido-pdf.js`) ganhou
+cinco cenários Vitest; `compartilhar.js` preserva a cascata de Web Share,
+download, `catch` silencioso, aviso móvel e nome `pedido-{id}.pdf`. A importação
+preserva os endpoints, o multipart, o blob do modelo e as mensagens visíveis.
+
+**Marco registrado em 2026-08-17.** Após a 1.10f, `quality/gate.py` mediu
+`complexity_over_ceiling = 0` (antes: 42), `complexity_max = 10` (antes: 27),
+`coverage_frontend_pct = 18.15`, `duplication_pct = 4.05` e
+`files_over_limit = 0`. A catraca de complexidade está fechada para novas
+funções acima de CCN 10.
+
 **Correções registradas antes da execução da 1.10g.** A medição isolada de
 `frontend/src/pages/Users.jsx`, em 2026-08-16, confirmou 277 linhas, `Users`
 nas linhas 12–253 com CCN 14, `handleSubmit` nas linhas 58–77 com CCN 9 e a
@@ -854,6 +877,14 @@ caminho mais curto e honesto.
 **12** caracteres (eram 6) sobre um alfabeto declarado que exclui os pares que se
 confundem quando a senha é ditada (`l`/`I`/`1`, `o`/`O`/`0`). Coberto por
 `frontend/src/test/senha.test.js`: comprimento, alfabeto e ausência de repetição.
+
+### Tarefa 1.20 — Validar extensão da planilha nos dois caminhos
+
+Dívida registrada durante a execução da 1.10f. A validação de extensão (`.xlsx`
+ou `.xls`) existe no caminho de arrastar-e-soltar, mas o `<input type="file">`
+aceita qualquer extensão apesar de declarar `accept`. Fazer a mesma validação
+nos dois caminhos e definir a mensagem para arquivo inválido. Não alterar junto
+com a 1.10f: é uma correção de comportamento separada.
 
 ### Tarefa 1.11 — SKU duplicado devolve 500 — ☑ verificada em 2026-08-16: **o defeito não existe**
 
@@ -1223,7 +1254,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10c | `NavigationSidebar.jsx` | ☑ |
 | 1.10d | `Stock.jsx` | ☑ |
 | 1.10e | `services/stock_repair.py` | ☑ |
-| 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☐ |
+| 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☑ |
 | 1.10g | `Users.jsx` | ☑ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
@@ -1234,6 +1265,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
 | 1.18 | Teste de regressão para SKU duplicado | ☐ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
+| 1.20 | Validar extensão da planilha nos dois caminhos | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
