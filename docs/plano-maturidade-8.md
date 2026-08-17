@@ -1009,6 +1009,13 @@ dashboard é sempre acessível e cobrir a decisão com teste. Não alterar junto
 a 1.10c: trata-se de uma decisão de autorização e navegação, não de uma quebra
 estrutural.
 
+**Correção registrada na execução da 1.18 (2026-08-17).** O comportamento
+descrito na tarefa foi confirmado nos quatro casos: criação e edição para SKU
+duplicado devolvem 400 com `SKU já cadastrado`, editar mantendo o próprio SKU
+devolve 200, e o segundo produto com SKU vazio devolve 400. A divergência
+encontrada foi apenas a já registrada na 1.11: o texto histórico ainda descreve
+um 500, mas a checagem de aplicação já devolve 400 desde o commit inicial.
+
 ---
 
 > **Marco 1 — atingido em 2026-08-16.** A execução da tarefa 1.9c levou
@@ -1263,7 +1270,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.15 | Permissão ausente na tela de contas | ☐ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
-| 1.18 | Teste de regressão para SKU duplicado | ☐ |
+| 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☐ |
 | 2.1 | Padrão de notificação e erro | ☐ |
