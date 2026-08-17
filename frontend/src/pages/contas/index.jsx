@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import api from '../../services/api';
+import { useAuth } from '../../contexts/AuthContext';
 import ContaCard from './ContaCard';
 import ContaForm from './ContaForm';
 import { fromAccount, getEmptyForm, toPayload } from './conta-form';
@@ -11,6 +12,8 @@ const filters = [
 ];
 
 export default function Accounts() {
+  const { permissions } = useAuth();
+  const canManage = permissions?.['accounts'] === 'edit';
   const [accounts, setAccounts] = useState([]);
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -56,10 +59,12 @@ export default function Accounts() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Contas e Cartões de Crédito</h1>
-        <button onClick={() => { setEditing(null); setForm(getEmptyForm()); setShowModal(true); }}
-          className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-brand-700">
-          <Plus size={18} /> Nova Conta
-        </button>
+        {canManage && (
+          <button onClick={() => { setEditing(null); setForm(getEmptyForm()); setShowModal(true); }}
+            className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-brand-700">
+            <Plus size={18} /> Nova Conta
+          </button>
+        )}
       </div>
 
       <div className="flex gap-2 mb-4">
@@ -73,7 +78,8 @@ export default function Accounts() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedAccounts.map(account => (
-          <ContaCard key={account.id} account={account} onEdit={handleEdit} onDelete={handleDelete} />
+          <ContaCard key={account.id} account={account} canManage={canManage}
+            onEdit={handleEdit} onDelete={handleDelete} />
         ))}
       </div>
 
