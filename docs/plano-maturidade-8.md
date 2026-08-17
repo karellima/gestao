@@ -1009,6 +1009,13 @@ dashboard é sempre acessível e cobrir a decisão com teste. Não alterar junto
 a 1.10c: trata-se de uma decisão de autorização e navegação, não de uma quebra
 estrutural.
 
+**Correção registrada na execução da 1.13 (2026-08-17).** A decisão foi esconder
+`Seguimentos`, `Novo Contato`, editar e excluir para `contacts: 'view'`, usando a
+guarda existente `canManage`. A verificação da tela mostrou que editar e excluir
+também não tinham guarda: `index.jsx` agora só passa esses callbacks com
+`canManage`, e `ContatoCard` não renderiza os botões sem eles. O teste Vitest
+cobre `edit`, `view` e a lista visível nos dois casos.
+
 ---
 
 > **Marco 1 — atingido em 2026-08-16.** A execução da tarefa 1.9c levou
@@ -1258,7 +1265,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10g | `Users.jsx` | ☑ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
-| 1.13 | `canManage` no botão Novo Contato | ☐ |
+| 1.13 | `canManage` no botão Novo Contato | ☑ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
 | 1.15 | Permissão ausente na tela de contas | ☐ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
