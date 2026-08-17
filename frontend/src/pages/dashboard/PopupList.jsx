@@ -1,5 +1,5 @@
 import { formatCurrency } from '../../services/format';
-import { getAtrasoInfo } from './atraso';
+import { getAtrasoInfo } from '../../services/atraso';
 
 export default function PopupList({ list, borderColor, label }) {
   return list && list.length > 0 && (
