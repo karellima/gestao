@@ -709,6 +709,15 @@ com lixo continuam como estão até serem editadas e salvas de novo. A regra est
 fixada em `frontend/src/test/contas-form.test.js`, no caso "envia campos de cartão
 como null para conta bancária".
 
+**Correção registrada na execução da 1.14 (2026-08-17).** A linha da tabela de
+acompanhamento já listava a 1.14, mas a `main` não tinha uma seção própria para
+ela nem registrava os critérios de aceite detalhados do prompt. A medição com
+listener `sqlalchemy.event` em uma venda de 20 itens confirmou **22 consultas a
+`contacts` e 20 a `price_tables`** antes da alteração; depois, **3 e 1**,
+respectivamente. A resolução da tabela ocorre uma vez por venda, e o PUT busca
+a tabela depois de aplicar o novo contato. As precedências, inclusive preço de
+tabela zero, ficaram cobertas em `backend/tests/test_vendas.py`.
+
 ---
 
 ### Tarefa 1.10 — Os complexos que não são grandes
@@ -1277,7 +1286,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
 | 1.13 | `canManage` no botão Novo Contato | ☐ |
-| 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
+| 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☑ |
 | 1.15 | Permissão ausente na tela de contas | ☑ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
