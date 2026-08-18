@@ -1117,7 +1117,7 @@ Hoje o `frontend/src/services/api.js` só trata 401. Todo o resto vira
 `alert('Erro ao salvar')`, que não diz nada — na fase de teste diária, isso
 significa que o relato de bug que chega até você é literalmente "deu erro".
 
-### Tarefa 2.1 — Criar o padrão
+### Tarefa 2.1 ☑ — Criar o padrão
 
 **Onde:** `frontend/src/services/api.js`, `frontend/src/components/Notificacao.jsx`,
 `frontend/src/contexts/NotificacaoContext.jsx`.
@@ -1132,6 +1132,14 @@ significa que o relato de bug que chega até você é literalmente "deu erro".
 
 **Critério de aceite:** teste Vitest cobrindo as quatro faixas de erro do
 interceptor. Nenhum `alert()` removido ainda — esta tarefa só cria o padrão.
+
+**Execução registrada em 2026-08-18.** O interceptor preservou a limpeza e o
+redirecionamento de 401 e passou a encaminhar 4xx, 5xx e ausência de resposta
+ao contexto. O 5xx exibe referência do backend quando disponível e gera uma
+referência curta enquanto o backend ainda não a fornece; a decisão mantém o
+contrato pronto para a tarefa 4.3 sem esconder o erro. `Notificacao` empilha
+mensagens, fecha erros manualmente e remove sucesso/aviso após quatro segundos.
+Quatro testes Vitest cobrem as faixas e o build/gate ficaram verdes.
 
 ---
 
@@ -1355,7 +1363,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☑ |
-| 2.1 | Padrão de notificação e erro | ☐ |
+| 2.1 | Padrão de notificação e erro | ☑ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
 | 2.4 | `no-alert` no eslint | ☐ |
