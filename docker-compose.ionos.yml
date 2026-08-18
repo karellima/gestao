@@ -21,6 +21,11 @@ services:
       PORT: 8000
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
+    networks:
+      default:
+      proxy:
+        aliases:
+          - gestao-app
     depends_on:
       db:
         condition: service_healthy
@@ -33,3 +38,7 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  proxy:
+    name: gestao_proxy

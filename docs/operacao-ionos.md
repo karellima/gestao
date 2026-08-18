@@ -10,9 +10,13 @@ produção; o deploy só deve ser feito depois de uma autorização explícita.
   tags `main` e `sha-<commit>`.
 - `docker-compose.ionos.yml` executa a imagem da aplicação e um PostgreSQL 16.
   O volume `postgres_data` é persistente; a porta do banco não é publicada.
-- O FastAPI serve o frontend compilado e fica disponível no host em
-  `127.0.0.1:8000`. O proxy HTTPS do servidor deve encaminhar o domínio para essa
-  porta.
+- O FastAPI serve o frontend compilado na porta `8000` do container. No host
+  IONOS ele fica disponível apenas no loopback pela porta definida em
+  `APP_PORT` (`127.0.0.1:8001` neste servidor, pois a `8000` pertence ao
+  Portainer).
+- O serviço `app` também entra na rede Docker estável `gestao_proxy`, com o
+  alias `gestao-app`. O Caddy do servidor deve entrar nessa rede e encaminhar
+  `gestao.pazesousa.com.br` diretamente para `gestao-app:8000`.
 - O timer systemd chama `ops/backup.sh` diariamente, às 03:15 (com atraso aleatório
   de até 15 minutos), mantendo 14 dias por padrão.
 
@@ -76,6 +80,25 @@ reservados em uma URL, faça o percent-encoding. Gere uma chave, por exemplo:
 ```bash
 python3 -c 'import secrets; print(secrets.token_urlsafe(48))'
 ```
+
+Como o Caddy é compartilhado por outros sistemas neste servidor, conecte-o à
+rede do Gestão e acrescente o bloco abaixo ao Caddyfile central:
+
+```bash
+docker network connect gestao_proxy caddy
+```
+
+```caddyfile
+gestao.pazesousa.com.br {
+    encode gzip
+    reverse_proxy gestao-app:8000
+}
+```
+
+Registre também `gestao.pazesousa.com.br` no DNS apontando para o IP público do
+IONOS. Valide o Caddyfile antes de recarregá-lo. Para que a conexão sobreviva à
+recriação do Caddy, declare `gestao_proxy` como rede externa no Compose que
+gerencia o proxy.
 
 Para imagem privada, autentique o Docker no GHCR usando um token de curta duração
 com `read:packages`; não coloque o token em arquivos versionados:
