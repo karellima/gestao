@@ -14,7 +14,7 @@ from app.services.sale_access import (
     _product_deposit_ids_in_scope,
     is_sale_visible,
 )
-from app.services.sale_pricing import _resolve_price
+from app.services.sale_pricing import _client_table_prices, resolve_price
 from app.services.sale_stock import compensate_sale_stock, lock_sale, record_sale_stock
 from app.services.stock_ledger import lock_stock_products
 from app.utils.security import get_current_user, require_module, user_deposit_ids
@@ -58,7 +58,7 @@ def _apply_sale_fields(db: Session, sale: Sale, data: SaleUpdate) -> None:
 
 def _build_sale_item(
     db: Session,
-    contact_id: int,
+    table_prices: dict[int, float],
     item_data: SaleItemCreate,
     sale_id: int | None = None,
 ) -> SaleItem:
@@ -68,7 +68,7 @@ def _build_sale_item(
             status_code=400,
             detail=f"Produto id={item_data.product_id} não encontrado",
         )
-    unit_price = _resolve_price(db, contact_id, item_data.product_id, item_data.unit_price)
+    unit_price = resolve_price(table_prices, db, item_data.product_id, item_data.unit_price)
     total_price = round(item_data.quantity * unit_price, 2)
     values = {
         "product_id": item_data.product_id,
@@ -92,9 +92,10 @@ def _replace_sale_items(
     lock_stock_products(db, locked_product_ids)
     compensate_sale_stock(db, sale.id, user_id)
     db.query(SaleItem).filter(SaleItem.sale_id == sale.id).delete()
+    table_prices = _client_table_prices(db, sale.contact_id)
     total = 0
     for item_data in items:
-        item = _build_sale_item(db, sale.contact_id, item_data, sale.id)
+        item = _build_sale_item(db, table_prices, item_data, sale.id)
         total += item.total_price
         db.add(item)
     sale.total_amount = total
@@ -198,8 +199,9 @@ def create_sale(
 
     total = 0
     items = []
+    table_prices = _client_table_prices(db, data.contact_id)
     for item_data in data.items:
-        item = _build_sale_item(db, data.contact_id, item_data)
+        item = _build_sale_item(db, table_prices, item_data)
         total += item.total_price
         items.append(item)
 
