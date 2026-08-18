@@ -21,6 +21,12 @@ class User(Base):
     hashed_password = Column(String(255), nullable=False)
     role = Column(String(50), default="user")
     is_active = Column(Boolean, default=True)
+    #: Geração da credencial. Sobe em 1 a cada troca de senha ou desativação, e
+    #: o JWT carrega o valor que valia quando foi emitido. Token com versão
+    #: antiga para de ser aceito — é o que transforma "trocar a senha" em
+    #: "derrubar as sessões", que antes não acontecia: quem tivesse o token
+    #: continuava dentro por até 8 horas depois da troca.
+    token_version = Column(Integer, nullable=False, server_default="1")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

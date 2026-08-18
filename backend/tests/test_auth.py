@@ -2,7 +2,7 @@
 
 from app.models.role import Role, RoleModule
 from app.models.user import User
-from app.utils.security import create_access_token, get_password_hash
+from app.utils.security import criar_token_do_usuario, get_password_hash
 
 
 class TestLoginAndAuthenticatedRoute:
@@ -60,7 +60,7 @@ class TestLoginAndAuthenticatedRoute:
         db.add(user)
         db.commit()
 
-        token = create_access_token({"sub": str(user.id)})
+        token = criar_token_do_usuario(user)
         response = client.get(
             "/api/auth/me",
             headers={"Authorization": f"Bearer {token}"},
@@ -237,3 +237,95 @@ class TestCredenciaisEndurecidas:
             "password": "senha-com-12", "role": "admin",
         }, headers=auth_headers)
         assert response.status_code == 400
+class TestRevogacaoDeSessao:
+    """`token_version` transforma "trocar a senha" em "derrubar as sessões".
+
+    Antes disto, quem estivesse com o token continuava dentro por até 8 horas
+    depois da troca de senha — inclusive quem tinha roubado o token, que era
+    exatamente o motivo de trocar a senha.
+    """
+
+    #: `admin@test.com` é a fixture `admin_user` — é dela que sai o `auth_headers`
+    #: e é o id dela que os testes usam no PUT. O `admin@admin.com` das outras
+    #: classes vem do seed e é outro usuário: trocar a senha de um e tentar
+    #: entrar com o outro foi o que fez estes testes falharem na primeira volta.
+    def _login(self, client, email="admin@test.com", senha="admin"):
+        return client.post("/api/auth/login", json={"email": email, "password": senha}).json()["access_token"]
+
+    def test_token_para_de_valer_depois_da_troca_de_senha(self, client, auth_headers, admin_user):
+        token = self._login(client)
+        antes = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert antes.status_code == 200
+
+        client.put(f"/api/auth/users/{admin_user.id}",
+                   json={"password": "senha-nova-longa"}, headers=auth_headers)
+
+        depois = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert depois.status_code == 401
+
+    def test_token_emitido_depois_da_troca_continua_valendo(self, client, auth_headers, admin_user):
+        client.put(f"/api/auth/users/{admin_user.id}",
+                   json={"password": "senha-nova-longa"}, headers=auth_headers)
+
+        novo = self._login(client, senha="senha-nova-longa")
+        response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {novo}"})
+        assert response.status_code == 200
+
+    def test_trocar_senha_de_um_nao_derruba_o_outro(self, client, auth_headers, db):
+        outro = User(name="Outro", email="outro@teste.com",
+                     hashed_password=get_password_hash("senha-do-outro"),
+                     role="admin", is_active=True)
+        db.add(outro)
+        db.commit()
+        db.refresh(outro)
+
+        token_do_outro = self._login(client, "outro@teste.com", "senha-do-outro")
+        client.put(f"/api/auth/users/{outro.id}",
+                   json={"password": "trocada-pelo-admin"}, headers=auth_headers)
+
+        # O admin trocou a senha do outro: o outro cai, o admin segue.
+        assert client.get("/api/auth/me",
+                          headers={"Authorization": f"Bearer {token_do_outro}"}).status_code == 401
+        assert client.get("/api/auth/me", headers=auth_headers).status_code == 200
+
+    def test_desativar_derruba_e_reativar_nao_ressuscita(self, client, auth_headers, db):
+        alvo = User(name="Alvo", email="alvo@teste.com",
+                    hashed_password=get_password_hash("senha-do-alvo"),
+                    role="admin", is_active=True)
+        db.add(alvo)
+        db.commit()
+        db.refresh(alvo)
+
+        token = self._login(client, "alvo@teste.com", "senha-do-alvo")
+        client.put(f"/api/auth/users/{alvo.id}", json={"is_active": False}, headers=auth_headers)
+        assert client.get("/api/auth/me",
+                          headers={"Authorization": f"Bearer {token}"}).status_code in (401, 403)
+
+        client.put(f"/api/auth/users/{alvo.id}", json={"is_active": True}, headers=auth_headers)
+        assert client.get("/api/auth/me",
+                          headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+    def test_token_sem_versao_e_recusado(self, client, admin_user):
+        """Token anterior a esta mudança não é aceito — logout único na subida."""
+        from app.utils.security import create_access_token
+
+        antigo = create_access_token({"sub": str(admin_user.id)})
+        response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {antigo}"})
+        assert response.status_code == 401
+
+    def test_token_com_versao_de_outra_geracao_e_recusado(self, client, admin_user):
+        from app.utils.security import create_access_token
+
+        forjado = create_access_token({"sub": str(admin_user.id), "ver": 999})
+        response = client.get("/api/auth/me", headers={"Authorization": f"Bearer {forjado}"})
+        assert response.status_code == 401
+
+    def test_usuario_novo_nasce_na_geracao_um(self, client, auth_headers):
+        response = client.post("/api/auth/register", json={
+            "name": "Novato", "email": "novato@teste.com",
+            "password": "senha-com-12", "role": "admin",
+        }, headers=auth_headers)
+        assert response.status_code == 200
+        token = self._login(client, "novato@teste.com", "senha-com-12")
+        assert client.get("/api/auth/me",
+                          headers={"Authorization": f"Bearer {token}"}).status_code == 200

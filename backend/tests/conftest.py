@@ -35,7 +35,7 @@ from app.models.sale import SaleType
 from app.models.stock import StockMovement
 from app.models.unit import Unit
 from app.models.user import User
-from app.utils.security import create_access_token, get_current_user, get_password_hash
+from app.utils.security import criar_token_do_usuario, get_current_user, get_password_hash
 
 
 @pytest.fixture(scope="function")
@@ -109,7 +109,7 @@ def admin_user(db: Session, admin_role):
 
 @pytest.fixture(scope="function")
 def auth_headers(admin_user):
-    token = create_access_token({"sub": str(admin_user.id)})
+    token = criar_token_do_usuario(admin_user)
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -247,7 +247,7 @@ def operador_user(db: Session, operador_role, seed_deposits):
 
 @pytest.fixture(scope="function")
 def operador_headers(operador_user):
-    token = create_access_token({"sub": str(operador_user.id)})
+    token = criar_token_do_usuario(operador_user)
     return {"Authorization": f"Bearer {token}"}
 
 

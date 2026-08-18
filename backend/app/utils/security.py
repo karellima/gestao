@@ -79,6 +79,17 @@ def normalizar_email(email: str) -> str:
     return email.strip().lower()
 
 
+def criar_token_do_usuario(user: User, expires_delta: timedelta | None = None) -> str:
+    """Emite o token de um usuário, já com a geração da credencial embutida.
+
+    Existe para que ninguém monte o payload à mão. Antes havia cinco chamadas
+    espalhadas montando `{"sub": ...}` cada uma por conta própria; bastava uma
+    esquecer a versão para o token nascer imune à revogação, e nada no código
+    denunciaria isso — ele funcionaria perfeitamente, só não seria revogável.
+    """
+    return create_access_token({"sub": str(user.id), "ver": user.token_version})
+
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
@@ -98,11 +109,19 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if user_id_str is None:
             raise credentials_exception
         user_id = int(user_id_str)
+        token_version = payload.get("ver")
     except (JWTError, ValueError) as error:
         raise credentials_exception from error
 
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        raise credentials_exception
+
+    # Token sem `ver` é anterior a esta mudança e não é aceito. O custo é um
+    # logout único na subida da versão; a alternativa — tratar ausência como
+    # versão 1 — deixaria todo token roubado antes do deploy imune à revogação,
+    # que é justamente o que este campo existe para impedir.
+    if token_version != user.token_version:
         raise credentials_exception
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Usuário desativado")

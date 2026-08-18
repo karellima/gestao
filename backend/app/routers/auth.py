@@ -16,7 +16,7 @@ from app.schemas.user import (
     UserUpdate,
 )
 from app.utils.security import (
-    create_access_token,
+    criar_token_do_usuario,
     get_current_user,
     get_password_hash,
     normalizar_email,
@@ -78,6 +78,29 @@ def list_users(db: Session = Depends(get_db), current_user: User = Depends(get_c
     return [UserResponse.from_orm_with_password(u) for u in users]
 
 
+def _aplicar_mudanca_de_credencial(user: User, data: UserUpdate) -> None:
+    """Aplica senha e ativação, subindo a geração da credencial quando é o caso.
+
+    As duas andam juntas porque são as duas formas de revogar sessão, e ficam
+    fora do `update_user` para que a regra de revogação tenha um lugar só.
+    Espalhada entre dois `if` no meio das outras edições, a próxima pessoa a
+    mexer aqui acrescenta um caminho de troca de senha sem subir a versão — e
+    nada acusa: o token antigo continua funcionando, só deixa de ser revogável.
+    """
+    if data.password is not None:
+        user.hashed_password = get_password_hash(data.password)
+        # Sem isto, trocar a senha não expulsa quem já está dentro: o token
+        # anterior continua valendo até expirar sozinho.
+        user.token_version += 1
+    if data.is_active is not None:
+        if data.is_active is False and user.is_active:
+            # `get_current_user` já recusa usuário inativo, mas a versão sobe
+            # também aqui para que reativar a conta não ressuscite os tokens
+            # que circulavam antes da desativação.
+            user.token_version += 1
+        user.is_active = data.is_active
+
+
 @router.put("/users/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user), _=Depends(require_module("users", "edit"))):
     user = db.query(User).filter(User.id == user_id).first()
@@ -89,15 +112,12 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), c
         if _buscar_por_email(db, data.email, excluir_id=user_id):
             raise HTTPException(status_code=400, detail="Email já cadastrado")
         user.email = normalizar_email(data.email)
-    if data.password is not None:
-        user.hashed_password = get_password_hash(data.password)
+    _aplicar_mudanca_de_credencial(user, data)
     if data.role is not None:
         role = db.query(Role).filter(Role.name == data.role).first()
         if not role:
             raise HTTPException(status_code=400, detail="Perfil inválido")
         user.role = data.role
-    if data.is_active is not None:
-        user.is_active = data.is_active
     if data.deposit_ids is not None:
         deposits = db.query(Deposit).filter(Deposit.id.in_(data.deposit_ids)).all()
         user.deposits = deposits
@@ -129,7 +149,7 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Usuário desativado")
 
-    access_token = create_access_token(data={"sub": str(user.id)})
+    access_token = criar_token_do_usuario(user)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
