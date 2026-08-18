@@ -51,9 +51,9 @@ podem ser usados no banco E2E:
 
 | Variável | Padrão de teste |
 | --- | --- |
-| `E2E_ADMIN_EMAIL` | `admin@e2e.test` |
+| `E2E_ADMIN_EMAIL` | `admin@e2e-gestao.com` |
 | `E2E_ADMIN_PASSWORD` | `admin-e2e` |
-| `E2E_USER_EMAIL` | `usuario@e2e.test` |
+| `E2E_USER_EMAIL` | `usuario@e2e-gestao.com` |
 | `E2E_USER_PASSWORD` | `usuario-e2e` |
 
 Para substituir qualquer valor, exporte a variável antes de executar o seed.

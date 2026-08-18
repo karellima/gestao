@@ -151,6 +151,22 @@ class TestCredenciaisEndurecidas:
         })
         assert response.status_code == 200
 
+    def test_dominio_reservado_e_recusado(self, client):
+        """`EmailStr` recusa `.test`, `.local` e afins — domínios de uso reservado.
+
+        Não é detalhe de formato: é a razão de os usuários do E2E terem saído de
+        `@e2e.test`. Quem for cadastrar conta de serviço, robô ou integração
+        precisa de domínio real; endereço interno de rede local não passa mais.
+        O teste existe para essa descoberta acontecer aqui, e não num CI vermelho
+        com onze cenários de E2E caídos ao mesmo tempo.
+        """
+        for reservado in ("robo@interno.local", "conta@ambiente.test"):
+            response = client.post("/api/auth/login", json={
+                "email": reservado,
+                "password": "qualquer-senha",
+            })
+            assert response.status_code == 422, reservado
+
     def test_email_malformado_e_recusado_antes_de_consultar_o_banco(self, client):
         response = client.post("/api/auth/login", json={
             "email": "isto-nao-e-email",

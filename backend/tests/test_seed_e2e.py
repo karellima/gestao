@@ -50,7 +50,7 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
     engine = create_engine(f"sqlite:///{database_path}")
     test_session = sessionmaker(bind=engine)
     Base.metadata.create_all(bind=engine)
-    monkeypatch.setenv("E2E_ADMIN_EMAIL", "admin-personalizado@e2e.test")
+    monkeypatch.setenv("E2E_ADMIN_EMAIL", "admin-personalizado@e2e-gestao.com")
     monkeypatch.setenv("E2E_ADMIN_PASSWORD", "senha-admin-personalizada")
 
     database_url = f"sqlite:///{database_path}"
@@ -58,8 +58,8 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
     first_snapshot = e2e_snapshot(database_path)
 
     assert [(row[0], row[1], row[3], row[4]) for row in first_snapshot["users"]] == [
-        ("Administrador E2E", "admin-personalizado@e2e.test", "admin", 1),
-        ("Usuário E2E", "usuario@e2e.test", "usuario-e2e", 1),
+        ("Administrador E2E", "admin-personalizado@e2e-gestao.com", "admin", 1),
+        ("Usuário E2E", "usuario@e2e-gestao.com", "usuario-e2e", 1),
     ]
     assert [row[0] for row in first_snapshot["deposits"]] == [
         "Depósito Central E2E",
@@ -88,17 +88,17 @@ def test_seed_e2e_cria_estado_fixo_e_idempotente(tmp_path, monkeypatch):
         ("Cliente E2E", "cliente", "cliente@e2e.test", 1),
     ]
     assert first_snapshot["user_deposits"] == [
-        ("usuario@e2e.test", "Depósito Central E2E"),
+        ("usuario@e2e-gestao.com", "Depósito Central E2E"),
     ]
 
     users_by_email = {row[1]: row for row in first_snapshot["users"]}
     assert bcrypt.checkpw(
         b"senha-admin-personalizada",
-        users_by_email["admin-personalizado@e2e.test"][2].encode(),
+        users_by_email["admin-personalizado@e2e-gestao.com"][2].encode(),
     )
     assert bcrypt.checkpw(
         b"usuario-e2e",
-        users_by_email["usuario@e2e.test"][2].encode(),
+        users_by_email["usuario@e2e-gestao.com"][2].encode(),
     )
 
     seed_e2e(test_session, database_url)
