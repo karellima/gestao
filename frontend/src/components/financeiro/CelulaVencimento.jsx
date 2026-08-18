@@ -1,8 +1,8 @@
 import { AlertTriangle, Clock } from 'lucide-react';
-import { dueDaysInfo } from './dueDaysInfo';
+import { getDueDaysInfo } from '../../services/atraso';
 
 export default function CelulaVencimento({ transaction }) {
-  const dueInfo = dueDaysInfo(transaction);
+  const dueInfo = getDueDaysInfo(transaction);
 
   return (
     <td className="p-3 whitespace-nowrap">

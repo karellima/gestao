@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getAtrasoInfo } from '../pages/dashboard/atraso';
+import { getAtrasoInfo } from '../services/atraso';
 
 describe('getAtrasoInfo', () => {
   afterEach(() => vi.useRealTimers());
@@ -16,6 +16,13 @@ describe('getAtrasoInfo', () => {
     vi.setSystemTime(new Date('2026-08-16 09:00:00'));
 
     expect(getAtrasoInfo({ due_date: '2026-08-16 09:00:00' })).toEqual({ diff: 0, label: 'hoje' });
+  });
+
+  it('keeps a late-today due date as hoje when opened early', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-08-16 01:00:00'));
+
+    expect(getAtrasoInfo({ due_date: '2026-08-16T23:00:00' })).toEqual({ diff: 0, label: 'hoje' });
   });
 
   it('labels a due date in three days', () => {

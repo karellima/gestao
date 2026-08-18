@@ -868,6 +868,11 @@ mutação de objeto de módulo: o perfil é guardado em `defaultRole` e aplicado
 por `getEmptyForm(defaultRole)`. `randPass` foi movida e, na revisão, **corrigida
 dentro desta tarefa** — ver a 1.19 abaixo.
 
+**Correção registrada na execução da 1.16 (2026-08-17).** A regra que venceu
+foi a do `dueDaysInfo`: as duas datas são normalizadas ao meio-dia e a diferença
+usa `Math.ceil`. O Dashboard mudou de comportamento para usar essa mesma regra;
+seus rótulos continuam próprios (`hoje`, `em Nd` e `Nd atraso`), enquanto a
+tela financeira mantém `Nd` e `Nd atrasado`.
 **Correção registrada na execução da 1.15 (2026-08-17).** A descrição funcional
 da tarefa confere com a `main`: `frontend/src/pages/contas/index.jsx` não usava
 `useAuth`, e `ContaCard.jsx` continha os botões de edição e exclusão. A
@@ -1305,7 +1310,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.13 | `canManage` no botão Novo Contato | ☑ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☑ |
 | 1.15 | Permissão ausente na tela de contas | ☑ |
-| 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
+| 1.16 | Unificar as duas regras de cálculo de atraso | ☑ |
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☑ |
 | 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
