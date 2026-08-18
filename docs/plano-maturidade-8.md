@@ -1330,6 +1330,14 @@ conferir que os dados voltaram, **cronometrar**, e registrar em
 `docs/operacao-ionos.md`: o tempo que levou, os passos exatos e o que deu errado
 no caminho. Se o script precisar de correção, ela faz parte desta tarefa.
 
+**Bloqueio verificado em 2026-08-17.** Não há dump real acessível em
+`/var/backups/gestao`, `/opt/gestao/backups` ou `backups/`, e o ambiente de
+homologação não está em execução neste checkout. O ensaio, o tempo e a
+conferência de dados não serão inventados; a tarefa continua aberta até haver um
+dump real com checksum e acesso ao alvo de homologação. O desbloqueio é executar
+o comando acima, conferir os dados recuperados e registrar o resultado neste
+runbook.
+
 ### Tarefa 4.3 — Erro visível em produção
 
 **Onde:** `backend/app/main.py`, `backend/app/logging_config.py`.
@@ -1422,7 +1430,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 3.5 | Checklist curto de revisão | ☑ |
 | 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☑ |
 | 4.1 | Ambiente de homologação | ☑ |
-| 4.2 | Restore ensaiado e cronometrado | ☐ |
+| 4.2 | Restore ensaiado e cronometrado | ⏸ bloqueada |
 | 4.3 | Erro rastreável em produção | ☐ |
 | 5.1 | Baseline congelado | ☐ |
 | 5.2 | Plano encerrado e arquivado | ☐ |
