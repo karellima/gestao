@@ -132,3 +132,108 @@ class TestSenhaMaiorQueOLimiteDoBcrypt:
             "password": self.SENHA_LONGA,
         })
         assert response.status_code == 200
+
+
+class TestCredenciaisEndurecidas:
+    """Regras de credencial que o login e o cadastro passam a exigir.
+
+    Duas coisas são deliberadamente assimétricas e os testes prendem as duas:
+    senha **nova** tem tamanho mínimo, senha **já cadastrada** não — aplicar a
+    regra no login trancaria para fora quem entrou antes dela. E o e-mail é
+    comparado sem depender de caixa, porque a base tem registro anterior à
+    normalização.
+    """
+
+    def test_email_com_caixa_e_espaco_entra_na_mesma_conta(self, client):
+        response = client.post("/api/auth/login", json={
+            "email": "  ADMIN@Admin.COM  ",
+            "password": "admin",
+        })
+        assert response.status_code == 200
+
+    def test_dominio_reservado_e_recusado(self, client):
+        """`EmailStr` recusa `.test`, `.local` e afins — domínios de uso reservado.
+
+        Não é detalhe de formato: é a razão de os usuários do E2E terem saído de
+        `@e2e.test`. Quem for cadastrar conta de serviço, robô ou integração
+        precisa de domínio real; endereço interno de rede local não passa mais.
+        O teste existe para essa descoberta acontecer aqui, e não num CI vermelho
+        com onze cenários de E2E caídos ao mesmo tempo.
+        """
+        for reservado in ("robo@interno.local", "conta@ambiente.test"):
+            response = client.post("/api/auth/login", json={
+                "email": reservado,
+                "password": "qualquer-senha",
+            })
+            assert response.status_code == 422, reservado
+
+    def test_email_malformado_e_recusado_antes_de_consultar_o_banco(self, client):
+        response = client.post("/api/auth/login", json={
+            "email": "isto-nao-e-email",
+            "password": "qualquer",
+        })
+        assert response.status_code == 422
+
+    def test_senha_antiga_curta_continua_entrando(self, client):
+        """A senha do admin de teste tem 5 caracteres. Ela não pode ser barrada."""
+        response = client.post("/api/auth/login", json={
+            "email": "admin@admin.com",
+            "password": "admin",
+        })
+        assert response.status_code == 200
+
+    def test_conta_inexistente_e_senha_errada_dao_a_mesma_resposta(self, client):
+        errada = client.post("/api/auth/login", json={
+            "email": "admin@admin.com",
+            "password": "senha-errada-mas-longa",
+        })
+        inexistente = client.post("/api/auth/login", json={
+            "email": "ninguem@teste.com",
+            "password": "senha-errada-mas-longa",
+        })
+        assert errada.status_code == inexistente.status_code == 401
+        assert errada.json() == inexistente.json()
+
+    def test_conta_inexistente_paga_o_custo_do_bcrypt(self):
+        """O tempo não pode separar conta existente de inexistente.
+
+        A asserção é sobre ordem de grandeza, não sobre milissegundo: o que
+        importa é o `verify_password` ter rodado. Sem o hash descartável este
+        caminho voltaria em microssegundos.
+        """
+        import time
+
+        from app.utils.security import verificar_senha_descartavel
+
+        inicio = time.perf_counter()
+        verificar_senha_descartavel("qualquer-senha")
+        assert time.perf_counter() - inicio > 0.01
+
+    def test_cadastro_recusa_senha_curta(self, client, auth_headers):
+        response = client.post("/api/auth/register", json={
+            "name": "Novo", "email": "novo@teste.com",
+            "password": "curta", "role": "admin",
+        }, headers=auth_headers)
+        assert response.status_code == 422
+
+    def test_cadastro_aceita_senha_de_doze_caracteres(self, client, auth_headers):
+        response = client.post("/api/auth/register", json={
+            "name": "Novo", "email": "novo@teste.com",
+            "password": "senha-com-12", "role": "admin",
+        }, headers=auth_headers)
+        assert response.status_code == 200
+
+    def test_cadastro_grava_o_email_normalizado(self, client, auth_headers):
+        response = client.post("/api/auth/register", json={
+            "name": "Caixa Alta", "email": "MAIUSCULO@Teste.com",
+            "password": "senha-com-12", "role": "admin",
+        }, headers=auth_headers)
+        assert response.status_code == 200
+        assert response.json()["email"] == "maiusculo@teste.com"
+
+    def test_cadastro_recusa_duplicado_que_so_difere_na_caixa(self, client, auth_headers):
+        response = client.post("/api/auth/register", json={
+            "name": "Clone", "email": "ADMIN@ADMIN.COM",
+            "password": "senha-com-12", "role": "admin",
+        }, headers=auth_headers)
+        assert response.status_code == 400

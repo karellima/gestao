@@ -50,6 +50,35 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(_segredo_para_bcrypt(password), bcrypt.gensalt()).decode("utf-8")
 
 
+#: Hash descartável, gerado uma vez na subida do processo, contra o qual o login
+#: verifica quando o e-mail não existe.
+#:
+#: Sem isto o tempo de resposta separa as contas: e-mail inexistente volta na
+#: hora, porque o `verify_password` nunca chega a rodar, enquanto e-mail
+#: cadastrado paga os ~100-300 ms do bcrypt. Quem mede a diferença enumera a
+#: base sem precisar de nenhuma resposta diferente do servidor. A senha aqui é
+#: irrelevante — o que importa é o custo, e ele é o mesmo do hash real porque
+#: sai do mesmo `gensalt()`.
+_HASH_DESCARTAVEL = bcrypt.hashpw(b"conta-inexistente", bcrypt.gensalt()).decode("utf-8")
+
+
+def verificar_senha_descartavel(plain_password: str) -> None:
+    """Paga o custo de um bcrypt sem revelar nada. Usada quando o e-mail não existe."""
+    verify_password(plain_password, _HASH_DESCARTAVEL)
+
+
+def normalizar_email(email: str) -> str:
+    """Forma canônica de um e-mail para busca e comparação.
+
+    `strip` + `lower` porque quem digita o próprio e-mail no celular manda
+    `` Admin@Empresa.com `` e espera entrar. Fica aqui, e não dentro do router,
+    porque o rate limit do login precisa chavear pela mesma forma canônica: dois
+    jeitos de normalizar são dois baldes distintos para a mesma conta, e o
+    atacante escolhe o mais vazio.
+    """
+    return email.strip().lower()
+
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     to_encode = data.copy()
     expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))

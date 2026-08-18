@@ -1,10 +1,10 @@
 export const usuariosE2E = {
   admin: {
-    email: process.env.E2E_ADMIN_EMAIL || 'admin@e2e.test',
+    email: process.env.E2E_ADMIN_EMAIL || 'admin@e2e-gestao.com',
     password: process.env.E2E_ADMIN_PASSWORD || 'admin-e2e',
   },
   comum: {
-    email: process.env.E2E_USER_EMAIL || 'usuario@e2e.test',
+    email: process.env.E2E_USER_EMAIL || 'usuario@e2e-gestao.com',
     password: process.env.E2E_USER_PASSWORD || 'usuario-e2e',
   },
 };

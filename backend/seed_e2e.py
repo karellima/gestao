@@ -257,7 +257,7 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
         _user(
             db,
             name="Administrador E2E",
-            email=_env("E2E_ADMIN_EMAIL", "admin@e2e.test"),
+            email=_env("E2E_ADMIN_EMAIL", "admin@e2e-gestao.com"),
             password=_env("E2E_ADMIN_PASSWORD", "admin-e2e"),
             role=admin_role,
             deposits=[],
@@ -265,7 +265,7 @@ def seed_e2e(session_factory=SessionLocal, database_url: str = DATABASE_URL) -> 
         _user(
             db,
             name="Usuário E2E",
-            email=_env("E2E_USER_EMAIL", "usuario@e2e.test"),
+            email=_env("E2E_USER_EMAIL", "usuario@e2e-gestao.com"),
             password=_env("E2E_USER_PASSWORD", "usuario-e2e"),
             role=common_role,
             deposits=[central],

@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -18,9 +19,27 @@ from app.utils.security import (
     create_access_token,
     get_current_user,
     get_password_hash,
+    normalizar_email,
     require_module,
+    verificar_senha_descartavel,
     verify_password,
 )
+
+
+def _buscar_por_email(db: Session, email: str, excluir_id: int | None = None):
+    """Busca sem depender de caixa.
+
+    A comparação vai em `func.lower` dos dois lados porque a base tem e-mail
+    gravado antes de existir normalização: comparar com o valor cru faria o
+    usuário legado `Admin@Empresa.com` deixar de entrar no dia em que o login
+    passou a minúsculo. É a mesma razão de a checagem de duplicado usar isto —
+    sem ela, `admin@x.com` e `Admin@x.com` viram duas contas e o login fica
+    ambíguo.
+    """
+    consulta = db.query(User).filter(func.lower(User.email) == normalizar_email(email))
+    if excluir_id is not None:
+        consulta = consulta.filter(User.id != excluir_id)
+    return consulta.first()
 
 router = APIRouter(prefix="/api/auth", tags=["Autenticação"])
 
@@ -32,13 +51,12 @@ def register(user: UserCreate, db: Session = Depends(get_db), current_user: User
     if not role:
         raise HTTPException(status_code=400, detail="Perfil inválido")
 
-    existing = db.query(User).filter(User.email == user.email).first()
-    if existing:
+    if _buscar_por_email(db, user.email):
         raise HTTPException(status_code=400, detail="Email já cadastrado")
 
     new_user = User(
         name=user.name,
-        email=user.email,
+        email=normalizar_email(user.email),
         hashed_password=get_password_hash(user.password),
         role=role.name,
     )
@@ -68,10 +86,9 @@ def update_user(user_id: int, data: UserUpdate, db: Session = Depends(get_db), c
     if data.name is not None:
         user.name = data.name
     if data.email is not None:
-        existing = db.query(User).filter(User.email == data.email, User.id != user_id).first()
-        if existing:
+        if _buscar_por_email(db, data.email, excluir_id=user_id):
             raise HTTPException(status_code=400, detail="Email já cadastrado")
-        user.email = data.email
+        user.email = normalizar_email(data.email)
     if data.password is not None:
         user.hashed_password = get_password_hash(data.password)
     if data.role is not None:
@@ -101,8 +118,13 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: User 
 
 @router.post("/login", response_model=Token)
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == request.email).first()
-    if not user or not verify_password(request.password, user.hashed_password):
+    user = _buscar_por_email(db, request.email)
+    if not user:
+        # Sem isto a conta inexistente responde na hora e a cadastrada paga o
+        # bcrypt: a diferença de tempo enumera a base inteira.
+        verificar_senha_descartavel(request.password)
+        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
+    if not verify_password(request.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Email ou senha inválidos")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Usuário desativado")
