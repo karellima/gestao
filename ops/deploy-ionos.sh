@@ -56,9 +56,13 @@ ssh "$HOST" "
   git pull --ff-only origin main
   APP_IMAGE=$IMAGE_Q docker compose --env-file .env.ionos -f docker-compose.ionos.yml pull app
   APP_IMAGE=$IMAGE_Q docker compose --env-file .env.ionos -f docker-compose.ionos.yml up -d --remove-orphans db app
+  health_port=\$(APP_IMAGE=$IMAGE_Q docker compose --env-file .env.ionos -f docker-compose.ionos.yml port app 8000 | sed 's/.*://')
+  case \$health_port in
+    ''|*[!0-9]*) echo \"Porta de healthcheck inválida: \$health_port\" >&2; exit 1 ;;
+  esac
   ready=0
   for attempt in \$(seq 1 30); do
-    if curl --fail --silent --show-error http://127.0.0.1:8000/api/health >/dev/null; then ready=1; break; fi
+    if curl --fail --silent --show-error \"http://127.0.0.1:\$health_port/api/health\" >/dev/null; then ready=1; break; fi
     sleep 2
   done
   if [ \"\$ready\" -ne 1 ]; then
