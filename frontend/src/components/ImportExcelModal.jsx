@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { Download, FileSpreadsheet, X } from 'lucide-react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import AreaDeUpload from './AreaDeUpload';
 import ResultadoDaImportacao from './ResultadoDaImportacao';
 import { baixarModeloDaPlanilha } from './baixar-modelo';
 
 export default function ImportExcelModal({ open, onClose, onImported }) {
+  const { notificar } = useNotificacao();
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -47,7 +49,7 @@ export default function ImportExcelModal({ open, onClose, onImported }) {
           <button onClick={closeAndReset} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
         </div>
 
-        <button onClick={baixarModeloDaPlanilha}
+        <button onClick={() => baixarModeloDaPlanilha(notificar.erro)}
           className="inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-800 mb-4">
           <Download size={14} /> Baixar modelo da planilha
         </button>

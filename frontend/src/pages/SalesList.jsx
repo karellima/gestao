@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Printer, Share2, Trash2 } from 'lucide-react';
 
 export default function SalesList() {
+  const { notificar } = useNotificacao();
   const [sales, setSales] = useState([]);
   const navigate = useNavigate();
 
@@ -14,7 +16,7 @@ export default function SalesList() {
   const handleDelete = async (s) => {
     if (!confirm(`Remover o lançamento #${s.id} de ${s.contact_name || '-'}?`)) return;
     try { await api.delete(`/sales/${s.id}`); setSales(sales.filter(x => x.id !== s.id)); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover lançamento'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover lançamento'); }
   };
 
   return (
@@ -60,7 +62,7 @@ export default function SalesList() {
                     <button onClick={() => window.open(`/sales/${s.id}/print`, '_blank')}
                       className="text-gray-600 hover:text-gray-800" title="Imprimir"><Printer size={16} /></button>
                     <button onClick={async () => {
-                      if (!s.items || s.items.length === 0) { alert('Nenhum item para compartilhar'); return; }
+                      if (!s.items || s.items.length === 0) { notificar.aviso('Nenhum item para compartilhar'); return; }
                       try {
                         const { jsPDF } = await import('jspdf');
                         const autoTable = (await import('jspdf-autotable')).default;
@@ -87,9 +89,9 @@ export default function SalesList() {
                         } catch { /* compartilhamento nativo indisponível; salva o PDF */ }
                         doc.save(`pedido-${s.id}.pdf`);
                         if (/Mobi|Android|iPhone|iPad|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-                          setTimeout(() => alert('PDF baixado! Compartilhe pelo app de arquivos.'), 500);
+                          setTimeout(() => notificar.sucesso('PDF baixado! Compartilhe pelo app de arquivos.'), 500);
                         }
-                      } catch (err) { alert('Erro ao gerar PDF: ' + (err.message || 'erro desconhecido')); }
+                      } catch (err) { notificar.erro('Erro ao gerar PDF: ' + (err.message || 'erro desconhecido')); }
                     }} className="text-gray-600 hover:text-gray-800" title="Compartilhar"><Share2 size={16} /></button>
                     <button onClick={() => handleDelete(s)}
                       className="text-red-600 hover:text-red-800" title="Excluir"><Trash2 size={16} /></button>

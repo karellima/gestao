@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Ruler } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput } from '../components/CaseInput';
 
 export default function Units() {
+  const { notificar } = useNotificacao();
   const [units, setUnits] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -37,7 +39,7 @@ export default function Units() {
       else { await api.post('/units/', form); }
       setShowModal(false); setEditing(null); setForm({ name: '', abbreviation: '' }); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar unidade');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar unidade');
     }
   };
 
@@ -45,7 +47,7 @@ export default function Units() {
   const handleDelete = async (id) => {
     if (!confirm('Remover esta unidade?')) return;
     try { await api.delete(`/units/${id}`); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover unidade'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover unidade'); }
   };
 
   return (

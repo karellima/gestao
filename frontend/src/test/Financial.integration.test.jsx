@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import api from '../services/api'
+import { NotificacaoProvider } from '../contexts/NotificacaoContext'
 import Financial from '../pages/Financial'
 
 vi.mock('../services/api', () => ({
@@ -11,6 +12,7 @@ vi.mock('../services/api', () => ({
     put: vi.fn(),
     delete: vi.fn(),
   },
+  configureApiErrorHandler: vi.fn(),
 }))
 
 vi.mock('../components/FinancialTransactionTable', () => ({
@@ -102,7 +104,7 @@ describe('Financial page integration', () => {
 
   it('creates, edits, pays, deletes and sorts transactions through the page boundary', async () => {
     const user = userEvent.setup()
-    render(<Financial />)
+    render(<NotificacaoProvider><Financial /></NotificacaoProvider>)
 
     const list = await screen.findByRole('list')
     expect(within(list).getAllByRole('listitem').map(item => item.textContent)).toEqual([

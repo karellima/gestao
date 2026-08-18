@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { Plus, Users as UsersIcon } from 'lucide-react';
 import TabelaDeUsuarios from './TabelaDeUsuarios';
 import UsuarioForm from './UsuarioForm';
@@ -7,6 +8,7 @@ import { getEmptyForm, toPayload } from './usuario-form';
 import { randPass } from './senha';
 
 export default function Users() {
+  const { notificar } = useNotificacao();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [deposits, setDeposits] = useState([]);
@@ -56,14 +58,14 @@ export default function Users() {
     try {
       const result = toPayload(form, Boolean(editing));
       if (!result.ok) {
-        alert(result.erro);
+        notificar.aviso(result.erro);
         return;
       }
       if (editing) await api.put(`/auth/users/${editing.id}`, result.data);
       else await api.post('/auth/register', result.data);
       setShowModal(false); setEditing(null); setForm(getEmptyForm(defaultRole)); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar usuário');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar usuário');
     }
   };
 
@@ -90,7 +92,7 @@ export default function Users() {
       await api.delete(`/auth/users/${id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover usuário');
+      notificar.erro(err.response?.data?.detail || 'Erro ao remover usuário');
     }
   };
 
@@ -99,7 +101,7 @@ export default function Users() {
       await api.put(`/auth/users/${user.id}`, { is_active: !user.is_active });
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao alterar status');
+      notificar.erro(err.response?.data?.detail || 'Erro ao alterar status');
     }
   };
 

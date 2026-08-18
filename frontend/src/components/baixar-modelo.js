@@ -1,6 +1,6 @@
 import api from '../services/api';
 
-export async function baixarModeloDaPlanilha() {
+export async function baixarModeloDaPlanilha(onError = () => {}) {
   try {
     const res = await api.get('/products/export-template', { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
@@ -12,6 +12,6 @@ export async function baixarModeloDaPlanilha() {
     a.remove();
     URL.revokeObjectURL(url);
   } catch {
-    alert('Erro ao baixar modelo. Tente novamente.');
+    onError('Erro ao baixar modelo. Tente novamente.');
   }
 }

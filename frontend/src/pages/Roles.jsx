@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Shield, Plus, Edit, Trash2, X, Save } from 'lucide-react';
 import { CaseInput } from '../components/CaseInput';
 
@@ -44,6 +45,7 @@ const ACCESS_LEVELS = [
 ];
 
 export default function Roles() {
+  const { notificar } = useNotificacao();
   const [roles, setRoles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState(null);
@@ -86,7 +88,7 @@ export default function Roles() {
   };
 
   const handleSave = async () => {
-    if (!form.name.trim()) { alert('Nome do perfil é obrigatório'); return; }
+    if (!form.name.trim()) { notificar.aviso('Nome do perfil é obrigatório'); return; }
     const modules = Object.entries(form.modules)
       .filter(([, v]) => v)
       .map(([k, v]) => ({ module: k, access_level: v }));
@@ -99,7 +101,7 @@ export default function Roles() {
       setModal(null);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar');
     }
   };
 
@@ -109,7 +111,7 @@ export default function Roles() {
       await api.delete(`/roles/${r.id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover');
+      notificar.erro(err.response?.data?.detail || 'Erro ao remover');
     }
   };
 

@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, FileText } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 
 export default function SaleTypes() {
+  const { notificar } = useNotificacao();
   const [types, setTypes] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -34,13 +36,13 @@ export default function SaleTypes() {
       if (editing) { await api.put(`/sale-types/${editing.id}`, form); }
       else { await api.post('/sale-types/', form); }
       setShowModal(false); setEditing(null); setForm({ name: '', description: '' }); load();
-    } catch (err) { alert(err.response?.data?.detail || 'Erro ao salvar'); }
+    } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao salvar'); }
   };
 
   const handleEdit = (t) => { setEditing(t); setForm({ name: t.name, description: t.description || '' }); setShowModal(true); };
   const handleDelete = async (id) => {
     if (!confirm('Remover este tipo de lançamento?')) return;
-    try { await api.delete(`/sale-types/${id}`); load(); } catch (err) { alert(err.response?.data?.detail || 'Erro'); }
+    try { await api.delete(`/sale-types/${id}`); load(); } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro'); }
   };
 
   return (

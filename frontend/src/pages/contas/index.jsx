@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { useAuth } from '../../contexts/AuthContext';
 import ContaCard from './ContaCard';
 import ContaForm from './ContaForm';
@@ -12,6 +13,7 @@ const filters = [
 ];
 
 export default function Accounts() {
+  const { notificar } = useNotificacao();
   const { permissions } = useAuth();
   const canManage = permissions?.['accounts'] === 'edit';
   const [accounts, setAccounts] = useState([]);
@@ -39,7 +41,7 @@ export default function Accounts() {
       else await api.post('/accounts/', data);
       setShowModal(false); setEditing(null); setForm(getEmptyForm()); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar conta');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar conta');
     }
   };
 
@@ -52,7 +54,7 @@ export default function Accounts() {
   const handleDelete = async (id) => {
     if (!confirm('Remover?')) return;
     try { await api.delete(`/accounts/${id}`); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover conta'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover conta'); }
   };
 
   return (
