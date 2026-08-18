@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SettingsProvider } from './contexts/SettingsContext';
+import { NotificacaoProvider } from './contexts/NotificacaoContext';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
@@ -59,9 +60,10 @@ function PrivateRoute() {
 
 function App() {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <BrowserRouter>
+    <NotificacaoProvider>
+      <AuthProvider>
+        <SettingsProvider>
+          <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route element={<PrivateRoute />}>
@@ -96,9 +98,10 @@ function App() {
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        </BrowserRouter>
-      </SettingsProvider>
-    </AuthProvider>
+          </BrowserRouter>
+        </SettingsProvider>
+      </AuthProvider>
+    </NotificacaoProvider>
   );
 }
 
