@@ -1068,6 +1068,14 @@ um 500, mas a checagem de aplicação já devolve 400 desde o commit inicial.
 
 ---
 
+**Correção registrada na execução da 1.20 (2026-08-17).** A `main` em `18635d3`
+confirma o defeito descrito: o drop só aceitava extensões minúsculas e o input
+não validava o arquivo, apesar do `accept`. A correção centraliza a validação,
+torna a comparação insensível a maiúsculas, mostra o erro no ponto de exibição do
+nome e cobre os seis casos pedidos em `AreaDeUpload.test.jsx`. Divergência do
+processo: o `0-LEIA-PRIMEIRO.md` citado pelo lote não existe nesta árvore; a
+especificação correspondente está nesta seção e foi usada como fonte.
+
 ## FASE 2 — Padrão único de erro
 
 Objetivo: acabar com os 80 `alert()` e fazer com que erro apareça de forma útil
@@ -1314,7 +1322,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☑ |
 | 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
-| 1.20 | Validar extensão da planilha nos dois caminhos | ☐ |
+| 1.20 | Validar extensão da planilha nos dois caminhos | ☑ |
 | 2.1 | Padrão de notificação e erro | ☐ |
 | 2.2 | Migrar as 4 telas de maior volume | ☐ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
