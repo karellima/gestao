@@ -67,9 +67,13 @@ def record_requisition_movements(
         StockMovement.movement_type == "saida",
         StockMovement.reason.like(f"Requisição #{requisicao.id}:%"),
     ).all()}
+    existing_entrada = {m.product_id for m in db.query(StockMovement).filter(
+        StockMovement.movement_type == "entrada",
+        StockMovement.reason.like(f"Recebimento Requisição #{requisicao.id}:%"),
+    ).all()}
     for item in requisicao.items:
         _record_requisition_item(
-            db, requisicao, item, quantidades, existing_saida, user_id,
+            db, requisicao, item, quantidades, existing_saida, existing_entrada, user_id,
         )
 
 
@@ -79,6 +83,7 @@ def _record_requisition_item(
     item: RequisicaoItem,
     quantidades: dict[int, tuple[float, float]],
     existing_saida: set[int],
+    existing_entrada: set[int],
     user_id: int,
 ) -> None:
     sent, received = quantidades[item.id]
@@ -86,7 +91,8 @@ def _record_requisition_item(
         _record_requisition_exit(db, requisicao, item, sent, user_id)
     if received <= 0:
         return
-    _record_requisition_entry(db, requisicao, item, received, user_id)
+    if item.product_id not in existing_entrada:
+        _record_requisition_entry(db, requisicao, item, received, user_id)
 
 
 def _record_requisition_exit(
