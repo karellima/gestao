@@ -112,6 +112,11 @@ pre-commit.
 python3 quality/gate.py
 ```
 
+Baseline congelada em 2026-08-18: ruff 86, ESLint 0, complexidade acima do teto
+0, pior complexidade ciclomática 10, cobertura backend 82.01%, cobertura
+frontend 22.36%, duplicação 3.93%, arquivos acima de 300 linhas 0 e ciclos de
+importação 0.
+
 Números melhoram enquanto o código piora — por isso existe
 [quality/review.md](quality/review.md), a lista do que o gate não pega e um
 humano precisa olhar no PR.
