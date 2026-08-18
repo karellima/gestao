@@ -1,7 +1,9 @@
 
 
 import pytest
+from sqlalchemy import event
 
+from app.database import engine
 from app.models.sale import Sale
 from app.models.stock import StockMovement
 from app.services.stock_ledger import recalculate_product_stock
@@ -357,6 +359,136 @@ class TestSales:
 
 
 class TestPriceTableResolution:
+    def test_price_table_prices_are_resolved_once_per_sale(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
+        from app.models.price_table import PriceTable, PriceTableItem
+
+        table = PriceTable(name="Tabela por volume", is_active=True)
+        db.add(table)
+        db.flush()
+        db.add(PriceTableItem(price_table_id=table.id, product_id=seed_products[0].id, price=35.0))
+        db.commit()
+        seed_contacts[0].price_table_id = table.id
+        db.commit()
+
+        table_queries = {"contacts": 0, "price_tables": 0}
+
+        def capture_table_queries(_conn, _cursor, statement, _parameters, _context, _executemany):
+            normalized = statement.lower()
+            if "from contacts" in normalized:
+                table_queries["contacts"] += 1
+            if "from price_tables" in normalized:
+                table_queries["price_tables"] += 1
+
+        event.listen(engine, "before_cursor_execute", capture_table_queries)
+        try:
+            response = client.post("/api/sales/", json={
+                "contact_id": seed_contacts[0].id,
+                "sale_type_id": seed_sale_types[0].id,
+                "items": [
+                    {"product_id": seed_products[0].id, "quantity": 1, "unit_price": 50.0}
+                    for _ in range(20)
+                ],
+            }, headers=auth_headers)
+        finally:
+            event.remove(engine, "before_cursor_execute", capture_table_queries)
+
+        assert response.status_code == 200
+        assert response.json()["total_amount"] == 700.0
+        assert table_queries == {"contacts": 3, "price_tables": 1}
+
+    def test_multiple_items_keep_table_prices_and_total(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
+        from app.models.price_table import PriceTable, PriceTableItem
+
+        table = PriceTable(name="Tabela de vários itens", is_active=True)
+        db.add(table)
+        db.flush()
+        db.add_all([
+            PriceTableItem(price_table_id=table.id, product_id=seed_products[0].id, price=35.0),
+            PriceTableItem(price_table_id=table.id, product_id=seed_products[1].id, price=80.0),
+        ])
+        db.commit()
+        seed_contacts[0].price_table_id = table.id
+        db.commit()
+
+        response = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [
+                {"product_id": seed_products[0].id, "quantity": 2, "unit_price": 50.0},
+                {"product_id": seed_products[1].id, "quantity": 3, "unit_price": 100.0},
+            ],
+        }, headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_amount"] == 310.0
+        assert [item["unit_price"] for item in data["items"]] == [35.0, 80.0]
+
+    def test_zero_price_in_table_is_preserved(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
+        from app.models.price_table import PriceTable, PriceTableItem
+
+        table = PriceTable(name="Tabela promocional", is_active=True)
+        db.add(table)
+        db.flush()
+        db.add(PriceTableItem(price_table_id=table.id, product_id=seed_products[0].id, price=0.0))
+        db.commit()
+        seed_contacts[0].price_table_id = table.id
+        db.commit()
+
+        response = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [{"product_id": seed_products[0].id, "quantity": 1, "unit_price": 50.0}],
+        }, headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json()["items"][0]["unit_price"] == 0.0
+
+    def test_update_contact_and_items_uses_new_contact_table(
+        self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
+        db, stocked_products,
+    ):
+        from app.models.price_table import PriceTable, PriceTableItem
+
+        first_table = PriceTable(name="Tabela A", is_active=True)
+        second_table = PriceTable(name="Tabela B", is_active=True)
+        db.add_all([first_table, second_table])
+        db.flush()
+        db.add_all([
+            PriceTableItem(price_table_id=first_table.id, product_id=seed_products[0].id, price=11.0),
+            PriceTableItem(price_table_id=second_table.id, product_id=seed_products[1].id, price=22.0),
+        ])
+        db.commit()
+        seed_contacts[0].price_table_id = first_table.id
+        seed_contacts[1].price_table_id = second_table.id
+        db.commit()
+
+        created = client.post("/api/sales/", json={
+            "contact_id": seed_contacts[0].id,
+            "sale_type_id": seed_sale_types[0].id,
+            "items": [{"product_id": seed_products[0].id, "quantity": 1, "unit_price": 50.0}],
+        }, headers=auth_headers).json()
+
+        response = client.put(f"/api/sales/{created['id']}", json={
+            "contact_id": seed_contacts[1].id,
+            "items": [{"product_id": seed_products[1].id, "quantity": 2, "unit_price": 100.0}],
+        }, headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["contact_id"] == seed_contacts[1].id
+        assert data["total_amount"] == 44.0
+        assert data["items"][0]["unit_price"] == 22.0
+
     def test_price_table_used_for_client_with_table(
         self, client, auth_headers, seed_products, seed_contacts, seed_sale_types,
         db, stocked_products,

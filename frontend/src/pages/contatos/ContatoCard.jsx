@@ -23,10 +23,12 @@ export default function ContatoCard({ contact, onEdit, onDelete }) {
         {c.phone && <div>{c.phone}</div>}
         {c.city && c.state && <div>{c.city} - {c.state}</div>}
       </div>
-      <div className="flex justify-end gap-2">
-        <button onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>
-        <button onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
-      </div>
+      {(onEdit || onDelete) && (
+        <div className="flex justify-end gap-2">
+          {onEdit && <button onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>}
+          {onDelete && <button onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>}
+        </div>
+      )}
     </div>
   );
 }

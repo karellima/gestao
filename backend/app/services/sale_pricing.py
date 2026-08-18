@@ -3,7 +3,7 @@ from app.models.price_table import PriceTable
 from app.models.product import Product
 
 
-def _client_table_prices(db, contact_id: int):
+def _client_table_prices(db, contact_id: int) -> dict[int, float]:
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact or not contact.price_table_id:
         return {}
@@ -16,8 +16,12 @@ def _client_table_prices(db, contact_id: int):
     return {item.product_id: item.price for item in table.items}
 
 
-def _resolve_price(db, contact_id: int, product_id: int, sent_price: float) -> float:
-    table_prices = _client_table_prices(db, contact_id)
+def resolve_price(
+    table_prices: dict[int, float],
+    db,
+    product_id: int,
+    sent_price: float,
+) -> float:
     if not table_prices:
         return sent_price
     if product_id in table_prices:

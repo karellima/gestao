@@ -709,6 +709,15 @@ com lixo continuam como estão até serem editadas e salvas de novo. A regra est
 fixada em `frontend/src/test/contas-form.test.js`, no caso "envia campos de cartão
 como null para conta bancária".
 
+**Correção registrada na execução da 1.14 (2026-08-17).** A linha da tabela de
+acompanhamento já listava a 1.14, mas a `main` não tinha uma seção própria para
+ela nem registrava os critérios de aceite detalhados do prompt. A medição com
+listener `sqlalchemy.event` em uma venda de 20 itens confirmou **22 consultas a
+`contacts` e 20 a `price_tables`** antes da alteração; depois, **3 e 1**,
+respectivamente. A resolução da tabela ocorre uma vez por venda, e o PUT busca
+a tabela depois de aplicar o novo contato. As precedências, inclusive preço de
+tabela zero, ficaram cobertas em `backend/tests/test_vendas.py`.
+
 ---
 
 ### Tarefa 1.10 — Os complexos que não são grandes
@@ -859,6 +868,22 @@ mutação de objeto de módulo: o perfil é guardado em `defaultRole` e aplicado
 por `getEmptyForm(defaultRole)`. `randPass` foi movida e, na revisão, **corrigida
 dentro desta tarefa** — ver a 1.19 abaixo.
 
+**Correção registrada na execução da 1.16 (2026-08-17).** A regra que venceu
+foi a do `dueDaysInfo`: as duas datas são normalizadas ao meio-dia e a diferença
+usa `Math.ceil`. O Dashboard mudou de comportamento para usar essa mesma regra;
+seus rótulos continuam próprios (`hoje`, `em Nd` e `Nd atraso`), enquanto a
+tela financeira mantém `Nd` e `Nd atrasado`.
+**Correção registrada na execução da 1.15 (2026-08-17).** A descrição funcional
+da tarefa confere com a `main`: `frontend/src/pages/contas/index.jsx` não usava
+`useAuth`, e `ContaCard.jsx` continha os botões de edição e exclusão. A
+divergência encontrada está na tabela antiga da 1.9c, que ainda aponta para
+`frontend/src/pages/Accounts.jsx` com 307 linhas; na `main`, o shim foi
+substituído pela tela em `pages/contas/index.jsx` com 84 linhas e o card separado
+tem 98 linhas. A implementação preservou a listagem, os textos, os endpoints e
+os rótulos, ocultando as três ações somente quando
+`permissions?.['accounts'] !== 'edit'`. O teste Vitest cobre `edit`, `view` e
+permissões indefinidas.
+
 ### Tarefa 1.19 — Gerador seguro da senha inicial — ☑ resolvida dentro da 1.10g
 
 Tarefa criada durante a execução da 1.10g: `senha.js` usava `Math.random()` para
@@ -1008,6 +1033,30 @@ a lista pode ficar vazia. Decidir se a seção deve desaparecer junto ou se o
 dashboard é sempre acessível e cobrir a decisão com teste. Não alterar junto com
 a 1.10c: trata-se de uma decisão de autorização e navegação, não de uma quebra
 estrutural.
+
+**Correção registrada na execução da 1.17 (2026-08-17).** A leitura da `main`
+em `18635d3` confirmou a exceção por rótulo em
+`frontend/src/components/navegacao/permissoes-do-menu.js` e o teste que a
+fixava. A decisão do enunciado — tratar `Geral` como qualquer outra seção — foi
+aplicada: sem `dashboard`, a seção desaparece. O `App.jsx` confirma que um
+usuário sem essa permissão é redirecionado para a primeira rota permitida por
+`DEFAULT_ROUTE_ORDER` e `MODULE_MAP`, portanto não fica preso numa rota vazia.
+Os testes cobrem seção vazia inclusive `Geral`, `Geral` com `Dashboard` permitido
+e permissões indefinidas. A divergência registrada é que este texto do plano
+ainda descrevia uma decisão em aberto, enquanto o enunciado já trazia a decisão
+de produto; a execução resolveu a redação aberta conforme o enunciado.
+**Correção registrada na execução da 1.13 (2026-08-17).** A decisão foi esconder
+`Seguimentos`, `Novo Contato`, editar e excluir para `contacts: 'view'`, usando a
+guarda existente `canManage`. A verificação da tela mostrou que editar e excluir
+também não tinham guarda: `index.jsx` agora só passa esses callbacks com
+`canManage`, e `ContatoCard` não renderiza os botões sem eles. O teste Vitest
+cobre `edit`, `view` e a lista visível nos dois casos.
+**Correção registrada na execução da 1.18 (2026-08-17).** O comportamento
+descrito na tarefa foi confirmado nos quatro casos: criação e edição para SKU
+duplicado devolvem 400 com `SKU já cadastrado`, editar mantendo o próprio SKU
+devolve 200, e o segundo produto com SKU vazio devolve 400. A divergência
+encontrada foi apenas a já registrada na 1.11: o texto histórico ainda descreve
+um 500, mas a checagem de aplicação já devolve 400 desde o commit inicial.
 
 ---
 
@@ -1266,12 +1315,12 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10g | `Users.jsx` | ☑ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
 | 1.12 | Idempotência da entrada de requisição | ☐ |
-| 1.13 | `canManage` no botão Novo Contato | ☐ |
-| 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☐ |
-| 1.15 | Permissão ausente na tela de contas | ☐ |
-| 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
-| 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
-| 1.18 | Teste de regressão para SKU duplicado | ☐ |
+| 1.13 | `canManage` no botão Novo Contato | ☑ |
+| 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☑ |
+| 1.15 | Permissão ausente na tela de contas | ☑ |
+| 1.16 | Unificar as duas regras de cálculo de atraso | ☑ |
+| 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☑ |
+| 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☑ |
 | 2.1 | Padrão de notificação e erro | ☐ |
