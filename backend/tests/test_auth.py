@@ -2,7 +2,7 @@
 
 from app.models.role import Role, RoleModule
 from app.models.user import User
-from app.utils.security import create_access_token
+from app.utils.security import create_access_token, get_password_hash
 
 
 class TestLoginAndAuthenticatedRoute:
@@ -81,3 +81,54 @@ class TestLoginAndAuthenticatedRoute:
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "ok"
+
+
+class TestSenhaMaiorQueOLimiteDoBcrypt:
+    """O bcrypt recusa segredo acima de 72 bytes levantando ValueError.
+
+    Enquanto o login deixava essa exceção subir, senha longa virava `500` — e,
+    pior, virava oráculo de enumeração: o `verify_password` só roda quando o
+    e-mail existe, então bastava mandar 200 bytes e ler o código de status para
+    saber se a conta estava cadastrada. `401` significava "não existe" e `500`
+    significava "existe". Enumerar assim não custa nada e não depende de medir
+    tempo. Os testes abaixo prendem as duas pontas: nada de `500`, e resposta
+    idêntica para conta existente e inexistente.
+    """
+
+    SENHA_LONGA = "A" * 200
+
+    def test_login_com_senha_longa_nao_derruba_o_endpoint(self, client):
+        response = client.post("/api/auth/login", json={
+            "email": "admin@admin.com",
+            "password": self.SENHA_LONGA,
+        })
+        assert response.status_code == 401
+
+    def test_login_com_senha_longa_nao_revela_se_a_conta_existe(self, client):
+        existente = client.post("/api/auth/login", json={
+            "email": "admin@admin.com",
+            "password": self.SENHA_LONGA,
+        })
+        inexistente = client.post("/api/auth/login", json={
+            "email": "nao-existe@teste.com",
+            "password": self.SENHA_LONGA,
+        })
+        assert existente.status_code == inexistente.status_code
+        assert existente.json() == inexistente.json()
+
+    def test_senha_longa_pode_ser_cadastrada_e_usada_no_login(self, client, db):
+        user = User(
+            name="Senha Longa",
+            email="longa@teste.com",
+            hashed_password=get_password_hash(self.SENHA_LONGA),
+            role="admin",
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+
+        response = client.post("/api/auth/login", json={
+            "email": "longa@teste.com",
+            "password": self.SENHA_LONGA,
+        })
+        assert response.status_code == 200
