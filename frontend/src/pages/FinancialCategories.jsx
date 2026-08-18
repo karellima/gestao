@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 import CategoryTree from '../components/CategoryTree';
 
 export default function FinancialCategories() {
+  const { notificar } = useNotificacao();
   const [allCategories, setAllCategories] = useState([]);
   const [filter, setFilter] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -35,7 +37,7 @@ export default function FinancialCategories() {
       setShowModal(false); setEditing(null);
       setForm({ name: '', description: '', type: 'despesa', parent_id: '' }); loadCategories();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar categoria financeira');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar categoria financeira');
     }
   };
 
@@ -48,7 +50,7 @@ export default function FinancialCategories() {
   const handleDelete = async (id) => {
     if (!confirm('Remover esta categoria?')) return;
     try { await api.delete(`/financial-categories/${id}`); loadCategories(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover categoria financeira'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover categoria financeira'); }
   };
 
   return (

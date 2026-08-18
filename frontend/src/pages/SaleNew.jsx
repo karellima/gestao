@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Trash2, Save, X } from 'lucide-react';
 import SearchableSelect from '../components/SearchableSelect';
 import { CaseTextarea } from '../components/CaseInput';
 import { qtyStep, roundQty, currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency } from '../services/masks';
 
 export default function SaleNew() {
+  const { notificar } = useNotificacao();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
   const [saleTypes, setSaleTypes] = useState([]);
@@ -80,9 +82,9 @@ export default function SaleNew() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!contactId) { alert('Selecione um cliente'); return; }
-    if (!saleTypeId) { alert('Selecione o tipo de lançamento'); return; }
-    if (items.length === 0) { alert('Adicione pelo menos um produto'); return; }
+    if (!contactId) { notificar.aviso('Selecione um cliente'); return; }
+    if (!saleTypeId) { notificar.aviso('Selecione o tipo de lançamento'); return; }
+    if (items.length === 0) { notificar.aviso('Adicione pelo menos um produto'); return; }
     try {
       await api.post('/sales/', {
         contact_id: parseInt(contactId),
@@ -96,7 +98,7 @@ export default function SaleNew() {
       });
       navigate('/sales');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar lançamento');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar lançamento');
     }
   };
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClipboardList, Package } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { formatNumberToCurrency } from '../../services/masks';
 import { sortItems } from '../ordenacao';
 import { getEmptyForm, toPayload } from './movimentacao-form';
@@ -9,6 +10,7 @@ import TabelaDeMovimentacoes from './TabelaDeMovimentacoes';
 import MovimentacaoForm from './MovimentacaoForm';
 
 export default function Stock() {
+  const { notificar } = useNotificacao();
   const [movements, setMovements] = useState([]);
   const [products, setProducts] = useState([]);
   const [deposits, setDeposits] = useState([]);
@@ -78,7 +80,7 @@ export default function Stock() {
       await api.delete(`/stock/movements/${id}`);
       loadMovements();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao estornar movimentação');
+      notificar.erro(err.response?.data?.detail || 'Erro ao estornar movimentação');
     }
   };
 
@@ -90,7 +92,7 @@ export default function Stock() {
       else await api.post('/stock/movements/', data);
       setShowModal(false); resetForm(); loadMovements();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar movimentação');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar movimentação');
     }
   };
 

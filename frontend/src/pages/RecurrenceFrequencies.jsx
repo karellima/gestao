@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { CaseInput } from '../components/CaseInput';
 
 export default function RecurrenceFrequencies() {
+  const { notificar } = useNotificacao();
   const [frequencies, setFrequencies] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -25,7 +27,7 @@ export default function RecurrenceFrequencies() {
       else { await api.post('/recurrence-frequencies/', data); }
       setShowModal(false); setEditing(null); setForm({ name: '', days_interval: '' }); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar frequência');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar frequência');
     }
   };
 
@@ -40,7 +42,7 @@ export default function RecurrenceFrequencies() {
       await api.put(`/recurrence-frequencies/${f.id}`, { is_active: !f.is_active });
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao alterar status');
+      notificar.erro(err.response?.data?.detail || 'Erro ao alterar status');
     }
   };
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { BarChart3, ArrowRightLeft, AlertTriangle, TrendingUp, Printer } from 'lucide-react';
 import PrintPreview from '../components/PrintPreview';
 
@@ -17,6 +18,7 @@ const toUTC = (dateStr, endOfDay) => {
 };
 
 export default function TransferReport() {
+  const { notificar } = useNotificacao();
   const [deposits, setDeposits] = useState([]);
   const [report, setReport] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,9 +49,9 @@ export default function TransferReport() {
       const res = await api.get('/stock/transfer-report/', { params });
       setReport(res.data);
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao carregar relatório');
+      notificar.erro(err.response?.data?.detail || 'Erro ao carregar relatório');
     } finally { setLoading(false); }
-  }, [filterDeposit, startDate, endDate]);
+  }, [filterDeposit, startDate, endDate, notificar]);
 
   useEffect(() => { loadReport(); }, [loadReport]);
 

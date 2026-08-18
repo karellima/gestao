@@ -1,6 +1,6 @@
 import api from '../services/api';
 
-export async function exportToExcel(a, b, c) {
+export async function exportToExcel(a, b, c, onError = () => {}) {
   let title, columns, rows, filename;
 
   if (a && typeof a === 'object' && a.rows !== undefined) {
@@ -47,7 +47,7 @@ export async function exportToExcel(a, b, c) {
     a.remove();
     URL.revokeObjectURL(url);
   } catch (err) {
-    alert('Erro ao exportar planilha. Tente novamente.');
+    onError('Erro ao exportar planilha. Tente novamente.');
     console.error('Export error:', err);
   }
 }

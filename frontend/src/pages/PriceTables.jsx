@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Tag, Search } from 'lucide-react';
 import { CaseInput } from '../components/CaseInput';
 import {
@@ -7,6 +8,7 @@ import {
 } from '../services/masks';
 
 export default function PriceTables() {
+  const { notificar } = useNotificacao();
   const [tables, setTables] = useState([]);
   const [products, setProducts] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -86,13 +88,13 @@ export default function PriceTables() {
       if (editing) { await api.put(`/price-tables/${editing.id}`, payload); }
       else { await api.post('/price-tables/', payload); }
       setShowModal(false); load();
-    } catch (err) { alert(err.response?.data?.detail || 'Erro ao salvar tabela'); }
+    } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao salvar tabela'); }
   };
 
   const handleDelete = async (id) => {
     if (!confirm('Remover esta tabela de preços?')) return;
     try { await api.delete(`/price-tables/${id}`); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro'); }
   };
 
   return (

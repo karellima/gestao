@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 import CategoryTree from '../components/CategoryTree';
 
 export default function Categories() {
+  const { notificar } = useNotificacao();
   const [categories, setCategories] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -34,7 +36,7 @@ export default function Categories() {
       else { await api.post('/categories/', data); }
       setShowModal(false); setEditing(null); setForm({ name: '', description: '', parent_id: '' }); loadCategories();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar categoria');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar categoria');
     }
   };
 
@@ -47,7 +49,7 @@ export default function Categories() {
   const handleDelete = async (id) => {
     if (!confirm('Remover esta categoria?')) return;
     try { await api.delete(`/categories/${id}`); loadCategories(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover categoria'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover categoria'); }
   };
 
   return (

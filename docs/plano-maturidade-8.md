@@ -1157,9 +1157,17 @@ provider e os 30 arquivos/143 testes Vitest, build e gate ficaram verdes. A
 busca nos quatro módulos migrados não encontra `alert()`; os specs de E2E
 existentes permanecem parte da verificação da tarefa.
 
-### Tarefa 2.3 — Migrar as 18 telas restantes
+### Tarefa 2.3 ☑ — Migrar as 18 telas restantes
 
 Os 41 `alert()` que sobram.
+
+**Execução registrada em 2026-08-17.** As 18 telas e os componentes de
+exportação restantes passaram a usar o contexto de notificações, com callbacks
+explícitos nos utilitários que não são componentes React. O teste Vitest de
+permissões de Contas e a integração Financeira foram envolvidos pelo provider.
+`rg -n 'alert\\(' frontend/src` agora retorna zero; os 30 arquivos/143 testes
+Vitest, build, backend (222 passed, 5 skipped) e os 12 testes E2E ficaram
+verdes.
 
 **Critério de aceite de 2.2:** `rg -n 'alert\('` devolve zero nos quatro módulos
 migrados nesta tarefa. **Critério de aceite de 2.3:**
@@ -1374,7 +1382,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☑ |
 | 2.1 | Padrão de notificação e erro | ☑ |
 | 2.2 | Migrar as 4 telas de maior volume | ☑ |
-| 2.3 | Migrar as 18 telas restantes | ☐ |
+| 2.3 | Migrar as 18 telas restantes | ☑ |
 | 2.4 | `no-alert` no eslint | ☐ |
 | 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |
 | 2.6 | Contrato verificável nos relatórios (`response_model`) | ☐ |

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { Calculator } from 'lucide-react';
 import {
   currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency,
@@ -13,6 +14,7 @@ import ResultadoPrecificacao from './ResultadoPrecificacao';
 import TabelaPrecificacoes from './TabelaPrecificacoes';
 
 export default function Pricing() {
+  const { notificar } = useNotificacao();
   const [products, setProducts] = useState([]);
   const [pricings, setPricings] = useState([]);
   const [search, setSearch] = useState('');
@@ -82,7 +84,7 @@ export default function Pricing() {
   }, [form, decimals]);
 
   const handleSave = async () => {
-    if (!selectedProductId) { alert('Selecione um produto'); return; }
+    if (!selectedProductId) { notificar.aviso('Selecione um produto'); return; }
     try {
       const payload = toPayload(form, decimals);
       payload.product_id = parseInt(selectedProductId, 10);
@@ -90,12 +92,12 @@ export default function Pricing() {
       loadPricings();
       loadProducts();
       setMsg('Precificação salva. Custo, markup e preço de venda atualizados no cadastro do produto.');
-    } catch (err) { alert(err.response?.data?.detail || 'Erro ao salvar'); }
+    } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao salvar'); }
   };
 
   const handleDelete = async (pid) => {
     if (!confirm('Remover esta precificação?')) return;
-    try { await api.delete(`/pricing/${pid}`); loadPricings(); } catch (err) { alert(err.response?.data?.detail || 'Erro ao remover'); }
+    try { await api.delete(`/pricing/${pid}`); loadPricings(); } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover'); }
   };
 
   const handleEdit = (p) => {

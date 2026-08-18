@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { Plus, Search, Upload } from 'lucide-react';
 import ImportExcelModal from '../../components/ImportExcelModal';
 import { formatNumberToCurrency, parseCurrencyToNumber } from '../../services/masks';
@@ -14,6 +15,7 @@ import { fromProduct, getEmptyForm, toPayload } from './produto-form';
 const formDecimals = 2;
 
 export default function Products() {
+  const { notificar } = useNotificacao();
   const [products, setProducts] = useState([]);
   const [allCategories, setAllCategories] = useState([]);
   const [units, setUnits] = useState([]);
@@ -105,7 +107,7 @@ export default function Products() {
   const handleDelete = async (id) => {
     if (!confirm('Remover este produto?')) return;
     try { await api.delete(`/products/${id}`); loadProducts(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover produto'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover produto'); }
   };
 
   const getCategoryName = (product) => {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { exportToExcel } from '../../utils/reportExport';
 import CabecalhoRelatorioEstoque from './CabecalhoRelatorioEstoque';
 import FiltrosDeEstoque from './FiltrosDeEstoque';
@@ -7,6 +8,7 @@ import { getBalanceCols, getMovementCols, getSyntheticCols } from './colunas';
 import PainelRelatorioEstoque from './PainelRelatorioEstoque';
 
 export default function StockReports() {
+  const { notificar } = useNotificacao();
   const [deposits, setDeposits] = useState([]);
   const [activeTab, setActiveTab] = useState('balance');
   const [filters, setFilters] = useState({ deposit_id: '', start_date: '', end_date: '' });
@@ -64,9 +66,9 @@ export default function StockReports() {
     : 'Todos';
 
   const handleExport = () => {
-    if (activeTab === 'balance') exportToExcel(balance, getBalanceCols(financialData), `saldo_estoque_${depositName}`);
-    else if (activeTab === 'synthetic') exportToExcel(balance, getSyntheticCols(financialData), `saldo_sintetico_${depositName}`);
-    else exportToExcel(movements, getMovementCols(), `movimentacoes_${depositName}`);
+    if (activeTab === 'balance') exportToExcel(balance, getBalanceCols(financialData), `saldo_estoque_${depositName}`, notificar.erro);
+    else if (activeTab === 'synthetic') exportToExcel(balance, getSyntheticCols(financialData), `saldo_sintetico_${depositName}`, notificar.erro);
+    else exportToExcel(movements, getMovementCols(), `movimentacoes_${depositName}`, notificar.erro);
   };
 
   const handlePrint = () => {

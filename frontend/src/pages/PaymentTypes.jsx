@@ -1,10 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../services/api';
+import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Banknote } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput } from '../components/CaseInput';
 
 export default function PaymentTypes() {
+  const { notificar } = useNotificacao();
   const [types, setTypes] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -37,7 +39,7 @@ export default function PaymentTypes() {
       else { await api.post('/payment-types/', form); }
       setShowModal(false); setEditing(null); setForm({ name: '', description: '', requires_installments: false }); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar tipo de pagamento');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar tipo de pagamento');
     }
   };
 
@@ -45,7 +47,7 @@ export default function PaymentTypes() {
   const handleDelete = async (id) => {
     if (!confirm('Remover?')) return;
     try { await api.delete(`/payment-types/${id}`); load(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover tipo de pagamento'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover tipo de pagamento'); }
   };
 
   return (

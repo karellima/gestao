@@ -2,10 +2,12 @@ import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { NotificacaoProvider } from '../contexts/NotificacaoContext';
 import Accounts from '../pages/contas';
 
 vi.mock('../services/api', () => ({
   default: { get: vi.fn() },
+  configureApiErrorHandler: vi.fn(),
 }));
 
 vi.mock('../contexts/AuthContext', () => ({
@@ -30,7 +32,7 @@ describe('Accounts page permissions', () => {
   it('shows all write actions with accounts edit permission', async () => {
     useAuth.mockReturnValue({ permissions: { accounts: 'edit' } });
 
-    render(<Accounts />);
+    render(<NotificacaoProvider><Accounts /></NotificacaoProvider>);
 
     const card = await screen.findByRole('article', { name: 'Conta Conta Principal' });
     expect(screen.getByRole('button', { name: 'Nova Conta' })).toBeInTheDocument();
@@ -42,7 +44,7 @@ describe('Accounts page permissions', () => {
   it('keeps account cards visible but hides write actions with view permission', async () => {
     useAuth.mockReturnValue({ permissions: { accounts: 'view' } });
 
-    render(<Accounts />);
+    render(<NotificacaoProvider><Accounts /></NotificacaoProvider>);
 
     const card = await screen.findByRole('article', { name: 'Conta Conta Principal' });
     expect(screen.queryByRole('button', { name: 'Nova Conta' })).not.toBeInTheDocument();
@@ -57,7 +59,7 @@ describe('Accounts page permissions', () => {
   it('hides write actions while permissions are still undefined', async () => {
     useAuth.mockReturnValue({ permissions: undefined });
 
-    render(<Accounts />);
+    render(<NotificacaoProvider><Accounts /></NotificacaoProvider>);
 
     await screen.findByRole('article', { name: 'Conta Conta Principal' });
     expect(screen.queryByRole('button', { name: 'Nova Conta' })).not.toBeInTheDocument();

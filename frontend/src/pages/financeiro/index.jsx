@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { formatCurrency, getTodayLocal } from '../../services/format';
 import { parseCurrencyToNumber, formatNumberToCurrency } from '../../services/masks';
 import { Plus, TrendingUp, TrendingDown, Landmark, Wallet, CreditCard, AlertTriangle, Clock } from 'lucide-react';
@@ -36,6 +37,7 @@ function renderAccountSelected(opt) {
 }
 
 export default function Financial() {
+  const { notificar } = useNotificacao();
   const [transactions, setTransactions] = useState([]);
   const [filter, setFilter] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -134,7 +136,7 @@ export default function Financial() {
       setShowPaymentModal(false); setPayingTransaction(null); loadTransactions();
     } catch (err) {
       const detail = err.response?.data?.detail;
-      alert(detail || 'Erro ao registrar pagamento');
+      notificar.erro(detail || 'Erro ao registrar pagamento');
     }
   };
 
