@@ -984,6 +984,21 @@ refactor sem que nada acuse.
 edição para um SKU já usado e a mensagem devolvida; nenhum outro caminho de erro
 do router de produtos muda de status.
 
+**Regressão de complexidade corrigida em 2026-08-17.** A 1.13 devolveu o
+`ContatoCard` para CCN 12 ao trocar os dois botões de ação por três condicionais
+(`(onEdit || onDelete)`, `onEdit &&`, `onDelete &&`), desfazendo o
+`complexity_over_ceiling = 0` que a 1.10f tinha acabado de atingir. O componente
+voltou a receber `canManage` como prop e a ter uma condicional só; CCN 9,
+comportamento idêntico e os testes de permissão passam sem alteração.
+
+**O gate não pegou essa regressão, e isso é um furo conhecido.** A comparação é
+sempre contra o `quality/baseline.json` congelado (42 funções acima do teto,
+complexidade 27), nunca contra o estado anterior da `main`. Sair de 0 para 1
+continua sendo "melhor que o baseline" e passa. Enquanto o baseline não for
+reapertado — o que o plano só prevê na tarefa **5.1** —, todo ganho novo pode ser
+desfeito em silêncio. Fica registrado aqui para que a 5.1 trate disso
+explicitamente, e não só congele o número final.
+
 ### Tarefa 1.12 — Idempotência da entrada de requisição
 
 Dívida registrada durante a tarefa 1.7. O recebimento protege a saída com
