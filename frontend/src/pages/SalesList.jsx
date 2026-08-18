@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useNotificacao } from '../contexts/NotificacaoContext';
+import { confirmar } from '../utils/confirmar';
 import { Plus, Edit, Printer, Share2, Trash2 } from 'lucide-react';
 
 export default function SalesList() {
@@ -14,7 +15,7 @@ export default function SalesList() {
   }, []);
 
   const handleDelete = async (s) => {
-    if (!confirm(`Remover o lançamento #${s.id} de ${s.contact_name || '-'}?`)) return;
+    if (!confirmar(`Remover o lançamento #${s.id} de ${s.contact_name || '-'}?`)) return;
     try { await api.delete(`/sales/${s.id}`); setSales(sales.filter(x => x.id !== s.id)); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover lançamento'); }
   };

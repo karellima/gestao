@@ -4,6 +4,7 @@ import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Ruler } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput } from '../components/CaseInput';
+import { confirmar } from '../utils/confirmar';
 
 export default function Units() {
   const { notificar } = useNotificacao();
@@ -45,7 +46,7 @@ export default function Units() {
 
   const handleEdit = (u) => { setEditing(u); setForm({ name: u.name, abbreviation: u.abbreviation }); setShowModal(true); };
   const handleDelete = async (id) => {
-    if (!confirm('Remover esta unidade?')) return;
+    if (!confirmar('Remover esta unidade?')) return;
     try { await api.delete(`/units/${id}`); load(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover unidade'); }
   };

@@ -8,6 +8,7 @@ import { getEmptyForm, toPayload } from './movimentacao-form';
 import { getMovementSortValue } from './ordenacao-de-movimentacoes';
 import TabelaDeMovimentacoes from './TabelaDeMovimentacoes';
 import MovimentacaoForm from './MovimentacaoForm';
+import { confirmar } from '../../utils/confirmar';
 
 export default function Stock() {
   const { notificar } = useNotificacao();
@@ -75,7 +76,7 @@ export default function Stock() {
 
   const handleDelete = async (id) => {
     // O histórico é imutável: isto grava um estorno, não apaga a linha.
-    if (!confirm('Estornar esta movimentação? O lançamento original continua no histórico e um estorno será registrado ao lado dele.')) return;
+    if (!confirmar('Estornar esta movimentação? O lançamento original continua no histórico e um estorno será registrado ao lado dele.')) return;
     try {
       await api.delete(`/stock/movements/${id}`);
       loadMovements();

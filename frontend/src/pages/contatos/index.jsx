@@ -3,6 +3,7 @@ import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { Plus, Search, Settings2 } from 'lucide-react';
 import { formVazio, mapContatoToForm, buildContatoPayload } from './contato-form';
 import { mapCnpjToForm, mapCepToForm } from './busca-externa';
@@ -74,7 +75,7 @@ export default function Contacts() {
   };
 
   const deleteSegment = async (id) => {
-    if (!confirm('Remover este seguimento?')) return;
+    if (!confirmar('Remover este seguimento?')) return;
     try {
       await api.delete(`/contact-segments/${id}`);
       loadSegments();
@@ -107,7 +108,7 @@ export default function Contacts() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover este contato?')) return;
+    if (!confirmar('Remover este contato?')) return;
     try { await api.delete(`/contacts/${id}`); loadContacts(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover contato'); }
   };

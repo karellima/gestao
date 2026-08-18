@@ -6,6 +6,7 @@ import { CaseInput } from '../components/CaseInput';
 import {
   currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency,
 } from '../services/masks';
+import { confirmar } from '../utils/confirmar';
 
 export default function PriceTables() {
   const { notificar } = useNotificacao();
@@ -92,7 +93,7 @@ export default function PriceTables() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover esta tabela de preços?')) return;
+    if (!confirmar('Remover esta tabela de preços?')) return;
     try { await api.delete(`/price-tables/${id}`); load(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro'); }
   };

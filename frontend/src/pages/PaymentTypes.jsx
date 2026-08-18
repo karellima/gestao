@@ -4,6 +4,7 @@ import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, Banknote } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput } from '../components/CaseInput';
+import { confirmar } from '../utils/confirmar';
 
 export default function PaymentTypes() {
   const { notificar } = useNotificacao();
@@ -45,7 +46,7 @@ export default function PaymentTypes() {
 
   const handleEdit = (t) => { setEditing(t); setForm({ name: t.name, description: t.description || '', requires_installments: t.requires_installments }); setShowModal(true); };
   const handleDelete = async (id) => {
-    if (!confirm('Remover?')) return;
+    if (!confirmar('Remover?')) return;
     try { await api.delete(`/payment-types/${id}`); load(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover tipo de pagamento'); }
   };

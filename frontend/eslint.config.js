@@ -25,6 +25,7 @@ export default [
       // O projeto não usa PropTypes; exigir isso agora seria ruído puro.
       'react/prop-types': 'off',
       'react/react-in-jsx-scope': 'off',
+      'no-alert': 'error',
     },
   },
 ]

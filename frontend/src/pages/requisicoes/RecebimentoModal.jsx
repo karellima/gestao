@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowUpCircle } from 'lucide-react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { qtyStep, roundQty } from '../../services/masks';
 
 function initialQuantities(requisicao) {
@@ -55,7 +56,7 @@ export default function RecebimentoModal({ requisicao, unitOf, onClose, onDone }
 
   const handleReceive = async () => {
     const items = receivingItems(requisicao, receiveQty, unitOf);
-    if (!confirm(`Confirmar recebimento da requisição #${requisicao.id} no depósito? Isso criará movimentações de entrada no estoque.`)) return;
+    if (!confirmar(`Confirmar recebimento da requisição #${requisicao.id} no depósito? Isso criará movimentações de entrada no estoque.`)) return;
     try {
       await api.put(`/requisicoes/${requisicao.id}/receive`, { items });
       onClose();

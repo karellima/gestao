@@ -11,6 +11,7 @@ import {
   applyCostChange, applyMarkupBlur, applyMarkupChange, applyPriceChange, formatDecimal,
 } from './preco-derivado';
 import { fromProduct, getEmptyForm, toPayload } from './produto-form';
+import { confirmar } from '../../utils/confirmar';
 
 const formDecimals = 2;
 
@@ -105,7 +106,7 @@ export default function Products() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover este produto?')) return;
+    if (!confirmar('Remover este produto?')) return;
     try { await api.delete(`/products/${id}`); loadProducts(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover produto'); }
   };

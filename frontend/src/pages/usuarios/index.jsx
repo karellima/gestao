@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { Plus, Users as UsersIcon } from 'lucide-react';
 import TabelaDeUsuarios from './TabelaDeUsuarios';
 import UsuarioForm from './UsuarioForm';
@@ -87,7 +88,7 @@ export default function Users() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover este usuário?')) return;
+    if (!confirmar('Remover este usuário?')) return;
     try {
       await api.delete(`/auth/users/${id}`);
       load();
