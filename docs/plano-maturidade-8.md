@@ -1029,6 +1029,17 @@ dashboard é sempre acessível e cobrir a decisão com teste. Não alterar junto
 a 1.10c: trata-se de uma decisão de autorização e navegação, não de uma quebra
 estrutural.
 
+**Correção registrada na execução da 1.17 (2026-08-17).** A leitura da `main`
+em `18635d3` confirmou a exceção por rótulo em
+`frontend/src/components/navegacao/permissoes-do-menu.js` e o teste que a
+fixava. A decisão do enunciado — tratar `Geral` como qualquer outra seção — foi
+aplicada: sem `dashboard`, a seção desaparece. O `App.jsx` confirma que um
+usuário sem essa permissão é redirecionado para a primeira rota permitida por
+`DEFAULT_ROUTE_ORDER` e `MODULE_MAP`, portanto não fica preso numa rota vazia.
+Os testes cobrem seção vazia inclusive `Geral`, `Geral` com `Dashboard` permitido
+e permissões indefinidas. A divergência registrada é que este texto do plano
+ainda descrevia uma decisão em aberto, enquanto o enunciado já trazia a decisão
+de produto; a execução resolveu a redação aberta conforme o enunciado.
 **Correção registrada na execução da 1.13 (2026-08-17).** A decisão foi esconder
 `Seguimentos`, `Novo Contato`, editar e excluir para `contacts: 'view'`, usando a
 guarda existente `canManage`. A verificação da tela mostrou que editar e excluir
@@ -1295,7 +1306,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☑ |
 | 1.15 | Permissão ausente na tela de contas | ☑ |
 | 1.16 | Unificar as duas regras de cálculo de atraso | ☐ |
-| 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☐ |
+| 1.17 | Decidir visibilidade da seção Geral sem dashboard | ☑ |
 | 1.18 | Teste de regressão para SKU duplicado | ☑ |
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☐ |

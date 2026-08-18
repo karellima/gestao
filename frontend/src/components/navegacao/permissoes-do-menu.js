@@ -10,5 +10,5 @@ export function getVisibleItems(section, permissions) {
 export function getVisibleSections(sections, permissions) {
   return sections
     .map(section => ({ ...section, items: getVisibleItems(section, permissions) }))
-    .filter(section => section.items.length > 0 || section.label === 'Geral');
+    .filter(section => section.items.length > 0);
 }

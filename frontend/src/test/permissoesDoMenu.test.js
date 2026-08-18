@@ -8,6 +8,10 @@ const section = {
     { path: '/custom', label: 'Sem módulo' },
   ],
 };
+const sections = [
+  { label: 'Vazia', items: [{ path: '/financial', label: 'Lançamentos' }] },
+  { label: 'Geral', items: [{ path: '/', label: 'Dashboard' }] },
+];
 
 describe('permissões do menu', () => {
   it('mostra tudo enquanto as permissões ainda não carregaram', () => {
@@ -22,12 +26,16 @@ describe('permissões do menu', () => {
     expect(getVisibleItems(section, { financial: false })).not.toContain(section.items[0]);
   });
 
-  it('remove uma seção vazia, exceto Geral', () => {
-    const sections = [
-      { label: 'Vazia', items: [{ path: '/financial', label: 'Lançamentos' }] },
-      { label: 'Geral', items: [{ path: '/', label: 'Dashboard' }] },
-    ];
-    expect(getVisibleSections(sections, { financial: false, dashboard: false }).map(item => item.label)).toEqual(['Geral']);
+  it('remove qualquer seção sem itens visíveis, inclusive Geral', () => {
+    expect(getVisibleSections(sections, { financial: false, dashboard: false })).toEqual([]);
+  });
+
+  it('mostra Geral com Dashboard quando dashboard está permitido', () => {
+    expect(getVisibleSections([sections[1]], { dashboard: true })).toEqual([sections[1]]);
+  });
+
+  it('mostra todas as seções enquanto as permissões ainda não carregaram', () => {
+    expect(getVisibleSections(sections, undefined)).toEqual(sections);
   });
 
   it('trata a permissão view como verdadeira', () => {
