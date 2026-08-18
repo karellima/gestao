@@ -6,13 +6,14 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.financial import Transaction
+from app.schemas.reports import FinancialSummary
 from app.utils.security import require_module
 from app.utils.time import utc_now_naive
 
 router = APIRouter()
 
 
-@router.get("/financial-summary")
+@router.get("/financial-summary", response_model=FinancialSummary)
 def get_financial_summary(
     start_date: datetime | None = None,
     end_date: datetime | None = None,

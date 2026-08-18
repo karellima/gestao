@@ -7,13 +7,14 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.stock import StockMovement
 from app.models.user import User
+from app.schemas.reports import StockMovementSummary
 from app.utils.security import get_current_user, is_admin_user, require_module, user_deposit_ids
 from app.utils.time import utc_now_naive
 
 router = APIRouter()
 
 
-@router.get("/stock-movements-summary")
+@router.get("/stock-movements-summary", response_model=StockMovementSummary)
 def get_stock_summary(
     days: int = 30,
     db: Session = Depends(get_db),

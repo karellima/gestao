@@ -1199,7 +1199,7 @@ histórico. Veja a [tarefa 1.11](#tarefa-111--sku-duplicado-devolve-500).
 
 ---
 
-### Tarefa 2.6 — Contrato verificável nos endpoints de relatório
+### Tarefa 2.6 ☑ — Contrato verificável nos endpoints de relatório
 
 Dívida técnica encontrada durante a tarefa 1.6 e registrada por decisão do dono
 em 2026-08-13, para tratar com calma no próximo ciclo.
@@ -1236,6 +1236,14 @@ errado no formato, anote e não conserte junto.
 **Critério de aceite:** os três endpoints com `response_model`; a resposta de
 cada um idêntica antes e depois, provada por captura como na 1.6; os caminhos do
 OpenAPI inalterados e os schemas agora presentes; nenhum teste alterado.
+
+**Execução registrada em 2026-08-17.** Foram criados modelos para as 22 chaves
+do dashboard, as 5 chaves do resumo financeiro e as 3 chaves do resumo de
+estoque, incluindo as estruturas aninhadas e listas já devolvidas. A captura
+antes/depois no mesmo banco E2E foi idêntica nos três endpoints (no financeiro,
+com período fixo para não comparar timestamps padrão); os caminhos OpenAPI
+permaneceram iguais e passaram a apontar para os três schemas. Os testes
+existentes, build e gate confirmaram os formatos sem alteração da baseline.
 
 ---
 
@@ -1391,7 +1399,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 2.3 | Migrar as 18 telas restantes | ☑ |
 | 2.4 | `no-alert` no eslint | ☑ |
 | 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |
-| 2.6 | Contrato verificável nos relatórios (`response_model`) | ☐ |
+| 2.6 | Contrato verificável nos relatórios (`response_model`) | ☑ |
 | 3.1 | Receita: adicionar campo | ☐ |
 | 3.2 | Receita: adicionar endpoint | ☐ |
 | 3.3 | Receita: adicionar tela | ☐ |
