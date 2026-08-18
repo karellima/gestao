@@ -300,6 +300,114 @@ login, depende deste fechamento: sem ele, qualquer cliente que alcance a
 origem poderia forjar `CF-Connecting-IP` e escolher um novo balde a cada
 tentativa.
 
+## Cabeçalhos de segurança
+
+Hoje o sistema não devolve cabeçalho de segurança nenhum. Esta seção acrescenta
+quatro ao bloco do Gestão. Como as outras mudanças de proxy, ela exige
+autorização explícita e vale só para `gestao.pazesousa.com.br` — o Caddy é
+compartilhado.
+
+### Por que a CSP entra pela metade
+
+Dos quatro, três são inertes: `nosniff`, `Referrer-Policy` e o HSTS não mudam
+como a página é montada. O quarto, `Content-Security-Policy`, entra **só com a
+diretiva `frame-ancestors`**.
+
+Uma CSP completa (`script-src`, `style-src`, `default-src`) quebra estilo inline
+de biblioteca num SPA Vite, e quebra numa tela específica, dias depois, longe de
+quem mexeu. `frame-ancestors` sozinho não tem esse risco: ele não governa o que
+a página carrega, só quem pode enquadrá-la. É a parte que resolve
+*clickjacking* sem custo de investigação.
+
+A CSP completa fica registrada como pendência, **sem data**, e exige passar pelo
+ambiente de homologação com todas as telas exercitadas antes de ir para
+produção. Não a acrescente junto com esta mudança.
+
+### 1. Aplicar
+
+Faça a cópia do Caddyfile antes de editar, como na seção anterior:
+
+```bash
+export CADDYFILE_BACKUP="${CADDYFILE}.before-gestao-headers.$(date -u +%Y%m%dT%H%M%SZ)"
+cp "$CADDYFILE" "$CADDYFILE_BACKUP"
+```
+
+Acrescente o bloco `header` ao site do Gestão. **Comece com `max-age` curto** —
+o porquê está logo abaixo:
+
+```caddyfile
+gestao.pazesousa.com.br {
+    encode gzip
+
+    header {
+        Strict-Transport-Security "max-age=300"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "frame-ancestors 'none'"
+    }
+
+    reverse_proxy gestao-app:8000
+}
+```
+
+```bash
+docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
+```
+
+### 2. O HSTS é o único que não tem rollback
+
+Os outros três somem no reload seguinte. O HSTS não: o navegador **guarda** a
+instrução por `max-age` segundos e recusa falar HTTP com o domínio durante todo
+esse tempo, mesmo que você tire o cabeçalho do Caddy no minuto seguinte. Um
+`max-age` de um ano aplicado por engano é um ano de domínio presos a HTTPS, e
+não há o que editar no servidor para desfazer no navegador de quem já visitou.
+
+Por isso a subida é em dois tempos: `max-age=300` primeiro, tudo verificado, e
+só então o valor definitivo:
+
+```caddyfile
+Strict-Transport-Security "max-age=31536000; includeSubDomains"
+```
+
+Não use `preload`. Ele coloca o domínio numa lista embutida nos navegadores, de
+onde sair leva meses e não depende de você.
+
+### 3. Verificação
+
+```bash
+curl -sS -D - -o /dev/null https://gestao.pazesousa.com.br/api/health \
+  | grep -iE 'strict-transport|content-type-options|referrer-policy|content-security'
+```
+
+Os quatro devem aparecer. Depois, no navegador e com o cache limpo:
+
+- Abrir o sistema e **exercitar as telas de verdade** — login, estoque, vendas,
+  financeiro, relatórios, precificação. `nosniff` só se manifesta em recurso
+  servido com MIME errado, e isso aparece como arquivo que não carrega, não como
+  erro na tela.
+- Conferir o console do navegador: violação de CSP aparece lá, não no log do
+  servidor.
+- Confirmar que o PWA (`sw.js`) continua registrando.
+- Tentar abrir o sistema dentro de um `<iframe>` em qualquer página e confirmar
+  que não carrega — é o `frame-ancestors` funcionando.
+
+Repita o `curl` público nos outros domínios do Caddy para confirmar que nenhum
+deles passou a devolver estes cabeçalhos.
+
+### 4. Rollback
+
+```bash
+cp "$CADDYFILE_BACKUP" "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
+```
+
+Vale o aviso da seção 2: isto devolve três dos quatro. O HSTS já entregue
+continua valendo no navegador de quem visitou, até o `max-age` expirar — mais um
+motivo para os 300 segundos iniciais.
+
+
 ## Deploy autorizado
 
 O script é simulação por padrão:
