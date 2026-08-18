@@ -157,10 +157,12 @@ export default function Contacts() {
               <Settings2 size={18} /> Seguimentos
             </button>
           )}
-          <button onClick={() => { resetForm(); setEditing(null); setShowModal(true); }}
-            className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-brand-700">
-            <Plus size={18} /> Novo Contato
-          </button>
+          {canManage && (
+            <button onClick={() => { resetForm(); setEditing(null); setShowModal(true); }}
+              className="bg-brand-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-brand-700">
+              <Plus size={18} /> Novo Contato
+            </button>
+          )}
         </div>
       </div>
 
@@ -183,7 +185,9 @@ export default function Contacts() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedContacts.map(c => (
-          <ContatoCard key={c.id} contact={c} onEdit={handleEdit} onDelete={handleDelete} />
+          <ContatoCard key={c.id} contact={c}
+            onEdit={canManage ? handleEdit : undefined}
+            onDelete={canManage ? handleDelete : undefined} />
         ))}
       </div>
 
