@@ -16,12 +16,38 @@ ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login")
 
 
+#: O bcrypt só considera os primeiros 72 bytes do segredo e, desde a versão 4,
+#: levanta `ValueError` em vez de truncar sozinho. Quem recebe esse erro aqui é
+#: o handler global, que responde `500`.
+#:
+#: No login isso era pior do que uma resposta feia. O `verify_password` só é
+#: chamado quando o e-mail existe, então uma senha de 200 bytes separava as
+#: contas em dois grupos: `401` para quem não está cadastrado, `500` para quem
+#: está. Um oráculo de enumeração binário, sem ruído, sem precisar cronometrar
+#: nada — e aberto a qualquer um, sem autenticação.
+#:
+#: Truncar aqui, nos dois sentidos, devolve o comportamento que o bcrypt tinha
+#: antes da 4 e que o resto do mundo assume: o que passa de 72 bytes não entra
+#: na conta, mas também não derruba a requisição. Cortar em bytes pode partir um
+#: caractere multibyte ao meio; para o bcrypt o segredo é opaco, então a metade
+#: continua sendo um byte válido de entrada. O importante é que hash e
+#: verificação cortem no mesmo lugar.
+#:
+#: Isto não substitui limite de tamanho no schema — recusar cedo, com mensagem
+#: clara, é trabalho de quem valida a entrada. É a rede embaixo dele.
+BCRYPT_MAX_BYTES = 72
+
+
+def _segredo_para_bcrypt(password: str) -> bytes:
+    return password.encode("utf-8")[:BCRYPT_MAX_BYTES]
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return bcrypt.checkpw(plain_password.encode("utf-8"), hashed_password.encode("utf-8"))
+    return bcrypt.checkpw(_segredo_para_bcrypt(plain_password), hashed_password.encode("utf-8"))
 
 
 def get_password_hash(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(_segredo_para_bcrypt(password), bcrypt.gensalt()).decode("utf-8")
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
