@@ -95,6 +95,29 @@ gestao.pazesousa.com.br {
 }
 ```
 
+Registre também `gestao.pazesousa.com.br` no DNS apontando para o IP público do
+IONOS. Valide o Caddyfile antes de recarregá-lo. Para que a conexão sobreviva à
+recriação do Caddy, declare `gestao_proxy` como rede externa no Compose que
+gerencia o proxy.
+
+Para imagem privada, autentique o Docker no GHCR usando um token de curta duração
+com `read:packages`; não coloque o token em arquivos versionados:
+
+```bash
+echo "$GHCR_TOKEN" | docker login ghcr.io -u SEU_USUARIO --password-stdin
+```
+
+Instale e ative o backup:
+
+```bash
+sudo install -m 0750 ops/backup.sh /opt/gestao/ops/backup.sh
+sudo install -m 0644 ops/systemd/gestao-backup.service /etc/systemd/system/
+sudo install -m 0644 ops/systemd/gestao-backup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now gestao-backup.timer
+systemctl list-timers gestao-backup.timer
+```
+
 ## Fechar a origem com Authenticated Origin Pulls
 
 Esta seção é um procedimento operacional separado do deploy da aplicação. Ela
@@ -122,6 +145,14 @@ exec`. Liste todos os sites no Caddyfile/adaptação e confirme, com o dono de
 cada sistema, quais dependem de acesso direto à origem. A mudança abaixo deve
 ficar exclusivamente no bloco `gestao.pazesousa.com.br`; não aplique
 autenticação de cliente no bloco global nem nos demais sites.
+
+Falta uma pergunta neste inventário, e é ela que decide se a mudança é segura:
+**algum sistema deste servidor acessa a origem por IP com o `Host` sobrescrito?**
+Monitoramento externo, healthcheck, cron interno e script de status costumam
+fazer exatamente isso. Exigir certificado de cliente no bloco do Gestão liga o
+`strict_sni_host` para o listener inteiro — o porquê está na seção 4 — e esses
+acessos passam a receber `421`. Levante a lista agora; depois do reload você
+descobre pelo sistema que parou.
 
 ### 2. Preparar o certificado do cliente
 
@@ -207,6 +238,19 @@ docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
 
 ### 4. Verificação
 
+Antes de testar, saiba o que os testes precisam procurar. O `strict_sni_host`
+do Caddy é ligado sozinho quando há autenticação de cliente, e é uma opção **por
+servidor**, não por site: ao exigir certificado no bloco do Gestão, todos os
+sites que dividem o listener `:443` passam a exigir que o `Host` da requisição
+bata com o `ServerName` do ClientHello, e respondem `421 Misdirected Request`
+quando não bate. Está documentado em
+<https://caddyserver.com/docs/caddyfile/options>.
+
+Isso é o que fecha a origem de verdade — sem ele, bastaria abrir o TLS com o SNI
+de outro site do servidor e mandar `Host: gestao.pazesousa.com.br` para desviar
+do certificado. Mas o efeito não para no Gestão, e os dois `curl` abaixo não
+pegam o estrago: eles vão pelo DNS normal, onde SNI e Host sempre coincidem.
+
 Use um hostname no SNI ao testar o IP da origem. Um `Host` isolado não prova que
 o bloco TLS correto foi selecionado:
 
@@ -225,6 +269,19 @@ deve falhar no handshake. Repita a verificação pública para todos os outros
 domínios inventariados e abra o Gestão no navegador para confirmar que o login
 continua funcionando através do Cloudflare.
 
+Por último, procure `421` no log do Caddy — para todos os sites, não só para o
+Gestão. Um `421` que não existia antes do reload é um cliente legítimo que
+dependia de `Host` diferente do SNI, e ele é a razão de existir a pergunta da
+seção 1:
+
+```bash
+docker logs --since 15m "$CADDY_CONTAINER" 2>&1 | grep -F '"status":421'
+```
+
+Saída vazia significa que nenhum sistema do servidor dependia desse
+comportamento. Saída não vazia é rollback, não ajuste: volte pela seção 5 e
+trate o cliente afetado antes de tentar de novo.
+
 ### 5. Rollback
 
 Se a validação falhar, remova primeiro o `tls.client_auth` do bloco do Gestão,
@@ -242,29 +299,6 @@ não remova autenticação dos demais sites. A tarefa seguinte, rate limit do
 login, depende deste fechamento: sem ele, qualquer cliente que alcance a
 origem poderia forjar `CF-Connecting-IP` e escolher um novo balde a cada
 tentativa.
-
-Registre também `gestao.pazesousa.com.br` no DNS apontando para o IP público do
-IONOS. Valide o Caddyfile antes de recarregá-lo. Para que a conexão sobreviva à
-recriação do Caddy, declare `gestao_proxy` como rede externa no Compose que
-gerencia o proxy.
-
-Para imagem privada, autentique o Docker no GHCR usando um token de curta duração
-com `read:packages`; não coloque o token em arquivos versionados:
-
-```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u SEU_USUARIO --password-stdin
-```
-
-Instale e ative o backup:
-
-```bash
-sudo install -m 0750 ops/backup.sh /opt/gestao/ops/backup.sh
-sudo install -m 0644 ops/systemd/gestao-backup.service /etc/systemd/system/
-sudo install -m 0644 ops/systemd/gestao-backup.timer /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now gestao-backup.timer
-systemctl list-timers gestao-backup.timer
-```
 
 ## Deploy autorizado
 
