@@ -1304,7 +1304,7 @@ operacionais, deixando o caminho de entrada explícito.
 Objetivo: a fase de teste diária acontece longe do dado bom, e o erro chega até
 você sem depender de alguém descrever.
 
-### Tarefa 4.1 — Ambiente de homologação
+### Tarefa 4.1 ☑ — Ambiente de homologação
 
 **Onde:** `docker-compose.homologacao.yml`, `.env.homologacao.example`,
 seção nova em `docs/operacao-ionos.md`.
@@ -1313,6 +1313,12 @@ Mesma imagem de produção, banco separado, dados de demonstração. Deixar
 inequívoco no documento: **é onde o teste do dia a dia acontece.** Sem isso, o
 primeiro erro de fluxo mexe em estoque real — e movimentação de estoque é
 imutável por design, então a correção é sempre por compensação, nunca por desfazer.
+
+**Execução registrada em 2026-08-17.** `docker-compose.homologacao.yml` usa a
+mesma imagem configurável, volume PostgreSQL separado e porta local 8001;
+`.env.homologacao.example` documenta credenciais próprias e o seed de dados de
+demonstração. O runbook agora deixa explícito que este é o ambiente de teste
+diário e proíbe apontá-lo para o banco ou domínio de produção.
 
 ### Tarefa 4.2 — Ensaiar o restore
 
@@ -1415,7 +1421,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 3.4 | Receita: corrigir bug | ☐ |
 | 3.5 | Checklist curto de revisão | ☑ |
 | 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☑ |
-| 4.1 | Ambiente de homologação | ☐ |
+| 4.1 | Ambiente de homologação | ☑ |
 | 4.2 | Restore ensaiado e cronometrado | ☐ |
 | 4.3 | Erro rastreável em produção | ☐ |
 | 5.1 | Baseline congelado | ☐ |
