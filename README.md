@@ -7,6 +7,10 @@ Vai mexer no sistema? Comece pela receita da tarefa que você quer fazer em
 [`docs/receitas/`](docs/receitas/); antes de abrir o PR, rode o
 [`quality/revisao-rapida.md`](quality/revisao-rapida.md).
 
+Vai **pedir** uma mudança a uma IA em vez de fazê-la você mesmo? O seu papel —
+como escrever o pedido, o que conferir antes de aceitar o PR e o que nunca
+fazer — está em [`docs/guia-do-operador.md`](docs/guia-do-operador.md).
+
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0, JWT (python-jose + bcrypt) |

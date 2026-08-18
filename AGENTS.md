@@ -4,6 +4,11 @@ Vai mexer no sistema? Comece pela receita da tarefa que você quer fazer em
 [`docs/receitas/`](docs/receitas/). Depois confira o checklist executável em
 [`quality/revisao-rapida.md`](quality/revisao-rapida.md).
 
+Se o pedido que você recebeu não diz em qual branch trabalhar nem manda abrir
+PR, assuma o processo de [`docs/guia-do-operador.md`](docs/guia-do-operador.md):
+branch novo a partir da `main`, push e Pull Request — nunca commit direto na
+`main`.
+
 ## Ao concluir uma alteração
 
 1. **Testes**: rodar `cd backend && .venv/bin/python -m pytest tests/` e validar verde.
