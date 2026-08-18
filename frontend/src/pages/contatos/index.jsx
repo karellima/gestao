@@ -185,9 +185,8 @@ export default function Contacts() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {sortedContacts.map(c => (
-          <ContatoCard key={c.id} contact={c}
-            onEdit={canManage ? handleEdit : undefined}
-            onDelete={canManage ? handleDelete : undefined} />
+          <ContatoCard key={c.id} contact={c} canManage={canManage}
+            onEdit={handleEdit} onDelete={handleDelete} />
         ))}
       </div>
 

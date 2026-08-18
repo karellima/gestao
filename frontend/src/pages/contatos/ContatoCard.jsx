@@ -3,7 +3,7 @@ import { Edit, Trash2, User, Building } from 'lucide-react';
 const typeLabels = { cliente: 'Cliente', fornecedor: 'Fornecedor', both: 'Cliente/Fornecedor' };
 const typeColors = { cliente: 'bg-brand-100 text-brand-700', fornecedor: 'bg-purple-100 text-purple-700', both: 'bg-teal-100 text-teal-700' };
 
-export default function ContatoCard({ contact, onEdit, onDelete }) {
+export default function ContatoCard({ contact, canManage, onEdit, onDelete }) {
   const c = contact;
   return (
     <div className="bg-white rounded-xl shadow-sm p-4 hover:shadow-md transition-shadow">
@@ -23,10 +23,10 @@ export default function ContatoCard({ contact, onEdit, onDelete }) {
         {c.phone && <div>{c.phone}</div>}
         {c.city && c.state && <div>{c.city} - {c.state}</div>}
       </div>
-      {(onEdit || onDelete) && (
+      {canManage && (
         <div className="flex justify-end gap-2">
-          {onEdit && <button onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>}
-          {onDelete && <button onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>}
+          <button onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>
+          <button onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
         </div>
       )}
     </div>
