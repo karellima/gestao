@@ -1338,7 +1338,7 @@ dump real com checksum e acesso ao alvo de homologação. O desbloqueio é execu
 o comando acima, conferir os dados recuperados e registrar o resultado neste
 runbook.
 
-### Tarefa 4.3 — Erro visível em produção
+### Tarefa 4.3 ☑ — Erro visível em produção
 
 **Onde:** `backend/app/main.py`, `backend/app/logging_config.py`.
 
@@ -1349,11 +1349,17 @@ runbook.
   segundos, em vez de reconstruir o que a pessoa estava fazendo.
 - Endpoint `/health` que confirma banco acessível.
 
+**Execução registrada em 2026-08-18.** O backend gera um `reference_id` curto,
+inclui-o no log estruturado com stack trace e devolve o mesmo valor no corpo 500
+e no header `X-Request-ID`. `/api/health` executa `SELECT 1` e retorna 503 quando
+o banco não está acessível; os testes de observabilidade, a suíte backend, o
+Vitest, build, gate e E2E 12/12 passaram.
+
 ---
 
 ## FASE 5 — Fechamento
 
-### Tarefa 5.1 — Congelar o novo baseline
+### Tarefa 5.1 ☑ — Congelar o novo baseline
 
 `python3 quality/gate.py --write-baseline`, em **commit isolado**, com mensagem
 explicando cada número que mudou. Este é o único commit do plano em que
@@ -1362,11 +1368,20 @@ explicando cada número que mudou. Este é o único commit do plano em que
 Conferir contra a tabela da seção 1. Se alguma meta não foi atingida, ela vira
 tarefa aberta — não se congela um número pior fingindo que era o alvo.
 
-### Tarefa 5.2 — Encerrar o plano
+**Execução registrada em 2026-08-18.** `quality/baseline.json` foi atualizado
+em commit isolado (`d8bb6ea`), apenas com os números medidos pelo gate: ruff 86,
+ESLint 0, complexidade acima do teto 0, pior CCN 10, cobertura backend 82.01%,
+frontend 22.36%, duplicação 3.93%, arquivos acima do limite 0 e ciclos 0.
+
+### Tarefa 5.2 ☑ — Encerrar o plano
 
 - Marcar todos os itens deste documento como concluídos.
 - Mover para `docs/historico/plano-maturidade-8.md`.
 - Atualizar `README.md` na seção de qualidade com os números novos.
+
+**Execução registrada em 2026-08-18.** Este documento foi encerrado e arquivado
+com a tarefa 4.2 explicitamente bloqueada, sem transformar ausência de backup
+real em evidência de restore. O desbloqueio permanece descrito no runbook.
 
 ---
 
@@ -1423,14 +1438,14 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 2.4 | `no-alert` no eslint | ☑ |
 | 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |
 | 2.6 | Contrato verificável nos relatórios (`response_model`) | ☑ |
-| 3.1 | Receita: adicionar campo | ☐ |
-| 3.2 | Receita: adicionar endpoint | ☐ |
-| 3.3 | Receita: adicionar tela | ☐ |
-| 3.4 | Receita: corrigir bug | ☐ |
+| 3.1 | Receita: adicionar campo | ☑ |
+| 3.2 | Receita: adicionar endpoint | ☑ |
+| 3.3 | Receita: adicionar tela | ☑ |
+| 3.4 | Receita: corrigir bug | ☑ |
 | 3.5 | Checklist curto de revisão | ☑ |
 | 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☑ |
 | 4.1 | Ambiente de homologação | ☑ |
 | 4.2 | Restore ensaiado e cronometrado | ⏸ bloqueada |
-| 4.3 | Erro rastreável em produção | ☐ |
-| 5.1 | Baseline congelado | ☐ |
-| 5.2 | Plano encerrado e arquivado | ☐ |
+| 4.3 | Erro rastreável em produção | ☑ |
+| 5.1 | Baseline congelado | ☑ |
+| 5.2 | Plano encerrado e arquivado | ☑ |
