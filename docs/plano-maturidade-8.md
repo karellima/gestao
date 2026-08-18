@@ -350,7 +350,7 @@ ficar verde em paralelo, o que depende de dar um banco a cada spec.
 
 ---
 
-### Tarefa 0.13 — E2E da tela de contatos
+### Tarefa 0.13 ☑ — E2E das telas de contatos e contas
 
 Registrada durante a tarefa 1.8c. **Nenhum spec abre `/contacts`**: o `01-login`
 cita o caminho só dentro da lista de itens de menu, e o `04-venda` usa um contato
@@ -374,6 +374,14 @@ pode bater na internet, senão o CI fica dependente de terceiro e de rede.
 
 Valem as regras herdadas da Fase 0: nada de `waitForTimeout`, idempotente, e a
 suíte precisa passar três vezes seguidas.
+
+**Execução registrada em 2026-08-18.** A contagem da suíte passou de 10 para 12
+testes, com `08-contato.spec.js` cobrindo CRUD de contato, CRUD de seguimentos e
+as duas buscas por rotas interceptadas localmente, e `09-conta.spec.js` cobrindo
+banco, cartão, edição, persistência, remoção e os quatro filtros. Foi acrescentado
+`aria-label` aos dois botões de ação de `ContatoCard`, porque os ícones não tinham
+nome acessível. Os dois specs passaram juntos em uma rodada Playwright com um
+worker, após o reset/seed E2E; as buscas não acessam a internet.
 
 ---
 
@@ -1307,7 +1315,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 0.10 | Suíte E2E repetível | ☑ |
 | 0.11 | E2E movimentação entre depósitos | ☑ |
 | 0.12 | Corpo de resposta lido depois de uma navegação | ☑ |
-| 0.13 | E2E das telas de contatos e contas | ☐ |
+| 0.13 | E2E das telas de contatos e contas | ☑ |
 | 1.1 | `FinancialReports.jsx` (1380) | ☑ |
 | 1.2 | `Deposits.jsx` (796) | ☑ |
 | 1.3 | `Requisicoes.jsx` (627) | ☑ |
