@@ -38,7 +38,7 @@ function ContaCartaoDetalhes({ account }) {
   );
 }
 
-export default function ContaCard({ account, onEdit, onDelete }) {
+export default function ContaCard({ account, canManage, onEdit, onDelete }) {
   const cfg = typeConfig[account.account_type] || typeConfig.banco;
   const Icon = cfg.icon;
   const isCreditCard = account.account_type === 'cartao_credito';
@@ -83,14 +83,18 @@ export default function ContaCard({ account, onEdit, onDelete }) {
           </div>
         </div>
         <div className="flex gap-1">
-          <button aria-label={`Editar ${account.name}`} onClick={() => onEdit(account)}
-            className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
-            <Edit size={16} />
-          </button>
-          <button aria-label={`Excluir ${account.name}`} onClick={() => onDelete(account.id)}
-            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-            <Trash2 size={16} />
-          </button>
+          {canManage && (
+            <>
+              <button aria-label={`Editar ${account.name}`} onClick={() => onEdit(account)}
+                className="p-2 text-gray-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                <Edit size={16} />
+              </button>
+              <button aria-label={`Excluir ${account.name}`} onClick={() => onDelete(account.id)}
+                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                <Trash2 size={16} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </article>
