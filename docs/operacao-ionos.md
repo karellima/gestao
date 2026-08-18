@@ -16,6 +16,45 @@ produção; o deploy só deve ser feito depois de uma autorização explícita.
 - O timer systemd chama `ops/backup.sh` diariamente, às 03:15 (com atraso aleatório
   de até 15 minutos), mantendo 14 dias por padrão.
 
+## Ambiente de homologação — teste diário
+
+O ambiente de homologação é onde acontece o teste do dia a dia. Ele usa a mesma
+imagem da aplicação que está em produção, mas tem um banco PostgreSQL e um volume
+próprios. Dados de produção nunca são usados como atalho: o banco é inicializado
+com os dados de demonstração do seed e com um administrador de teste.
+
+Prepare o arquivo de ambiente sem colocá-lo no Git:
+
+```bash
+cp .env.homologacao.example .env.homologacao
+chmod 600 .env.homologacao
+```
+
+No `.env.homologacao`, fixe `APP_IMAGE` na mesma tag SHA imutável atualmente
+publicada em produção e troque as senhas de exemplo. Suba e confira o ambiente:
+
+```bash
+docker compose --env-file .env.homologacao \
+  -f docker-compose.homologacao.yml up -d
+docker compose --env-file .env.homologacao \
+  -f docker-compose.homologacao.yml ps
+curl --fail http://127.0.0.1:8001/api/health
+```
+
+O acesso local fica em `http://127.0.0.1:8001`. Para desligar sem remover os
+dados de homologação:
+
+```bash
+docker compose --env-file .env.homologacao \
+  -f docker-compose.homologacao.yml stop
+```
+
+O volume `gestao_homologacao_postgres_data` é deliberadamente diferente de
+`postgres_data`, usado pelo compose de produção. Nunca aponte este arquivo para
+`.env.ionos`, para `DATABASE_URL` de produção ou para o domínio de produção.
+Correções de fluxo e de estoque devem ser exercitadas aqui primeiro; o histórico
+de `stock_movements` continua imutável também neste ambiente.
+
 ## Bootstrap no servidor
 
 Assumindo `/opt/gestao` como diretório da aplicação:
