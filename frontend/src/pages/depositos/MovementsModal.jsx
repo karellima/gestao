@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, Edit, Package, Save, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { CaseInput } from '../../components/CaseInput';
 import { currencyToDigits, formatDigitsToCurrency, formatNumberToCurrency, parseCurrencyToNumber, qtyStep, qtyMin, roundQty } from '../../services/masks';
 
@@ -99,6 +100,7 @@ function MovementTable({ movements, editMov, editForm, setEditForm, editUnit, pr
 }
 
 export default function MovementsModal({ deposit, products, onClose }) {
+  const { notificar } = useNotificacao();
   const [movements, setMovements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editMov, setEditMov] = useState(null);
@@ -139,7 +141,7 @@ export default function MovementsModal({ deposit, products, onClose }) {
       setEditMov(null);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao editar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao editar');
     }
   };
 
@@ -150,7 +152,7 @@ export default function MovementsModal({ deposit, products, onClose }) {
       await api.delete(`/stock/movements/${id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao estornar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao estornar');
     }
   };
 

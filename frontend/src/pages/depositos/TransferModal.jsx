@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRightLeft, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { qtyStep, qtyMin, roundQty } from '../../services/masks';
 import useItensDeMovimentacao from './useItensDeMovimentacao';
 
@@ -11,6 +12,7 @@ const SIDES = {
 };
 
 export default function TransferModal({ type, deposit, deposits, onClose, onDone }) {
+  const { notificar } = useNotificacao();
   const side = SIDES[type];
 
   const srcId = type === 'abastecimento' ? deposit.parent_id : deposit.id;
@@ -51,11 +53,11 @@ export default function TransferModal({ type, deposit, deposits, onClose, onDone
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (items.length === 0) { alert('Adicione pelo menos um produto'); return; }
+    if (items.length === 0) { notificar.aviso('Adicione pelo menos um produto'); return; }
     for (const item of items) {
       const max = balOf(item.product_id);
       if (max != null && item.quantity > max) {
-        alert(`${item.product_name}: quantidade (${item.quantity}) excede o saldo no depósito (${max})`);
+        notificar.aviso(`${item.product_name}: quantidade (${item.quantity}) excede o saldo no depósito (${max})`);
         return;
       }
     }
@@ -67,10 +69,10 @@ export default function TransferModal({ type, deposit, deposits, onClose, onDone
         transfer_type: type,
         items: items.map(item => ({ product_id: item.product_id, quantity: roundQty(item.quantity, item.unit_abbr) })),
       });
-      alert(`${side.label} realizado com sucesso!`);
+      notificar.sucesso(`${side.label} realizado com sucesso!`);
       onDone();
     } catch (err) {
-      alert(err.response?.data?.detail || `Erro ao realizar ${side.label.toLowerCase()}`);
+      notificar.erro(err.response?.data?.detail || `Erro ao realizar ${side.label.toLowerCase()}`);
     } finally { setLoading(false); }
   };
 

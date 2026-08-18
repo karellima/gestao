@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ClipboardList, Trash2 } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../../components/CaseInput';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { currencyToDigits, formatDigitsToCurrency, formatNumberToCurrency, parseCurrencyToNumber, qtyMin, qtyStep, roundQty } from '../../services/masks';
 import SearchInput from './SearchInput';
 
@@ -36,10 +37,10 @@ function validationMessage(form) {
   return null;
 }
 
-function validateForm(form) {
+function validateForm(form, notificar) {
   const message = validationMessage(form);
   if (!message) return true;
-  alert(message);
+  notificar.aviso(message);
   return false;
 }
 
@@ -73,6 +74,7 @@ function saveError(err) {
 }
 
 export default function RequisicaoForm({ editing, products, deposits, unitOf, onClose, onSaved }) {
+  const { notificar } = useNotificacao();
   const [form, setForm] = useState(() => formFromRequisicao(editing));
   const [focusQtyId, setFocusQtyId] = useState(null);
   const searchRef = useRef(null);
@@ -114,13 +116,13 @@ export default function RequisicaoForm({ editing, products, deposits, unitOf, on
 
   const handleSubmit = async event => {
     event.preventDefault();
-    if (!validateForm(form)) return;
+    if (!validateForm(form, notificar)) return;
     try {
       await saveRequest(editing, requestData(form, unitOf));
       resetForm();
       onSaved();
     } catch (err) {
-      alert(saveError(err));
+      notificar.erro(saveError(err));
     }
   };
 

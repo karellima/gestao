@@ -3,6 +3,7 @@ import { AlertTriangle, ArrowRightLeft, BarChart3, ClipboardCheck, Edit, Package
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { CaseInput, CaseTextarea } from '../../components/CaseInput';
 import AvariaModal from './AvariaModal';
 import MovementsModal from './MovementsModal';
@@ -103,6 +104,7 @@ function DepositEditor({ editing, form, deposits, setForm, onSubmit, onClose }) 
 export default function Deposits() {
   const navigate = useNavigate();
   const { permissions } = useAuth();
+  const { notificar } = useNotificacao();
   const canManage = permissions?.['deposits_manage'] === 'edit';
   const [deposits, setDeposits] = useState([]);
   const [products, setProducts] = useState([]);
@@ -144,7 +146,7 @@ export default function Deposits() {
       else { await api.post('/deposits/', data); }
       setShowModal(false); setEditing(null); setForm({ name: '', description: '', address: '', parent_id: '' }); load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar depósito');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar depósito');
     }
   };
 
@@ -157,7 +159,7 @@ export default function Deposits() {
   const handleDelete = async (id) => {
     if (!confirm('Remover depósito?')) return;
     try { await api.delete(`/deposits/${id}`); load(); } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover depósito');
+      notificar.erro(err.response?.data?.detail || 'Erro ao remover depósito');
     }
   };
 

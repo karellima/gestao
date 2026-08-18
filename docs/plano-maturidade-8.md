@@ -1143,10 +1143,19 @@ Quatro testes Vitest cobrem as faixas e o build/gate ficaram verdes.
 
 ---
 
-### Tarefa 2.2 — Migrar as telas de maior volume
+### Tarefa 2.2 ☑ — Migrar as telas de maior volume
 
 `Deposits` (14), `Contacts` (10), `Requisicoes` (9), `SaleDetail` (6).
 Total: 39 dos 80. Um PR só, porque a substituição é mecânica.
+
+**Execução registrada em 2026-08-17.** As quatro áreas passaram a usar o
+`NotificacaoContext`: validações locais usam `notificar.aviso()`, confirmações
+de operação usam `.sucesso()` e falhas de API ou geração de PDF usam `.erro()`.
+O compartilhamento de pedido recebe a função de aviso por callback, preservando
+o uso fora de React. O teste de permissões de Contatos foi envolvido pelo
+provider e os 30 arquivos/143 testes Vitest, build e gate ficaram verdes. A
+busca nos quatro módulos migrados não encontra `alert()`; os specs de E2E
+existentes permanecem parte da verificação da tarefa.
 
 ### Tarefa 2.3 — Migrar as 18 telas restantes
 
@@ -1364,7 +1373,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.19 | Gerador seguro da senha inicial — **resolvida na 1.10g** | ☑ |
 | 1.20 | Validar extensão da planilha nos dois caminhos | ☑ |
 | 2.1 | Padrão de notificação e erro | ☑ |
-| 2.2 | Migrar as 4 telas de maior volume | ☐ |
+| 2.2 | Migrar as 4 telas de maior volume | ☑ |
 | 2.3 | Migrar as 18 telas restantes | ☐ |
 | 2.4 | `no-alert` no eslint | ☐ |
 | 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |

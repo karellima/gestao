@@ -1,6 +1,7 @@
 import { cleanup, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import Contacts from '../pages/contatos'
+import { NotificacaoProvider } from '../contexts/NotificacaoContext'
 
 const testState = vi.hoisted(() => ({
   permissions: { contacts: 'edit' },
@@ -13,7 +14,10 @@ const apiMock = vi.hoisted(() => ({
   delete: vi.fn(),
 }))
 
-vi.mock('../services/api', () => ({ default: apiMock }))
+vi.mock('../services/api', () => ({
+  default: apiMock,
+  configureApiErrorHandler: vi.fn(),
+}))
 vi.mock('../contexts/AuthContext', () => ({
   useAuth: () => ({ permissions: testState.permissions }),
 }))
@@ -35,7 +39,11 @@ const contact = {
 
 const renderContacts = async permission => {
   testState.permissions = { contacts: permission }
-  render(<Contacts />)
+  render(
+    <NotificacaoProvider>
+      <Contacts />
+    </NotificacaoProvider>,
+  )
   await screen.findByText('Contato Teste')
 }
 

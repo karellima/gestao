@@ -11,7 +11,7 @@ const salvarPdf = (blob, filename) => {
   URL.revokeObjectURL(url);
 };
 
-export async function compartilharPedido({ id, blob, contactName }) {
+export async function compartilharPedido({ id, blob, contactName, onNotice = () => {} }) {
   const filename = nomeDoArquivo(id);
   const file = new File([blob], filename, { type: 'application/pdf' });
   try {
@@ -31,6 +31,6 @@ export async function compartilharPedido({ id, blob, contactName }) {
 
   salvarPdf(blob, filename);
   if (/Mobi|Android|iPhone|iPad|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-    setTimeout(() => alert('PDF baixado! Compartilhe pelo app de arquivos.'), 500);
+    setTimeout(() => onNotice('PDF baixado! Compartilhe pelo app de arquivos.'), 500);
   }
 }

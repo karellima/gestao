@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useSettings } from '../../contexts/SettingsContext';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { Plus, Search, Settings2 } from 'lucide-react';
 import { formVazio, mapContatoToForm, buildContatoPayload } from './contato-form';
 import { mapCnpjToForm, mapCepToForm } from './busca-externa';
@@ -12,6 +13,7 @@ import SeguimentosModal from './SeguimentosModal';
 export default function Contacts() {
   const { permissions } = useAuth();
   const { normalize } = useSettings();
+  const { notificar } = useNotificacao();
   const canManage = permissions?.['contacts'] === 'edit';
   const [contacts, setContacts] = useState([]);
   const [segments, setSegments] = useState([]);
@@ -49,13 +51,13 @@ export default function Contacts() {
 
   const addSegment = async () => {
     const name = newSegment.trim();
-    if (!name) { alert('Informe um nome para o seguimento'); return; }
+    if (!name) { notificar.aviso('Informe um nome para o seguimento'); return; }
     try {
       await api.post('/contact-segments/', { name });
       setNewSegment('');
       loadSegments();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao adicionar seguimento');
+      notificar.erro(err.response?.data?.detail || 'Erro ao adicionar seguimento');
     }
   };
 
@@ -67,7 +69,7 @@ export default function Contacts() {
       setEditSegId(null);
       loadSegments();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar seguimento');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar seguimento');
     }
   };
 
@@ -77,7 +79,7 @@ export default function Contacts() {
       await api.delete(`/contact-segments/${id}`);
       loadSegments();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover seguimento');
+      notificar.erro(err.response?.data?.detail || 'Erro ao remover seguimento');
     }
   };
 
@@ -94,7 +96,7 @@ export default function Contacts() {
       else { await api.post('/contacts/', payload); }
       setShowModal(false); setEditing(null); resetForm(); loadContacts();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar contato');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar contato');
     }
   };
 
@@ -107,7 +109,7 @@ export default function Contacts() {
   const handleDelete = async (id) => {
     if (!confirm('Remover este contato?')) return;
     try { await api.delete(`/contacts/${id}`); loadContacts(); }
-    catch (err) { alert(err.response?.data?.detail || 'Erro ao remover contato'); }
+    catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover contato'); }
   };
 
   const resetForm = () => {
@@ -116,7 +118,7 @@ export default function Contacts() {
 
   const lookupCnpj = async () => {
     const cnpj = form.cpf_cnpj.replace(/\D/g, '');
-    if (cnpj.length !== 14) { alert('Informe um CNPJ válido (14 dígitos)'); return; }
+    if (cnpj.length !== 14) { notificar.aviso('Informe um CNPJ válido (14 dígitos)'); return; }
     setLookupLoading(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
@@ -124,7 +126,7 @@ export default function Contacts() {
       const d = await res.json();
       setForm(f => mapCnpjToForm(d, f, normalize));
     } catch (err) {
-      alert(err.message || 'Erro ao buscar CNPJ');
+      notificar.erro(err.message || 'Erro ao buscar CNPJ');
     } finally {
       setLookupLoading(false);
     }
@@ -132,7 +134,7 @@ export default function Contacts() {
 
   const lookupCep = async () => {
     const cep = form.cep.replace(/\D/g, '');
-    if (cep.length !== 8) { alert('Informe um CEP válido (8 dígitos)'); return; }
+    if (cep.length !== 8) { notificar.aviso('Informe um CEP válido (8 dígitos)'); return; }
     setCepLoading(true);
     try {
       const res = await fetch(`https://brasilapi.com.br/api/cep/v2/${cep}`);
@@ -140,7 +142,7 @@ export default function Contacts() {
       const d = await res.json();
       setForm(f => mapCepToForm(d, f, normalize));
     } catch (err) {
-      alert(err.message || 'Erro ao buscar CEP');
+      notificar.erro(err.message || 'Erro ao buscar CEP');
     } finally {
       setCepLoading(false);
     }

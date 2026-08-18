@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Truck } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { qtyStep, roundQty } from '../../services/masks';
 
 function initialQuantities(requisicao, balance) {
@@ -88,6 +89,7 @@ function FulfillmentItem({ item, balance, quantity, unitOf, onChange }) {
 }
 
 export default function AtendimentoModal({ requisicao, unitOf, onClose, onDone }) {
+  const { notificar } = useNotificacao();
   const [fulfillQty, setFulfillQty] = useState({});
   const [parentBalance, setParentBalance] = useState({});
   const [ready, setReady] = useState(false);
@@ -113,7 +115,7 @@ export default function AtendimentoModal({ requisicao, unitOf, onClose, onDone }
       onClose();
       onDone();
     } catch (err) {
-      alert(fulfillError(err));
+      notificar.erro(fulfillError(err));
     }
   };
 

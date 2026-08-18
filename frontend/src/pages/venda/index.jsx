@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { formatNumberToCurrency, parseCurrencyToNumber, roundQty } from '../../services/masks';
 import { gerarPdfDoPedido } from './pedido-pdf';
 import { compartilharPedido } from './compartilhar';
@@ -11,6 +12,7 @@ import SelecaoDaVenda from './SelecaoDaVenda';
 import TabelaDeItens from './TabelaDeItens';
 
 export default function SaleDetail() {
+  const { notificar } = useNotificacao();
   const { id } = useParams();
   const navigate = useNavigate();
   const [contacts, setContacts] = useState([]);
@@ -92,9 +94,9 @@ export default function SaleDetail() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!contactId) { alert('Selecione um cliente'); return; }
-    if (!saleTypeId) { alert('Selecione o tipo'); return; }
-    if (items.length === 0) { alert('Adicione pelo menos um produto'); return; }
+    if (!contactId) { notificar.aviso('Selecione um cliente'); return; }
+    if (!saleTypeId) { notificar.aviso('Selecione o tipo'); return; }
+    if (items.length === 0) { notificar.aviso('Adicione pelo menos um produto'); return; }
     const payload = {
       contact_id: parseInt(contactId),
       sale_type_id: parseInt(saleTypeId),
@@ -109,7 +111,7 @@ export default function SaleDetail() {
       }
       navigate('/sales');
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao salvar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao salvar');
     }
   };
 
@@ -117,9 +119,9 @@ export default function SaleDetail() {
     try {
       const sale = { id: parseInt(id), contact_name: contacts.find(c => c.id === parseInt(contactId))?.name, sale_type_name: saleTypes.find(t => t.id === parseInt(saleTypeId))?.name, total_amount: total, items, status, notes };
       const blob = gerarPdfDoPedido(sale);
-      await compartilharPedido({ id: sale.id, blob, contactName: sale.contact_name });
+      await compartilharPedido({ id: sale.id, blob, contactName: sale.contact_name, onNotice: notificar.aviso });
     } catch (err) {
-      alert('Erro ao gerar PDF: ' + (err.message || 'erro desconhecido'));
+      notificar.erro('Erro ao gerar PDF: ' + (err.message || 'erro desconhecido'));
     }
   };
 

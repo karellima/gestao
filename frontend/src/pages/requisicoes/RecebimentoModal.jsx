@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ArrowUpCircle } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { qtyStep, roundQty } from '../../services/masks';
 
 function initialQuantities(requisicao) {
@@ -49,6 +50,7 @@ function ReceivingItem({ item, quantity, unitOf, onChange }) {
 }
 
 export default function RecebimentoModal({ requisicao, unitOf, onClose, onDone }) {
+  const { notificar } = useNotificacao();
   const [receiveQty, setReceiveQty] = useState(() => initialQuantities(requisicao));
 
   const handleReceive = async () => {
@@ -59,7 +61,7 @@ export default function RecebimentoModal({ requisicao, unitOf, onClose, onDone }
       onClose();
       onDone();
     } catch (err) {
-      alert(receiveError(err));
+      notificar.erro(receiveError(err));
     }
   };
 
