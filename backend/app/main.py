@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 import time
 from datetime import datetime
 
@@ -7,6 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from app.database import engine
 from app.logging_config import setup_logging
@@ -149,8 +151,25 @@ logger.info("CORS configurado com origens: %s", CORS_ORIGINS)
 
 @app.get("/api/health")
 def health():
+    try:
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+    except Exception:
+        reference_id = secrets.token_hex(3)
+        logger.exception("Healthcheck do banco falhou reference_id=%s", reference_id,
+                         extra={"reference_id": reference_id})
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "database": "unavailable",
+                "reference_id": reference_id,
+            },
+            headers={"X-Request-ID": reference_id},
+        )
     return {
         "status": "ok",
+        "database": "ok",
         "timestamp": datetime.now().isoformat(),
         "version": "1.0.0",
     }
@@ -158,11 +177,31 @@ def health():
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception("Erro não tratado em %s %s", request.method, request.url.path)
+    reference_id = getattr(request.state, "reference_id", secrets.token_hex(3))
+    logger.exception(
+        "Erro não tratado em %s %s reference_id=%s",
+        request.method,
+        request.url.path,
+        reference_id,
+        extra={"reference_id": reference_id},
+    )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Erro interno do servidor"},
+        headers={"X-Request-ID": reference_id},
+        content={
+            "detail": "Erro interno do servidor",
+            "reference_id": reference_id,
+        },
     )
+
+
+@app.middleware("http")
+async def request_reference(request: Request, call_next):
+    reference_id = secrets.token_hex(3)
+    request.state.reference_id = reference_id
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = reference_id
+    return response
 
 
 @app.middleware("http")
@@ -170,7 +209,16 @@ async def log_requests(request: Request, call_next):
     start = time.time()
     response = await call_next(request)
     duration_ms = (time.time() - start) * 1000
-    logger.info("%s %s %d %.0fms", request.method, request.url.path, response.status_code, duration_ms)
+    reference_id = getattr(request.state, "reference_id", "unknown")
+    logger.info(
+        "%s %s %d %.0fms reference_id=%s",
+        request.method,
+        request.url.path,
+        response.status_code,
+        duration_ms,
+        reference_id,
+        extra={"reference_id": reference_id},
+    )
     return response
 
 app.include_router(auth.router)

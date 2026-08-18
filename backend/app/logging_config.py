@@ -22,6 +22,9 @@ def setup_logging():
                 }
                 if record.exc_info and record.exc_info[1]:
                     log_entry["exc"] = self.formatException(record.exc_info)
+                reference_id = getattr(record, "reference_id", None)
+                if reference_id:
+                    log_entry["reference_id"] = reference_id
                 return json.dumps(log_entry, default=str, ensure_ascii=False)
 
         handler = logging.StreamHandler(sys.stderr)
