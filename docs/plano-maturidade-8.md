@@ -1287,11 +1287,15 @@ perguntas binárias, cada uma com comando verificável, cobrindo escopo, segredo
 tamanho, migration, autorização, ledger de estoque, supressões, testes, gate e
 baseline/deploy.
 
-### Tarefa 3.6 — Atualizar as portas de entrada
+### Tarefa 3.6 ☑ — Atualizar as portas de entrada
 
 `AGENTS.md` e `README.md` passam a apontar para `docs/receitas/` **antes** de
 qualquer outra coisa, com uma linha do tipo: *"Vai mexer no sistema? Comece pela
 receita da tarefa que você quer fazer."*
+
+**Execução registrada em 2026-08-17.** `AGENTS.md` e `README.md` agora apontam
+para `docs/receitas/` e para `quality/revisao-rapida.md` antes das instruções
+operacionais, deixando o caminho de entrada explícito.
 
 ---
 
@@ -1410,7 +1414,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 3.3 | Receita: adicionar tela | ☐ |
 | 3.4 | Receita: corrigir bug | ☐ |
 | 3.5 | Checklist curto de revisão | ☑ |
-| 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☐ |
+| 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☑ |
 | 4.1 | Ambiente de homologação | ☐ |
 | 4.2 | Restore ensaiado e cronometrado | ☐ |
 | 4.3 | Erro rastreável em produção | ☐ |

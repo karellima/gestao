@@ -3,6 +3,10 @@
 ERP-lite para gestão de estoque, vendas, financeiro e contatos. Backend FastAPI,
 frontend React, banco PostgreSQL, rodando em servidor próprio.
 
+Vai mexer no sistema? Comece pela receita da tarefa que você quer fazer em
+[`docs/receitas/`](docs/receitas/); antes de abrir o PR, rode o
+[`quality/revisao-rapida.md`](quality/revisao-rapida.md).
+
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12, FastAPI, SQLAlchemy 2.0, JWT (python-jose + bcrypt) |
