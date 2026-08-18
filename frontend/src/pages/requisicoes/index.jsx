@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ClipboardList, Plus } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import AtendimentoModal from './AtendimentoModal';
 import ImpressaoRequisicao from './ImpressaoRequisicao';
 import RecebimentoModal from './RecebimentoModal';
@@ -27,6 +28,7 @@ const statusColors = {
 
 export default function Requisicoes() {
   const { user } = useAuth();
+  const { notificar } = useNotificacao();
   const [requisicoes, setRequisicoes] = useState([]);
   const [products, setProducts] = useState([]);
   const [deposits, setDeposits] = useState([]);
@@ -85,7 +87,7 @@ export default function Requisicoes() {
       await api.put(`/requisicoes/${requisicao.id}/approve`, { items });
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao liberar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao liberar');
     }
   };
 
@@ -95,7 +97,7 @@ export default function Requisicoes() {
       await api.put(`/requisicoes/${requisicao.id}/cancel`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao cancelar');
+      notificar.erro(err.response?.data?.detail || 'Erro ao cancelar');
     }
   };
 
@@ -105,7 +107,7 @@ export default function Requisicoes() {
       await api.delete(`/requisicoes/${id}`);
       load();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao remover');
+      notificar.erro(err.response?.data?.detail || 'Erro ao remover');
     }
   };
 

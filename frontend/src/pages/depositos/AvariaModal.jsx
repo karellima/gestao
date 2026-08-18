@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
+import { useNotificacao } from '../../contexts/NotificacaoContext';
 import { CaseInput } from '../../components/CaseInput';
 import { qtyStep, qtyMin, roundQty } from '../../services/masks';
 import useItensDeMovimentacao from './useItensDeMovimentacao';
 
 export default function AvariaModal({ deposit, deposits, onClose, onDone }) {
+  const { notificar } = useNotificacao();
   const [form, setForm] = useState({ deposit_id: deposit ? String(deposit.id) : '', description: '', items: [] });
   const [searchQ, setSearchQ] = useState('');
   const [loading, setLoading] = useState(false);
@@ -44,16 +46,16 @@ export default function AvariaModal({ deposit, deposits, onClose, onDone }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.deposit_id) { alert('Selecione o depósito'); return; }
-    if (form.items.length === 0) { alert('Adicione pelo menos um produto'); return; }
-    if (!form.description) { alert('Descreva a avaria'); return; }
+    if (!form.deposit_id) { notificar.aviso('Selecione o depósito'); return; }
+    if (form.items.length === 0) { notificar.aviso('Adicione pelo menos um produto'); return; }
+    if (!form.description) { notificar.aviso('Descreva a avaria'); return; }
     const invalidItem = form.items.find(item => {
       const max = balOf(item.product_id);
       return max != null && item.quantity > max;
     });
     if (invalidItem) {
       const max = balOf(invalidItem.product_id);
-      alert(`${invalidItem.product_name}: quantidade (${invalidItem.quantity}) excede o saldo no depósito (${max})`);
+      notificar.aviso(`${invalidItem.product_name}: quantidade (${invalidItem.quantity}) excede o saldo no depósito (${max})`);
       return;
     }
     setLoading(true);
@@ -63,10 +65,10 @@ export default function AvariaModal({ deposit, deposits, onClose, onDone }) {
         description: form.description,
         items: form.items.map(item => ({ product_id: item.product_id, quantity: roundQty(item.quantity, item.unit_abbr) })),
       });
-      alert('Avaria registrada com sucesso!');
+      notificar.sucesso('Avaria registrada com sucesso!');
       onDone();
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao registrar avaria');
+      notificar.erro(err.response?.data?.detail || 'Erro ao registrar avaria');
     } finally { setLoading(false); }
   };
 
