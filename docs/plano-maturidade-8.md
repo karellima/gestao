@@ -1270,7 +1270,7 @@ princípio; ele copia exemplo.
 | **3.3** | `docs/receitas/adicionar-tela.md` | Página + rota + item de menu + chamada via `services/api.js` + notificação de erro no padrão da Fase 2 |
 | **3.4** | `docs/receitas/corrigir-bug.md` | Reproduzir → escrever o teste que falha → corrigir → ver o teste passar. Inclui a regra de estoque: erro em movimentação se corrige por compensação, nunca apagando linha |
 
-### Tarefa 3.5 — Checklist curto de revisão
+### Tarefa 3.5 ☑ — Checklist curto de revisão
 
 **Onde:** `quality/revisao-rapida.md` (novo), referenciado de `AGENTS.md`.
 
@@ -1281,6 +1281,11 @@ sem julgamento de arquitetura. Exemplos do tipo certo: "algum arquivo novo passo
 de 300 linhas?", "o `baseline.json` mudou junto com código?", "apareceu `noqa` ou
 `eslint-disable` no diff?", "endpoint novo tem guard?", "mudou model sem
 migration?".
+
+**Execução registrada em 2026-08-17.** `quality/revisao-rapida.md` reúne dez
+perguntas binárias, cada uma com comando verificável, cobrindo escopo, segredos,
+tamanho, migration, autorização, ledger de estoque, supressões, testes, gate e
+baseline/deploy.
 
 ### Tarefa 3.6 — Atualizar as portas de entrada
 
@@ -1404,7 +1409,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 3.2 | Receita: adicionar endpoint | ☐ |
 | 3.3 | Receita: adicionar tela | ☐ |
 | 3.4 | Receita: corrigir bug | ☐ |
-| 3.5 | Checklist curto de revisão | ☐ |
+| 3.5 | Checklist curto de revisão | ☑ |
 | 3.6 | `AGENTS.md` e `README.md` apontam para as receitas | ☐ |
 | 4.1 | Ambiente de homologação | ☐ |
 | 4.2 | Restore ensaiado e cronometrado | ☐ |
