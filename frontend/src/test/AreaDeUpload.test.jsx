@@ -2,9 +2,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import AreaDeUpload from '../components/AreaDeUpload'
 
-const renderUpload = (setFile = vi.fn()) => {
+const renderUpload = (setFile = vi.fn(), file = null) => {
   const view = render(
-    <AreaDeUpload file={null} setFile={setFile} inputRef={{ current: null }} />,
+    <AreaDeUpload file={file} setFile={setFile} inputRef={{ current: null }} />,
   )
 
   return { ...view, input: view.container.querySelector('input'), dropZone: view.container.firstChild, setFile }
@@ -16,6 +16,15 @@ describe('AreaDeUpload', () => {
   it('aceita planilha .xlsx escolhida pelo input', () => {
     const { input, setFile } = renderUpload()
     const file = arquivo('produtos.xlsx')
+
+    fireEvent.change(input, { target: { files: [file] } })
+
+    expect(setFile).toHaveBeenCalledWith(file)
+  })
+
+  it('aceita planilha .xls escolhida pelo input', () => {
+    const { input, setFile } = renderUpload()
+    const file = arquivo('produtos.xls')
 
     fireEvent.change(input, { target: { files: [file] } })
 
@@ -66,5 +75,15 @@ describe('AreaDeUpload', () => {
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     expect(setFile).toHaveBeenCalledWith(expect.objectContaining({ name: 'produtos.XLSX' }))
+  })
+
+  it('limpa a planilha anterior quando um arquivo inválido é escolhido', () => {
+    const setFile = vi.fn()
+    const { input } = renderUpload(setFile, arquivo('produtos.xlsx'))
+
+    fireEvent.change(input, { target: { files: [arquivo('produtos.pdf')] } })
+
+    expect(setFile).toHaveBeenCalledWith(null)
+    expect(screen.getByRole('alert')).toBeVisible()
   })
 })

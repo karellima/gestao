@@ -12,6 +12,7 @@ export default function AreaDeUpload({ file, setFile, inputRef }) {
     if (!selectedFile) return;
     if (!ehPlanilha(selectedFile)) {
       setErro(MENSAGEM_FORMATO_INVALIDO);
+      if (file) setFile(null);
       return;
     }
 
