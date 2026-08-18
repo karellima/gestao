@@ -3,15 +3,15 @@
   "ccn_ceiling": 10,
   "file_line_limit": 300,
   "metrics": {
-    "lint_ruff": 92,
+    "lint_ruff": 86,
     "lint_eslint": 0,
-    "complexity_over_ceiling": 42,
-    "complexity_max": 27,
-    "files_over_limit": 13,
-    "largest_file_lines": 1380,
-    "duplication_pct": 6.23,
+    "complexity_over_ceiling": 0,
+    "complexity_max": 10,
+    "files_over_limit": 0,
+    "largest_file_lines": 300,
+    "duplication_pct": 3.93,
     "import_cycles": 0,
-    "coverage_frontend_pct": 10.3,
-    "coverage_backend_pct": 77.92
+    "coverage_frontend_pct": 22.36,
+    "coverage_backend_pct": 82.01
   }
 }
