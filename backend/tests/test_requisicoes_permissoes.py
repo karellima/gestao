@@ -1,11 +1,11 @@
 from app.models.requisicao import Requisicao, RequisicaoItem
 from app.models.stock import StockMovement
 from app.models.user import User
-from app.utils.security import create_access_token
+from app.utils.security import criar_token_do_usuario
 
 
 def _headers(user):
-    token = create_access_token({"sub": str(user.id)})
+    token = criar_token_do_usuario(user)
     return {"Authorization": f"Bearer {token}"}
 
 

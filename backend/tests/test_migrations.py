@@ -33,6 +33,22 @@ COLUNAS_DO_BOOT = {
     "products": ["markup"],
 }
 
+#: Colunas acrescentadas por migrations **posteriores** à baseline.
+#:
+#: A fixture monta o "banco legado" a partir dos models de hoje, então toda
+#: coluna criada depois da baseline nasceria já presente e a revisão que a
+#: acrescenta morreria com "duplicate column name". Isto já existia como um
+#: `c != "compensates_movement_id"` solto no meio da comprehension; virou tabela
+#: porque a segunda ocorrência provou que não era caso isolado.
+#:
+#: Toda migration que fizer `add_column` precisa de uma linha aqui. Sem ela o
+#: teste do corte de produção passa a falhar — que é o aviso funcionando, não um
+#: teste chato: ele está dizendo que o banco de produção não tem essa coluna.
+COLUNAS_POSTERIORES_A_BASELINE = {
+    "stock_movements": ["compensates_movement_id"],   # revisão 9e3f6a2c5b74
+    "users": ["token_version"],                       # revisão d4b7e91f3a26
+}
+
 
 def _alembic(url, *args):
     ambiente = {
@@ -151,10 +167,26 @@ def banco_legado(url_temporaria):
     Base.metadata.create_all(bind=engine)
 
     with engine.begin() as conexao:
-        for tabela, removidas in COLUNAS_DO_BOOT.items():
+        # Tabela que não perde coluna do boot sai por DROP COLUMN, não por
+        # CREATE TABLE AS SELECT. O CTAS não carrega chave primária junto: o
+        # `users` recriado por ele nasce sem AUTOINCREMENT, e o seed do boot
+        # morre no primeiro INSERT sem id. DROP COLUMN preserva a definição da
+        # tabela e serve porque estas colunas são acréscimos simples, sem chave
+        # estrangeira apontando para elas.
+        for tabela, colunas in COLUNAS_POSTERIORES_A_BASELINE.items():
+            if tabela in COLUNAS_DO_BOOT:
+                continue
+            for coluna in colunas:
+                conexao.execute(text(f"ALTER TABLE {tabela} DROP COLUMN {coluna}"))
+
+        for tabela, removidas_do_boot in COLUNAS_DO_BOOT.items():
+            removidas = {
+                *removidas_do_boot,
+                *COLUNAS_POSTERIORES_A_BASELINE.get(tabela, []),
+            }
             mantidas = [
                 c for c in Base.metadata.tables[tabela].columns.keys()
-                if c not in removidas and c != "compensates_movement_id"
+                if c not in removidas
             ]
             lista = ", ".join(mantidas)
             conexao.execute(text(f"CREATE TABLE _legado AS SELECT {lista} FROM {tabela}"))
