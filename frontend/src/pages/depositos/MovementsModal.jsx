@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ArrowDownCircle, ArrowUpCircle, Edit, Package, Save, Trash2, X } from 'lucide-react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { CaseInput } from '../../components/CaseInput';
 import { currencyToDigits, formatDigitsToCurrency, formatNumberToCurrency, parseCurrencyToNumber, qtyStep, qtyMin, roundQty } from '../../services/masks';
 
@@ -147,7 +148,7 @@ export default function MovementsModal({ deposit, products, onClose }) {
 
   const handleDelete = async (id) => {
     // O histórico é imutável: isto grava um estorno, não apaga a linha.
-    if (!confirm('Estornar esta movimentação? O lançamento original continua no histórico e um estorno será registrado ao lado dele.')) return;
+    if (!confirmar('Estornar esta movimentação? O lançamento original continua no histórico e um estorno será registrado ao lado dele.')) return;
     try {
       await api.delete(`/stock/movements/${id}`);
       load();

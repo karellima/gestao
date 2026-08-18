@@ -3,6 +3,7 @@ import api from '../services/api';
 import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Shield, Plus, Edit, Trash2, X, Save } from 'lucide-react';
 import { CaseInput } from '../components/CaseInput';
+import { confirmar } from '../utils/confirmar';
 
 const ALL_MODULES = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -106,7 +107,7 @@ export default function Roles() {
   };
 
   const handleDelete = async (r) => {
-    if (!confirm(`Remover perfil "${r.name}"?`)) return;
+    if (!confirmar(`Remover perfil "${r.name}"?`)) return;
     try {
       await api.delete(`/roles/${r.id}`);
       load();

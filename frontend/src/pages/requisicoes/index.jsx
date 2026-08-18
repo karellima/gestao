@@ -3,6 +3,7 @@ import { ClipboardList, Plus } from 'lucide-react';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import AtendimentoModal from './AtendimentoModal';
 import ImpressaoRequisicao from './ImpressaoRequisicao';
 import RecebimentoModal from './RecebimentoModal';
@@ -82,7 +83,7 @@ export default function Requisicoes() {
       quantity_approved: item.quantity_approved || item.quantity_requested,
     }));
     const totals = items.reduce((sum, item) => sum + item.quantity_approved, 0);
-    if (!confirm(`Liberar requisição #${requisicao.id} (${totals} ite${totals === 1 ? 'm' : 'ns'}) para atendimento?`)) return;
+    if (!confirmar(`Liberar requisição #${requisicao.id} (${totals} ite${totals === 1 ? 'm' : 'ns'}) para atendimento?`)) return;
     try {
       await api.put(`/requisicoes/${requisicao.id}/approve`, { items });
       load();
@@ -92,7 +93,7 @@ export default function Requisicoes() {
   };
 
   const handleCancel = async requisicao => {
-    if (!confirm(`Cancelar requisição #${requisicao.id}?`)) return;
+    if (!confirmar(`Cancelar requisição #${requisicao.id}?`)) return;
     try {
       await api.put(`/requisicoes/${requisicao.id}/cancel`);
       load();
@@ -102,7 +103,7 @@ export default function Requisicoes() {
   };
 
   const handleDelete = async id => {
-    if (!confirm('Remover esta requisição?')) return;
+    if (!confirmar('Remover esta requisição?')) return;
     try {
       await api.delete(`/requisicoes/${id}`);
       load();

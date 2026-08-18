@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { Calculator } from 'lucide-react';
 import {
   currencyToDigits, formatDigitsToCurrency, parseCurrencyToNumber, formatNumberToCurrency,
@@ -96,7 +97,7 @@ export default function Pricing() {
   };
 
   const handleDelete = async (pid) => {
-    if (!confirm('Remover esta precificação?')) return;
+    if (!confirmar('Remover esta precificação?')) return;
     try { await api.delete(`/pricing/${pid}`); loadPricings(); } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover'); }
   };
 

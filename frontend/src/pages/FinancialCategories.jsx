@@ -4,6 +4,7 @@ import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus } from 'lucide-react';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
 import CategoryTree from '../components/CategoryTree';
+import { confirmar } from '../utils/confirmar';
 
 export default function FinancialCategories() {
   const { notificar } = useNotificacao();
@@ -48,7 +49,7 @@ export default function FinancialCategories() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover esta categoria?')) return;
+    if (!confirmar('Remover esta categoria?')) return;
     try { await api.delete(`/financial-categories/${id}`); loadCategories(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover categoria financeira'); }
   };

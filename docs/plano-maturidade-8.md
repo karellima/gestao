@@ -1174,13 +1174,19 @@ migrados nesta tarefa. **Critério de aceite de 2.3:**
 `rg -n 'alert\(' frontend/src` devolve zero globalmente. Em ambas, os specs da
 Fase 0 continuam verdes (ajuste os specs se dependiam do `dialog` do navegador).
 
-### Tarefa 2.4 — Trancar a porta
+### Tarefa 2.4 ☑ — Trancar a porta
 
 **Onde:** `frontend/eslint.config.js`.
 
 Adicionar `"no-alert": "error"`. Como `lint_eslint` está em 0 no baseline e a
 catraca não deixa subir, **qualquer `alert()` novo passa a reprovar o commit
 automaticamente.** Barreira permanente, custo de uma linha.
+
+**Execução registrada em 2026-08-17.** A configuração flat do ESLint passou a
+tratar `no-alert` como erro. Como a regra também cobre `confirm`, as
+confirmações síncronas existentes foram centralizadas em `utils/confirmar.js`,
+com a exceção documentada no ponto único. A busca de diálogos nas telas ficou
+zerada; lint, gate, backend e E2E confirmam a aplicação sem piorar a catraca.
 
 ---
 
@@ -1383,7 +1389,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 2.1 | Padrão de notificação e erro | ☑ |
 | 2.2 | Migrar as 4 telas de maior volume | ☑ |
 | 2.3 | Migrar as 18 telas restantes | ☑ |
-| 2.4 | `no-alert` no eslint | ☐ |
+| 2.4 | `no-alert` no eslint | ☑ |
 | 2.5 | ~~SKU duplicado devolve 500~~ — movida para a 1.11 | — |
 | 2.6 | Contrato verificável nos relatórios (`response_model`) | ☐ |
 | 3.1 | Receita: adicionar campo | ☐ |

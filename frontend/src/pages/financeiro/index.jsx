@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { formatCurrency, getTodayLocal } from '../../services/format';
 import { parseCurrencyToNumber, formatNumberToCurrency } from '../../services/masks';
 import { Plus, TrendingUp, TrendingDown, Landmark, Wallet, CreditCard, AlertTriangle, Clock } from 'lucide-react';
@@ -147,7 +148,7 @@ export default function Financial() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Remover esta transação?')) {
+    if (confirmar('Remover esta transação?')) {
       await api.delete(`/financial/transactions/${id}`);
       loadTransactions();
     }

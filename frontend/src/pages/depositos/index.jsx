@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { CaseInput, CaseTextarea } from '../../components/CaseInput';
 import AvariaModal from './AvariaModal';
 import MovementsModal from './MovementsModal';
@@ -157,7 +158,7 @@ export default function Deposits() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover depósito?')) return;
+    if (!confirmar('Remover depósito?')) return;
     try { await api.delete(`/deposits/${id}`); load(); } catch (err) {
       notificar.erro(err.response?.data?.detail || 'Erro ao remover depósito');
     }

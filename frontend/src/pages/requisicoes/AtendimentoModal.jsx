@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Truck } from 'lucide-react';
 import api from '../../services/api';
 import { useNotificacao } from '../../contexts/NotificacaoContext';
+import { confirmar } from '../../utils/confirmar';
 import { qtyStep, roundQty } from '../../services/masks';
 
 function initialQuantities(requisicao, balance) {
@@ -109,7 +110,7 @@ export default function AtendimentoModal({ requisicao, unitOf, onClose, onDone }
   const handleFulfill = async () => {
     const items = fulfillmentItems(requisicao, fulfillQty, unitOf);
     const exceeded = exceededItems(requisicao, fulfillQty);
-    if (!confirm(confirmationMessage(requisicao, exceeded, fulfillQty))) return;
+    if (!confirmar(confirmationMessage(requisicao, exceeded, fulfillQty))) return;
     try {
       await api.put(`/requisicoes/${requisicao.id}/fulfill`, { items });
       onClose();

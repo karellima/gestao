@@ -4,6 +4,7 @@ import { useNotificacao } from '../contexts/NotificacaoContext';
 import { Plus, Edit, Trash2, FileText } from 'lucide-react';
 import SortableHeader from '../components/SortableHeader';
 import { CaseInput, CaseTextarea } from '../components/CaseInput';
+import { confirmar } from '../utils/confirmar';
 
 export default function SaleTypes() {
   const { notificar } = useNotificacao();
@@ -41,7 +42,7 @@ export default function SaleTypes() {
 
   const handleEdit = (t) => { setEditing(t); setForm({ name: t.name, description: t.description || '' }); setShowModal(true); };
   const handleDelete = async (id) => {
-    if (!confirm('Remover este tipo de lançamento?')) return;
+    if (!confirmar('Remover este tipo de lançamento?')) return;
     try { await api.delete(`/sale-types/${id}`); load(); } catch (err) { notificar.erro(err.response?.data?.detail || 'Erro'); }
   };
 

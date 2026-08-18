@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import ContaCard from './ContaCard';
 import ContaForm from './ContaForm';
 import { fromAccount, getEmptyForm, toPayload } from './conta-form';
+import { confirmar } from '../../utils/confirmar';
 
 const filters = [
   { v: '', l: 'Todas' }, { v: 'banco', l: 'Bancos' },
@@ -52,7 +53,7 @@ export default function Accounts() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Remover?')) return;
+    if (!confirmar('Remover?')) return;
     try { await api.delete(`/accounts/${id}`); load(); }
     catch (err) { notificar.erro(err.response?.data?.detail || 'Erro ao remover conta'); }
   };
