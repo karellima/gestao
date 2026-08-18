@@ -1,5 +1,9 @@
 # Regras do projeto
 
+Vai mexer no sistema? Comece pela receita da tarefa que você quer fazer em
+[`docs/receitas/`](docs/receitas/). Depois confira o checklist executável em
+[`quality/revisao-rapida.md`](quality/revisao-rapida.md).
+
 ## Ao concluir uma alteração
 
 1. **Testes**: rodar `cd backend && .venv/bin/python -m pytest tests/` e validar verde.
