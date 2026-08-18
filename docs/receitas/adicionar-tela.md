@@ -75,7 +75,7 @@ cliente compartilhado.
    ```
 
    O `MODULE_MAP` e a ordem padrão em
-   `frontend/src/components/navegacao/navegacao/index.jsx` precisam reconhecer
+   `frontend/src/components/navegacao/menu-secoes.js` precisam reconhecer
    o caminho. Se o módulo já existir, apenas reutilize o mapeamento; não crie
    uma segunda chave para a mesma permissão.
 

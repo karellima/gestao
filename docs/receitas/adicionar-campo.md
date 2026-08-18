@@ -36,7 +36,7 @@ Não crie migration dentro de `backend/app/` e não altere o banco pelo startup.
    ```
 
    A migration gerada deve ter `upgrade()` e `downgrade()`. Confira o trecho
-   real em `backend/alembic/versions/c6f4a8d2e1b0_garante_uma_unica_compensacao_por_movimentacao.py`:
+   real em `backend/alembic/versions/c6f4a8d2e1b0_unique_stock_compensation.py`:
 
    ```python
    def upgrade() -> None:
