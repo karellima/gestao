@@ -1,3 +1,4 @@
+from app.models.stock import StockMovement
 
 
 
@@ -255,6 +256,90 @@ class TestRequisicaoWorkflow:
         assert len(entradas) == 1
         assert saidas[0]["deposit_id"] == seed_deposits[0].id
         assert entradas[0]["deposit_id"] == seed_deposits[1].id
+
+    def test_receive_requisicao_is_idempotent_for_existing_movements(
+        self, client, auth_headers, db, seed_products, seed_deposits,
+    ):
+        client.post("/api/stock/movements/", json={
+            "product_id": seed_products[0].id,
+            "deposit_id": seed_deposits[0].id,
+            "movement_type": "entrada",
+            "quantity": 100,
+            "unit_price": 30.0,
+            "reason": "Estoque inicial",
+        }, headers=auth_headers)
+        create_resp = client.post("/api/requisicoes/", json={
+            "deposit_requesting_id": seed_deposits[1].id,
+            "deposit_fulfilling_id": seed_deposits[0].id,
+            "items": [{"product_id": seed_products[0].id, "quantity_requested": 20}],
+        }, headers=auth_headers)
+        req_id = create_resp.json()["id"]
+        client.put(f"/api/requisicoes/{req_id}/approve", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_approved": 20}],
+        }, headers=auth_headers)
+        client.put(f"/api/requisicoes/{req_id}/fulfill", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_fulfilled": 20}],
+        }, headers=auth_headers)
+        receive_resp = client.put(f"/api/requisicoes/{req_id}/receive", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_received": 18}],
+        }, headers=auth_headers)
+        assert receive_resp.status_code == 200
+
+        from app.models.requisicao import Requisicao
+        from app.services.requisition_workflow import record_requisition_movements
+
+        req = db.query(Requisicao).filter(Requisicao.id == req_id).first()
+        before = db.query(StockMovement).filter(
+            StockMovement.source == "requisicao",
+            StockMovement.product_id == seed_products[0].id,
+        ).all()
+        before_stock = seed_products[0].current_stock
+        record_requisition_movements(db, req, {req.items[0].id: (20, 18)}, 1)
+        db.commit()
+        after = db.query(StockMovement).filter(
+            StockMovement.source == "requisicao",
+            StockMovement.product_id == seed_products[0].id,
+        ).all()
+
+        assert len(after) == len(before)
+        assert seed_products[0].current_stock == before_stock
+        assert {movement.id for movement in after} == {movement.id for movement in before}
+
+    def test_partial_receive_records_the_requested_partial_quantity(
+        self, client, auth_headers, seed_products, seed_deposits,
+    ):
+        client.post("/api/stock/movements/", json={
+            "product_id": seed_products[0].id,
+            "deposit_id": seed_deposits[0].id,
+            "movement_type": "entrada",
+            "quantity": 100,
+            "unit_price": 30.0,
+            "reason": "Estoque inicial",
+        }, headers=auth_headers)
+        create_resp = client.post("/api/requisicoes/", json={
+            "deposit_requesting_id": seed_deposits[1].id,
+            "deposit_fulfilling_id": seed_deposits[0].id,
+            "items": [{"product_id": seed_products[0].id, "quantity_requested": 20}],
+        }, headers=auth_headers)
+        req_id = create_resp.json()["id"]
+        client.put(f"/api/requisicoes/{req_id}/approve", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_approved": 20}],
+        }, headers=auth_headers)
+        client.put(f"/api/requisicoes/{req_id}/fulfill", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_fulfilled": 20}],
+        }, headers=auth_headers)
+        response = client.put(f"/api/requisicoes/{req_id}/receive", json={
+            "items": [{"product_id": seed_products[0].id, "quantity_received": 7}],
+        }, headers=auth_headers)
+
+        assert response.status_code == 200
+        movements = client.get(
+            f"/api/stock/movements/?product_id={seed_products[0].id}",
+            headers=auth_headers,
+        ).json()
+        entries = [m for m in movements if m["source"] == "requisicao" and m["movement_type"] == "entrada"]
+        assert len(entries) == 1
+        assert entries[0]["quantity"] == 7
 
     def test_baixa_apenas_no_recebimento(self, client, auth_headers, seed_products, seed_deposits):
         """Checks that stock exits are only created at receipt, not at approval or fulfillment."""

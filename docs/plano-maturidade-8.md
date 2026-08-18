@@ -999,7 +999,7 @@ reapertado — o que o plano só prevê na tarefa **5.1** —, todo ganho novo p
 desfeito em silêncio. Fica registrado aqui para que a 5.1 trate disso
 explicitamente, e não só congele o número final.
 
-### Tarefa 1.12 — Idempotência da entrada de requisição
+### Tarefa 1.12 ☑ — Idempotência da entrada de requisição
 
 Dívida registrada durante a tarefa 1.7. O recebimento protege a saída com
 `existing_saida`, mas não tem guarda equivalente para a entrada. O endpoint
@@ -1007,6 +1007,15 @@ normal não reprocessa uma requisição já recebida, então a assimetria é
 pré-existente e não foi alterada na refatoração. A correção futura deve manter
 o histórico de estoque imutável e tratar a idempotência da entrada
 separadamente.
+
+**Execução registrada em 2026-08-18.** A `main` atual ainda montava apenas
+`existing_saida`; a correção acrescentou a guarda simétrica por produto e pelo
+prefixo `Recebimento Requisição #{id}:`, sem alterar o ledger. Foram adicionados
+testes para reprocessamento idempotente, saldo e IDs das movimentações, além de
+recebimento parcial único. A decisão foi manter a semântica atual do endpoint:
+ele muda a requisição para `recebido` na primeira confirmação, então não foi
+inventado um segundo recebimento parcial; a guarda por produto protege uma
+reexecução do mesmo recebimento sem apagar nem reescrever histórico.
 
 ### Tarefa 1.13 — Decidir a proteção do botão Novo Contato
 
@@ -1329,7 +1338,7 @@ tarefa aberta — não se congela um número pior fingindo que era o alvo.
 | 1.10f | `ImportExcelModal.jsx` + `pages/SaleDetail.jsx` | ☑ |
 | 1.10g | `Users.jsx` | ☑ |
 | 1.11 | SKU duplicado devolve 500 — **verificada: não reproduz** | ☑ |
-| 1.12 | Idempotência da entrada de requisição | ☐ |
+| 1.12 | Idempotência da entrada de requisição | ☑ |
 | 1.13 | `canManage` no botão Novo Contato | ☑ |
 | 1.14 | N+1 de `_resolve_price` — cache da tabela de preços por venda | ☑ |
 | 1.15 | Permissão ausente na tela de contas | ☑ |
