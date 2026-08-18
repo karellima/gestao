@@ -95,6 +95,154 @@ gestao.pazesousa.com.br {
 }
 ```
 
+## Fechar a origem com Authenticated Origin Pulls
+
+Esta seção é um procedimento operacional separado do deploy da aplicação. Ela
+exige autorização explícita do dono do sistema e deve ser executada somente
+depois de um inventário do Caddy compartilhado.
+
+### 1. Inventário antes da mudança
+
+Não presuma o nome do container nem o caminho do Caddyfile. Identifique-os no
+servidor e registre o resultado antes de editar qualquer configuração:
+
+```bash
+export CADDY_CONTAINER="nome-do-container-caddy"
+export CADDYFILE="caminho-do-caddyfile-efetivo"
+
+docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
+docker inspect "$CADDY_CONTAINER" \
+  --format '{{json .Mounts}} {{json .NetworkSettings.Networks}}'
+docker exec "$CADDY_CONTAINER" caddy version
+docker exec "$CADDY_CONTAINER" caddy adapt --config "$CADDYFILE" --pretty
+```
+
+Se o Caddy rodar diretamente no host, use os mesmos comandos sem `docker
+exec`. Liste todos os sites no Caddyfile/adaptação e confirme, com o dono de
+cada sistema, quais dependem de acesso direto à origem. A mudança abaixo deve
+ficar exclusivamente no bloco `gestao.pazesousa.com.br`; não aplique
+autenticação de cliente no bloco global nem nos demais sites.
+
+### 2. Preparar o certificado do cliente
+
+Use uma CA privada e um certificado de cliente com uso `clientAuth`. A chave
+privada da CA e a chave privada do cliente ficam fora do repositório e não são
+copiadas para a origem. Um exemplo de preparação em uma máquina administrativa
+é:
+
+```bash
+umask 077
+export AOP_WORKDIR="$(mktemp -d)"
+
+openssl genrsa -out "$AOP_WORKDIR/gestao-aop-ca.key" 4096
+openssl req -x509 -new -nodes \
+  -key "$AOP_WORKDIR/gestao-aop-ca.key" \
+  -sha256 -days 3650 \
+  -subj '/CN=Gestao Cloudflare AOP CA' \
+  -out "$AOP_WORKDIR/gestao-aop-ca.crt"
+
+openssl genrsa -out "$AOP_WORKDIR/cloudflare-gestao-aop.key" 2048
+openssl req -new \
+  -key "$AOP_WORKDIR/cloudflare-gestao-aop.key" \
+  -subj '/CN=gestao.pazesousa.com.br' \
+  -out "$AOP_WORKDIR/cloudflare-gestao-aop.csr"
+
+cat > "$AOP_WORKDIR/client-ext.cnf" <<'EOF'
+basicConstraints = critical,CA:false
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = clientAuth
+EOF
+
+openssl x509 -req \
+  -in "$AOP_WORKDIR/cloudflare-gestao-aop.csr" \
+  -CA "$AOP_WORKDIR/gestao-aop-ca.crt" \
+  -CAkey "$AOP_WORKDIR/gestao-aop-ca.key" \
+  -CAcreateserial -out "$AOP_WORKDIR/cloudflare-gestao-aop.crt" \
+  -days 825 -sha256 -extfile "$AOP_WORKDIR/client-ext.cnf"
+openssl x509 -in "$AOP_WORKDIR/cloudflare-gestao-aop.crt" -noout -purpose
+```
+
+No Cloudflare, carregue `cloudflare-gestao-aop.crt` e sua chave privada na
+configuração de Authenticated Origin Pulls por hostname e associe o certificado
+somente a `gestao.pazesousa.com.br`. Nunca coloque a chave privada em
+`.env.ionos`, no Caddyfile ou em um commit. Copie apenas
+`gestao-aop-ca.crt` para o volume/configuração de certificados que o Caddy já
+usa e defina, no ambiente do serviço Caddy, `GESTAO_AOP_CA_FILE` apontando para
+esse arquivo.
+
+### 3. Ativar sem interromper o domínio público
+
+Primeiro habilite o certificado por hostname no Cloudflare e confirme que o
+domínio público ainda responde. Depois faça uma cópia do Caddyfile e acrescente
+`tls` somente ao site do Gestão:
+
+```bash
+export CADDYFILE_BACKUP="${CADDYFILE}.before-gestao-aop.$(date -u +%Y%m%dT%H%M%SZ)"
+cp "$CADDYFILE" "$CADDYFILE_BACKUP"
+```
+
+```caddyfile
+gestao.pazesousa.com.br {
+    encode gzip
+
+    tls {
+        client_auth {
+            mode require_and_verify
+            trust_pool file {$GESTAO_AOP_CA_FILE}
+        }
+    }
+
+    reverse_proxy gestao-app:8000
+}
+```
+
+Valide a configuração efetiva antes de recarregar. Se o Caddy instalado não
+aceitar a sintaxe acima, pare e consulte a versão instalada; não substitua por
+uma configuração global nem recarregue uma adaptação não validada:
+
+```bash
+docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
+```
+
+### 4. Verificação
+
+Use um hostname no SNI ao testar o IP da origem. Um `Host` isolado não prova que
+o bloco TLS correto foi selecionado:
+
+```bash
+export ORIGIN_IP="IP_PUBLICO_DA_ORIGEM"
+curl --fail --silent --show-error \
+  https://gestao.pazesousa.com.br/api/health
+
+curl --resolve gestao.pazesousa.com.br:443:"$ORIGIN_IP" \
+  --fail --silent --show-error \
+  https://gestao.pazesousa.com.br/api/health
+```
+
+O primeiro comando deve devolver `200`. O segundo, sem certificado cliente,
+deve falhar no handshake. Repita a verificação pública para todos os outros
+domínios inventariados e abra o Gestão no navegador para confirmar que o login
+continua funcionando através do Cloudflare.
+
+### 5. Rollback
+
+Se a validação falhar, remova primeiro o `tls.client_auth` do bloco do Gestão,
+restaure a cópia conferida e valide antes de recarregar:
+
+```bash
+cp "$CADDYFILE_BACKUP" "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
+docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
+```
+
+Somente depois que o tráfego público estiver normal, desabilite o certificado
+por hostname no Cloudflare. Não restaure o Caddyfile inteiro de outro sistema e
+não remova autenticação dos demais sites. A tarefa seguinte, rate limit do
+login, depende deste fechamento: sem ele, qualquer cliente que alcance a
+origem poderia forjar `CF-Connecting-IP` e escolher um novo balde a cada
+tentativa.
+
 Registre também `gestao.pazesousa.com.br` no DNS apontando para o IP público do
 IONOS. Valide o Caddyfile antes de recarregá-lo. Para que a conexão sobreviva à
 recriação do Caddy, declare `gestao_proxy` como rede externa no Compose que
