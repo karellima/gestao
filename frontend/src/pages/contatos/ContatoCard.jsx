@@ -25,8 +25,8 @@ export default function ContatoCard({ contact, canManage, onEdit, onDelete }) {
       </div>
       {canManage && (
         <div className="flex justify-end gap-2">
-          <button onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>
-          <button onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
+          <button aria-label={`Editar ${c.name}`} onClick={() => onEdit(c)} className="text-brand-600 hover:text-brand-800"><Edit size={16} /></button>
+          <button aria-label={`Excluir ${c.name}`} onClick={() => onDelete(c.id)} className="text-red-600 hover:text-red-800"><Trash2 size={16} /></button>
         </div>
       )}
     </div>
