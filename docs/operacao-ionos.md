@@ -118,187 +118,146 @@ sudo systemctl enable --now gestao-backup.timer
 systemctl list-timers gestao-backup.timer
 ```
 
-## Fechar a origem com Authenticated Origin Pulls
+## Fechar a origem com Cloudflare Tunnel
 
-Esta seção é um procedimento operacional separado do deploy da aplicação. Ela
-exige autorização explícita do dono do sistema e deve ser executada somente
-depois de um inventário do Caddy compartilhado.
+Enquanto o Gestão for atendido pelo Caddy, o servidor aceita conexão de entrada
+em `:443` e qualquer um que descubra o IP da origem fala com a aplicação
+passando por cima da Cloudflare. O túnel resolve isso invertendo o sentido: quem
+abre a conexão é um container daqui, para fora. Não sobra IP para descobrir nem
+porta para varrer.
 
-### 1. Inventário antes da mudança
+Isto também é o que torna o `CF-Connecting-IP` confiável. O rate limit do login
+chaveia por esse cabeçalho, e ele só vale alguma coisa se nada além do túnel
+alcançar a aplicação.
 
-Não presuma o nome do container nem o caminho do Caddyfile. Identifique-os no
-servidor e registre o resultado antes de editar qualquer configuração:
+### Por que não é Authenticated Origin Pulls
 
-```bash
-export CADDY_CONTAINER="nome-do-container-caddy"
-export CADDYFILE="caminho-do-caddyfile-efetivo"
+O AOP foi tentado antes e **não serve neste plano**. Certificado próprio
+(zone-level ou per-hostname) é recurso de Business/Enterprise: o painel aceita o
+upload e marca `Active`, mas a borda não apresenta o certificado, e a origem que
+passar a exigi-lo recusa a própria Cloudflare. Foi exatamente o que aconteceu num
+ensaio — o site respondeu `520` até o rollback.
 
-docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
-docker inspect "$CADDY_CONTAINER" \
-  --format '{{json .Mounts}} {{json .NetworkSettings.Networks}}'
-docker exec "$CADDY_CONTAINER" caddy version
-docker exec "$CADDY_CONTAINER" caddy adapt --config "$CADDYFILE" --pretty
-```
+Resta o AOP **Global**, que existe no plano Free mas usa um certificado
+compartilhado entre todos os clientes da Cloudflare: garante que a requisição vem
+da rede da Cloudflare, não que vem da *sua* zona. O túnel é gratuito e fecha de
+verdade, então é o caminho escolhido.
 
-Se o Caddy rodar diretamente no host, use os mesmos comandos sem `docker
-exec`. Liste todos os sites no Caddyfile/adaptação e confirme, com o dono de
-cada sistema, quais dependem de acesso direto à origem. A mudança abaixo deve
-ficar exclusivamente no bloco `gestao.pazesousa.com.br`; não aplique
-autenticação de cliente no bloco global nem nos demais sites.
+### O desenho
 
-Falta uma pergunta neste inventário, e é ela que decide se a mudança é segura:
-**algum sistema deste servidor acessa a origem por IP com o `Host` sobrescrito?**
-Monitoramento externo, healthcheck, cron interno e script de status costumam
-fazer exatamente isso. Exigir certificado de cliente no bloco do Gestão liga o
-`strict_sni_host` para o listener inteiro — o porquê está na seção 4 — e esses
-acessos passam a receber `421`. Levante a lista agora; depois do reload você
-descobre pelo sistema que parou.
+O serviço `cloudflared` vive no próprio `docker-compose.ionos.yml`, no mesmo
+padrão do túnel que já roda para o `logps` neste servidor
+(`/home/karel/pazesousa/ops/production/compose.yaml`): imagem pinada por digest,
+token em Docker secret lido de arquivo, `watchtower` desativado por rótulo.
 
-### 2. Preparar o certificado do cliente
+Ele está atrás do profile `tunnel`. **Sem `--profile tunnel`, nada muda** — o
+Compose sobe só `db` e `app`, e o Caddy continua atendendo. É isso que permite
+provar o túnel antes de desligar o caminho antigo.
 
-Use uma CA privada e um certificado de cliente com uso `clientAuth`. A chave
-privada da CA e a chave privada do cliente ficam fora do repositório e não são
-copiadas para a origem. Um exemplo de preparação em uma máquina administrativa
-é:
+### 1. Criar o túnel na Cloudflare
 
-```bash
-umask 077
-export AOP_WORKDIR="$(mktemp -d)"
+Em Zero Trust → Networks → Tunnels, crie um túnel do tipo **Cloudflared** e copie
+o token. Não configure o hostname público ainda.
 
-openssl genrsa -out "$AOP_WORKDIR/gestao-aop-ca.key" 4096
-openssl req -x509 -new -nodes \
-  -key "$AOP_WORKDIR/gestao-aop-ca.key" \
-  -sha256 -days 3650 \
-  -subj '/CN=Gestao Cloudflare AOP CA' \
-  -out "$AOP_WORKDIR/gestao-aop-ca.crt"
+### 2. Guardar o token no servidor
 
-openssl genrsa -out "$AOP_WORKDIR/cloudflare-gestao-aop.key" 2048
-openssl req -new \
-  -key "$AOP_WORKDIR/cloudflare-gestao-aop.key" \
-  -subj '/CN=gestao.pazesousa.com.br' \
-  -out "$AOP_WORKDIR/cloudflare-gestao-aop.csr"
-
-cat > "$AOP_WORKDIR/client-ext.cnf" <<'EOF'
-basicConstraints = critical,CA:false
-keyUsage = critical,digitalSignature,keyEncipherment
-extendedKeyUsage = clientAuth
-EOF
-
-openssl x509 -req \
-  -in "$AOP_WORKDIR/cloudflare-gestao-aop.csr" \
-  -CA "$AOP_WORKDIR/gestao-aop-ca.crt" \
-  -CAkey "$AOP_WORKDIR/gestao-aop-ca.key" \
-  -CAcreateserial -out "$AOP_WORKDIR/cloudflare-gestao-aop.crt" \
-  -days 825 -sha256 -extfile "$AOP_WORKDIR/client-ext.cnf"
-openssl x509 -in "$AOP_WORKDIR/cloudflare-gestao-aop.crt" -noout -purpose
-```
-
-No Cloudflare, carregue `cloudflare-gestao-aop.crt` e sua chave privada na
-configuração de Authenticated Origin Pulls por hostname e associe o certificado
-somente a `gestao.pazesousa.com.br`. Nunca coloque a chave privada em
-`.env.ionos`, no Caddyfile ou em um commit. Copie apenas
-`gestao-aop-ca.crt` para o volume/configuração de certificados que o Caddy já
-usa e defina, no ambiente do serviço Caddy, `GESTAO_AOP_CA_FILE` apontando para
-esse arquivo.
-
-### 3. Ativar sem interromper o domínio público
-
-Primeiro habilite o certificado por hostname no Cloudflare e confirme que o
-domínio público ainda responde. Depois faça uma cópia do Caddyfile e acrescente
-`tls` somente ao site do Gestão:
+`/opt/gestao` pertence ao usuário da aplicação, então não precisa de `sudo`:
 
 ```bash
-export CADDYFILE_BACKUP="${CADDYFILE}.before-gestao-aop.$(date -u +%Y%m%dT%H%M%SZ)"
-cp "$CADDYFILE" "$CADDYFILE_BACKUP"
+mkdir -p /opt/gestao/secrets && chmod 700 /opt/gestao/secrets
+printf '%s' 'COLE_O_TOKEN_AQUI' > /opt/gestao/secrets/cloudflare_tunnel_token
+chmod 600 /opt/gestao/secrets/cloudflare_tunnel_token
 ```
 
-```caddyfile
-gestao.pazesousa.com.br {
-    encode gzip
+Use `printf`, não `echo`: o `echo` acrescenta uma quebra de linha ao token e o
+`cloudflared` recusa a credencial sem dizer por quê.
 
-    tls {
-        client_auth {
-            mode require_and_verify
-            trust_pool file {$GESTAO_AOP_CA_FILE}
-        }
-    }
+O arquivo não é versionado. Confira que `secrets/` está coberto pelo
+`.gitignore` antes de seguir.
 
-    reverse_proxy gestao-app:8000
-}
-```
-
-Valide a configuração efetiva antes de recarregar. Se o Caddy instalado não
-aceitar a sintaxe acima, pare e consulte a versão instalada; não substitua por
-uma configuração global nem recarregue uma adaptação não validada:
+### 3. Subir o túnel sem tocar no tráfego
 
 ```bash
-docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
-docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
+cd /opt/gestao
+docker compose --env-file .env.ionos -f docker-compose.ionos.yml --profile tunnel up -d cloudflared
+docker compose --env-file .env.ionos -f docker-compose.ionos.yml ps cloudflared
 ```
 
-### 4. Verificação
+Espere o estado ficar `healthy`. Se ficar reiniciando, o problema é o token — veja
+`docker logs gestao-cloudflared-1`. **Nada mudou para quem usa o sistema:** o
+domínio continua sendo servido pelo Caddy.
 
-Antes de testar, saiba o que os testes precisam procurar. O `strict_sni_host`
-do Caddy é ligado sozinho quando há autenticação de cliente, e é uma opção **por
-servidor**, não por site: ao exigir certificado no bloco do Gestão, todos os
-sites que dividem o listener `:443` passam a exigir que o `Host` da requisição
-bata com o `ServerName` do ClientHello, e respondem `421 Misdirected Request`
-quando não bate. Está documentado em
-<https://caddyserver.com/docs/caddyfile/options>.
+### 4. Provar o caminho inteiro num hostname de teste
 
-Isso é o que fecha a origem de verdade — sem ele, bastaria abrir o TLS com o SNI
-de outro site do servidor e mandar `Host: gestao.pazesousa.com.br` para desviar
-do certificado. Mas o efeito não para no Gestão, e os dois `curl` abaixo não
-pegam o estrago: eles vão pelo DNS normal, onde SNI e Host sempre coincidem.
+Não aponte o domínio de produção para o túnel antes de saber que ele funciona. No
+painel do túnel, crie um **public hostname** temporário:
 
-Use um hostname no SNI ao testar o IP da origem. Um `Host` isolado não prova que
-o bloco TLS correto foi selecionado:
+- Subdomain: `gestao-tunnel`
+- Domain: `pazesousa.com.br`
+- Service: `HTTP` → `app:8000`
+
+O destino é `app:8000`, o nome do serviço na rede interna do Compose — não
+`gestao-app:8000`, que é o alias usado pelo Caddy na rede do proxy.
 
 ```bash
-export ORIGIN_IP="IP_PUBLICO_DA_ORIGEM"
-curl --fail --silent --show-error \
-  https://gestao.pazesousa.com.br/api/health
+curl --fail --silent --show-error https://gestao-tunnel.pazesousa.com.br/api/health
+```
 
-curl --resolve gestao.pazesousa.com.br:443:"$ORIGIN_IP" \
-  --fail --silent --show-error \
+Deve devolver `{"status":"ok",...}`. Abra o sistema nesse endereço e faça um
+login real: é o teste que prova que o túnel serve o SPA e a API, não só o
+healthcheck.
+
+### 5. Cortar o domínio de produção para o túnel
+
+Só depois do passo 4 passar. No mesmo painel, troque o public hostname de
+`gestao-tunnel` para `gestao`. A Cloudflare reescreve o DNS sozinha, substituindo
+o registro que apontava para o IP da origem.
+
+```bash
+curl --fail --silent --show-error https://gestao.pazesousa.com.br/api/health
+```
+
+Confirme login real e permissões administrativas antes de seguir para o passo 6.
+
+**Rollback deste passo:** devolva o public hostname para `gestao-tunnel` e
+recrie o registro DNS de `gestao` apontando para o IP da origem. O bloco do Caddy
+ainda está lá, então o caminho antigo volta a funcionar sozinho.
+
+### 6. Só então tirar o Gestão do Caddy
+
+Este é o passo que fecha a origem, e o único irreversível sem edição manual.
+Guarde a cópia antes:
+
+```bash
+cp ~/services/Caddyfile ~/services/Caddyfile.bak-pre-tunnel-$(date -u +%Y%m%dT%H%M%SZ)
+```
+
+Remova o bloco entre `# BEGIN gestao.pazesousa.com.br` e
+`# END gestao.pazesousa.com.br`, e valide antes de recarregar:
+
+```bash
+docker exec caddy caddy validate --config /etc/caddy/Caddyfile
+docker exec caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+Tire também a publicação da porta no `docker-compose.ionos.yml` (`ports:
+127.0.0.1:8001`) se não usar mais o acesso local, e a rede `proxy` do serviço
+`app` — com o Caddy fora do caminho, nenhuma das duas tem função.
+
+### 7. Verificação final
+
+```bash
+# deve responder 200
+curl --fail --silent --show-error https://gestao.pazesousa.com.br/api/health
+
+# deve falhar: nao ha mais nada atendendo o Gestao na origem
+curl --max-time 15 --resolve gestao.pazesousa.com.br:443:IP_DA_ORIGEM \
   https://gestao.pazesousa.com.br/api/health
 ```
 
-O primeiro comando deve devolver `200`. O segundo, sem certificado cliente,
-deve falhar no handshake. Repita a verificação pública para todos os outros
-domínios inventariados e abra o Gestão no navegador para confirmar que o login
-continua funcionando através do Cloudflare.
+Confira também que os outros domínios do Caddy continuam respondendo, e que o
+`logps` — que usa o próprio túnel — não foi afetado.
 
-Por último, procure `421` no log do Caddy — para todos os sites, não só para o
-Gestão. Um `421` que não existia antes do reload é um cliente legítimo que
-dependia de `Host` diferente do SNI, e ele é a razão de existir a pergunta da
-seção 1:
-
-```bash
-docker logs --since 15m "$CADDY_CONTAINER" 2>&1 | grep -F '"status":421'
-```
-
-Saída vazia significa que nenhum sistema do servidor dependia desse
-comportamento. Saída não vazia é rollback, não ajuste: volte pela seção 5 e
-trate o cliente afetado antes de tentar de novo.
-
-### 5. Rollback
-
-Se a validação falhar, remova primeiro o `tls.client_auth` do bloco do Gestão,
-restaure a cópia conferida e valide antes de recarregar:
-
-```bash
-cp "$CADDYFILE_BACKUP" "$CADDYFILE"
-docker exec "$CADDY_CONTAINER" caddy validate --config "$CADDYFILE"
-docker exec "$CADDY_CONTAINER" caddy reload --config "$CADDYFILE"
-```
-
-Somente depois que o tráfego público estiver normal, desabilite o certificado
-por hostname no Cloudflare. Não restaure o Caddyfile inteiro de outro sistema e
-não remova autenticação dos demais sites. A tarefa seguinte, rate limit do
-login, depende deste fechamento: sem ele, qualquer cliente que alcance a
-origem poderia forjar `CF-Connecting-IP` e escolher um novo balde a cada
-tentativa.
 
 ## Cabeçalhos de segurança
 
