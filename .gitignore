@@ -41,3 +41,6 @@ backups/
 
 # Quality gate: o report é gerado a cada rodada; o baseline é versionado.
 quality/report.md
+
+# Token do tunnel Cloudflare e afins: segredo de servidor, nunca versionado.
+secrets/
